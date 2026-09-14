@@ -9,5 +9,5 @@
 | Ashley Hoang   | Front-End Developer Lead       |
 | Sharaf Mehmood | Front-End Developer Lead       |
 | Pablo Almanza  | Back-End Developer Lead        |
-| Colby Ideke    | Back-End Developer Lead        |
+| Colby Ideker   | Back-End Developer Lead        |
 | Samuel Just    | Project Manager / Integrations |
