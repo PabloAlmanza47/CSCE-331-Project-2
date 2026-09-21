@@ -1,0 +1,50 @@
+[Location]
+    *location_id
+    name
+    city
+    state
+
+[Receipt]
+    *receipt_id
+    +location_id
+    +user_id
+    timestamp
+    total_cost
+
+[ReceiptItem]
+    *receipt_item_id
+    +receipt_id
+    +item_id
+    quantity
+    price_at_sale
+
+[Item]
+    *item_id
+    +category_id
+    nutrition
+    price
+    stock
+    next_shipment # timestamp
+    unit_size
+    name
+
+[Category]
+    *category_id
+    name
+    allergy_info
+
+[User]
+    *user_id
+    +location_id
+    password
+    perms
+    clock_in_time
+    clock_out_time
+
+# Relationships
+Receipt 1--* ReceiptItem
+Item 1--* ReceiptItem
+Location 1--* Receipt 
+Category 1--* Item 
+User 1--* Receipt
+Location 1--* User

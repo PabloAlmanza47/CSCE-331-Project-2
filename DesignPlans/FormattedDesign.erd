@@ -1,0 +1,56 @@
+erDiagram
+    LOCATION {
+        int location_id PK
+        string name
+        string city
+        string state
+    }
+
+    RECEIPT {
+        int receipt_id PK
+        int location_id FK
+        int user_id FK
+        datetime timestamp
+        decimal total_cost
+    }
+
+    RECEIPT_ITEM {
+        int receipt_item_id PK
+        int receipt_id FK
+        int item_id FK
+        int quantity
+        decimal price_at_sale
+    }
+
+    ITEM {
+        int item_id PK
+        int category_id FK
+        string nutrition
+        decimal price
+        int stock
+        datetime next_shipment
+        string unit_size
+        string name
+    }
+
+    CATEGORY {
+        int category_id PK
+        string name
+        string allergy_info
+    }
+
+    USER {
+        int user_id PK
+        int location_id FK
+        string password
+        string perms
+        datetime clock_in_time
+        datetime clock_out_time
+    }
+
+    RECEIPT ||--o{ RECEIPT_ITEM : contains
+    ITEM ||--o{ RECEIPT_ITEM : appears_on
+    LOCATION ||--o{ RECEIPT : has
+    CATEGORY ||--o{ ITEM : contains
+    USER ||--o{ RECEIPT : creates
+    LOCATION ||--o{ USER : has
