@@ -14,6 +14,14 @@
 
 ![DesignDiagram](DesignPlans/diagram.png)
 
+## Design Schema
+Location: Location is important for understanding what specific panda express the data pertains to, to analyze the logisitcs of it and if its performing well.
+User: User logins are important to tell what information needs to be displayed; if it's for a cashier, they need the relevant information to perform orders, but if it's for a manager, they need the relevant information for reports and such.
+Receipts: Receipts are very important for tracking the order history for the manager, especially to generate end of day reports on profits.
+Receipt Item: Receipt item is a way to separate the receipt for order history and to manage stock.
+Category: Category helps separate all of the different item types to help organize the views for cashiers, to make it easier to place orders.
+Item: Item is there for the specifics of the items that may appear on receipts, for price, stock, and other important information the manager and cashier may need to know to make sure the restauraunt is operating correctly.
+
 ## AI Usage
 
 ### Diagram
