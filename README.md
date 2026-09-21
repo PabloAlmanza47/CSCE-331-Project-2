@@ -21,3 +21,5 @@
 After making initial diagram, I asked the ai to give feedback on what didn't make sense.
 It helped refactor the Receipts so that they properly used multiple items. 
 I then asked it to take the BaseDesign.erd (human made) and make a FoormattedDesign (ai made).
+
+[See the full chat here](https://chat.tamu.ai/s/32874c32-d403-44a1-bdb2-31b5342cb6c6)
