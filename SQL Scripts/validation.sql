@@ -11,7 +11,7 @@ ORDER BY week;
 -- Orders fall within operating hours
 
 SELECT 
-    DATE_TRUNC('hour', timestamp) AS hour,
+    EXTRACT(HOUR FROM "timestamp") AS hour,
     COUNT(*) as order_count,
     SUM(total_cost) AS total_sales
 FROM Receipt
@@ -19,6 +19,15 @@ GROUP BY EXTRACT(HOUR FROM "timestamp")
 ORDER BY hour;
 
 -- 2 peak days
+
+SELECT
+    DATE_TRUNC('day', timestamp) AS day,
+    SUM(total_cost) AS total_sales
+FROM Receipt
+GROUP BY DATE_TRUNC('day', "timestamp")
+ORDER BY total_sales DESC
+LIMIT 10;
+
 
 -- Inventory items for 20 menu items
 
