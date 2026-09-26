@@ -13,4 +13,5 @@ generator.o: generator.cpp
 .PHONY: clean
 clean:
 	rm -f *.o
-	rm generate
+	rm -f generate
+	rm -f ../SqlCommands/Script.sql
