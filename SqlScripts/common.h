@@ -25,31 +25,44 @@ class Scriptable {
         virtual ~Scriptable() = default;
 };
 
+enum ItemCategory {
+    ENTREE, SIDE, DRINK
+};
+
+struct AmountPerCategory {
+    int entrees, sides, drinks;
+
+    AmountPerCategory() : entrees(0), sides(0), drinks(0) {}
+};
+
 class Item : public Scriptable {
     private:
         int id;
+        ItemCategory category;
         float price;
         string name;
 
     public:
-        Item(int id, float price, const string& name) : id(id), price(price), name(name) {}
-        Item(float price, const string& name) : id(getId()), price(price), name(name) {}
+        Item(int id, ItemCategory category, float price, const string& name) : id(id), category(category), price(price), name(name) {}
+        Item(ItemCategory category, float price, const string& name) : id(getId()), category(category), price(price), name(name) {}
         Item(Item& copy) {
             id = copy.id;
+            category = copy.category;
             price = copy.price;
             name = string(copy.name.c_str());
         }
         Item(Item&& move) {
             id = move.id;
+            category = move.category;
             price = move.price;
             name = std::move(move.name);
         }
-        // Item() : Item(-1, "") {}
 
         string toSql() const override;
 
         int getId() const noexcept;
         float getPrice() const noexcept;
+        ItemCategory getCategory() const noexcept;
 };
 
 class OrderObject : public Scriptable {
@@ -89,10 +102,13 @@ class OrderObject : public Scriptable {
             amount = move.amount;
             item = move.item;
         }
-        // OrderObject() : OrderObject(-1, -1, nullptr) {}
 
         string toSql() const override;
         void setParentId(int id);
+
+        Item*& getItem() noexcept;
+        int& getItemId() noexcept;
+        uint& getAmount() noexcept;
 };
 
 class Order : public Scriptable {
@@ -130,7 +146,6 @@ class Order : public Scriptable {
 
             setChildIds();
         }
-        // Order() : Order(vector<OrderObject*>(), 0) {}
 
         string toSql() const override;
         void setChildIds();
@@ -147,16 +162,16 @@ class Generator {
         vector<vector<Order*>*> orders;
         vector<Item*> allItems;
         time_t currentDay;
-        mt19937 rndSeed;
+        mt19937 rngSeed;
 
+        uniform_real_distribution<double> percentGen;
         uniform_int_distribution<int> itemsInOrder;
         uniform_int_distribution<int> itemChoice;
-        uniform_int_distribution<int> itemAmount;
         uniform_int_distribution<int> ordersPerDay;
 
         void setupRandomGenerators();
         void generateItems();
-        OrderObject* generateOrderObject();
+        OrderObject* generateOrderObject(AmountPerCategory counts);
         Order* generateOrder(time_t durationOfOrder);
 
     public:
@@ -175,7 +190,7 @@ class Generator {
             generateItems();
 
             random_device rd;
-            rndSeed = std::mt19937(rd());
+            rngSeed = std::mt19937(rd());
             setupRandomGenerators();
         }
         Generator() : Generator(0) {}

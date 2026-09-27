@@ -7,20 +7,30 @@
 using namespace std;
 
 // BOUNDS
-#define MIN_ITEMS_PER_ORDER 1 // default: 1
-#define MAX_ITEMS_PER_ORDER 10 // default: 5
+#define MIN_AMOUNT_OF_ENTREES 1 // default: 1
+#define MAX_AMOUNT_OF_ENTREES 1 // default: 2
+#define MIN_AMOUNT_OF_SIDES 0 // default: 1
+#define MAX_AMOUNT_OF_SIDES 2 // default: 2
+#define MIN_AMOUNT_OF_DRINKS 0 // default: 1
+#define MAX_AMOUNT_OF_DRINKS 2 // default: 2
 
-#define MIN_AMOUNT_OF_ITEMS 1 // default: 1
-#define MAX_AMOUNT_OF_ITEMS 3 // default: 2
+// DONT TOUCH THESE 2
+#define MIN_ITEMS_PER_ORDER MIN_AMOUNT_OF_ENTREES + MIN_AMOUNT_OF_SIDES + MIN_AMOUNT_OF_DRINKS
+#define MAX_ITEMS_PER_ORDER MAX_AMOUNT_OF_ENTREES + MAX_AMOUNT_OF_SIDES + MAX_AMOUNT_OF_DRINKS
 
-#define MIN_ORDERS_PER_DAY 50 // default: 200
-#define MAX_ORDERS_PER_DAY 100 // default: 300
+#define MIN_ORDERS_PER_DAY 20 // default: 200
+#define MAX_ORDERS_PER_DAY 50 // default: 300
 
-//DAYS
-#define LENGTH_IN_DAYS 7 * 1
+// DAYS
+#define LENGTH_IN_DAYS 1//7 * 1
 
 #define OPENING_TIME_UNIX 3'600 * 7 // opens at 7:00 am
 #define CLOSING_TIME_UNIX 3'600 * 21 // closes at 21:00 or 9:00 pm
+
+// CATEGORY COUNTS
+#define NUMBER_OF_ENTREES 12
+#define NUMBER_OF_SIDES 7
+#define NUMBER_OF_DRINKS 9
 
 int main() {
     //The timespan will be LENGTH_IN_DAYS days before now to now.
@@ -49,10 +59,12 @@ int main() {
 // SQL CONVERT FUNCTIONS
 
 string Item::toSql() const {
-    string outp{"INSERT INTO item (item_id, price, name) VALUES ("};
+    string outp{"INSERT INTO item (item_id, category_id, price, name) VALUES ("};
     outp.reserve(128);
 
     outp += std::to_string(id);
+    outp += ", ";
+    outp += std::to_string(category);
     outp += ", ";
     outp += std::to_string(price);
     outp += ", ";
@@ -111,8 +123,24 @@ float Item::getPrice() const noexcept {
     return price;
 }
 
+ItemCategory Item::getCategory() const noexcept {
+    return category;
+}
+
 void OrderObject::setParentId(int id) {
     parentId = id;
+}
+
+Item*& OrderObject::getItem() noexcept {
+    return item;
+}
+
+int& OrderObject::getItemId() noexcept {
+    return itemId;
+}
+
+uint& OrderObject::getAmount() noexcept {
+    return amount;
 }
 
 void Order::setChildIds() {
@@ -133,29 +161,105 @@ time_t Order::getTimestamp() const noexcept {
 // GENERATOR FUNCTIONS
 
 void Generator::setupRandomGenerators() {
+    percentGen = uniform_real_distribution<double>(0.0, 1.0);
+
     itemsInOrder = uniform_int_distribution<int>(MIN_ITEMS_PER_ORDER, MAX_ITEMS_PER_ORDER);
     itemChoice = uniform_int_distribution<int>(0, allItems.size() - 1);
-    itemAmount = uniform_int_distribution<int>(MIN_AMOUNT_OF_ITEMS, MAX_AMOUNT_OF_ITEMS);
     ordersPerDay = uniform_int_distribution<int>(MIN_ORDERS_PER_DAY, MAX_ORDERS_PER_DAY);
 }
 
-OrderObject* Generator::generateOrderObject() {
+OrderObject* Generator::generateOrderObject(AmountPerCategory counts) {
 
-    int itemIndex = itemChoice(rndSeed);
+    int itemIndex = itemChoice(rngSeed);
     Item* itemPointer = allItems[itemIndex];
-    int amount = itemAmount(rndSeed);
+
+    int max;
+    switch (itemPointer->getCategory()) {
+        case ItemCategory::ENTREE:
+            max = MAX_AMOUNT_OF_ENTREES - counts.entrees;
+            break;
+        case ItemCategory::SIDE:
+            max = MAX_AMOUNT_OF_SIDES - counts.sides;
+            break;
+        case ItemCategory::DRINK:
+            max = MAX_AMOUNT_OF_DRINKS - counts.drinks;
+            break;
+    }
+
+    int amount = max <= 1 ? 1 : std::round(percentGen(rngSeed) * (max - 1)) + 1;
 
     return new OrderObject(itemPointer->getId(), amount, itemPointer);
 }
 
 Order* Generator::generateOrder(time_t durationOfOrder) {
 
-    size_t numOfItems = itemsInOrder(rndSeed);
+    size_t numOfItems = itemsInOrder(rngSeed);
     vector<OrderObject*> items;
     items.reserve(numOfItems);
 
-    for (size_t i = 0; i < numOfItems; ++i)
-        items.push_back(generateOrderObject());
+    bool canExit = false;
+    AmountPerCategory counts;
+    for (size_t i = 0; i < numOfItems || !canExit; ++i) {
+        OrderObject* obj = generateOrderObject(counts);
+
+        int itemId = obj->getItem()->getId();
+    retry:
+        switch (obj->getItem()->getCategory()) {
+            case ItemCategory::ENTREE:
+                counts.entrees += obj->getAmount();
+                if (counts.entrees > MAX_AMOUNT_OF_ENTREES) {
+                    obj->getAmount() = 1; // to prevent any issues as we try other categories.
+                    float percent = percentGen(rngSeed) * (NUMBER_OF_SIDES - 1);
+                    itemId += NUMBER_OF_ENTREES - itemId + 1 + std::round(percent);
+                }
+                else break;
+            case ItemCategory::SIDE:
+                counts.sides += obj->getAmount();
+                if (counts.sides > MAX_AMOUNT_OF_SIDES) {
+                    obj->getAmount() = 1; // to prevent any issues as we try other categories.
+                    float percent = percentGen(rngSeed) * (NUMBER_OF_DRINKS - 1);
+                    itemId += NUMBER_OF_SIDES - (itemId - NUMBER_OF_ENTREES) + 1 + std::round(percent);
+                }
+                else break;
+            case ItemCategory::DRINK:
+                counts.drinks += obj->getAmount();
+                if (counts.drinks > MAX_AMOUNT_OF_DRINKS) {
+                    if (counts.entrees >= MIN_AMOUNT_OF_ENTREES && counts.sides >= MIN_AMOUNT_OF_SIDES)
+                        break; // this is to prevent a loop.
+
+                    obj->getAmount() = 1; // to prevent any issues as we try other categories.
+                    float percent = percentGen(rngSeed) * (NUMBER_OF_ENTREES - 1);
+                    itemId = 1 + std::round(percent);
+                    obj->getItem() = allItems[itemId - 1];
+                    goto retry;
+                }
+                else break;
+        }
+
+        if (obj->getAmount() > 1)
+            i += obj->getAmount() - 1;
+
+        if (itemId != obj->getItemId()) {
+            obj->getItemId() = itemId;
+            obj->getItem() = allItems[itemId - 1];
+        }
+
+        //This is O(n^2), but each order will never contain a large amount of items so it should be fine.
+        for (size_t j = 0; j < items.size(); ++j) {
+            if (items[j]->getItem()->getId() == itemId) {
+                ++items[j]->getAmount();
+                delete obj;
+                obj = nullptr;
+                break;
+            }
+        }
+
+        if (obj != nullptr)
+            items.push_back(obj);
+
+        if (!canExit && counts.entrees >= MIN_AMOUNT_OF_ENTREES && counts.sides >= MIN_AMOUNT_OF_SIDES && counts.drinks >= MIN_AMOUNT_OF_DRINKS)
+            canExit = true;
+    }
 
     Order* o = new Order(std::move(items), currentDay);
     currentDay += durationOfOrder;
@@ -166,7 +270,7 @@ void Generator::generateNextDay() {
 
     const int dayLength = CLOSING_TIME_UNIX - OPENING_TIME_UNIX;
 
-    size_t numOfOrders = ordersPerDay(rndSeed);
+    size_t numOfOrders = ordersPerDay(rngSeed);
     vector<Order*>* ordersToday = new vector<Order*>();
     ordersToday->reserve(numOfOrders);
 
@@ -278,33 +382,33 @@ void Generator::writeAll(const char* filename) {
 // ITEMS
 
 void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-blvd-sr16/menu/a-la-carte
-    allItems.push_back(new Item(1, 13.80, "Cantonese BBQ Brisket"));
-    allItems.push_back(new Item(2, 12.30, "Honey Walnut Shrimp"));
-    allItems.push_back(new Item(3, 12.30, "Black Pepper Sirloin Steak"));
-    allItems.push_back(new Item(4, 9.30, "Mushroom Chicken"));
-    allItems.push_back(new Item(5, 9.30, "Kung Pao Chicken"));
-    allItems.push_back(new Item(6, 9.30, "String Bean Chicken Breast"));
-    allItems.push_back(new Item(7, 9.30, "The Original Orange Chicken"));
-    allItems.push_back(new Item(8, 9.30, "SweetFire Chicken Breast"));
-    allItems.push_back(new Item(9, 4.65, "White Steamed Rice"));
-    allItems.push_back(new Item(10, 4.65, "Fried Rice"));
-    allItems.push_back(new Item(11, 4.65, "Chow Mein"));
-    allItems.push_back(new Item(12, 4.65, "Super Greens"));
-    allItems.push_back(new Item(13, 9.30, "Honey Sesame Chicken Breast"));
-    allItems.push_back(new Item(14, 9.30, "Grilled Teriyaki Chicken"));
-    allItems.push_back(new Item(15, 9.30, "Broccoli Beef"));
-    allItems.push_back(new Item(16, 9.30, "Beijing Beef"));
-    allItems.push_back(new Item(17, 2.10, "Veggie Spring Roll"));
-    allItems.push_back(new Item(18, 2.10, "Chicken Egg Roll"));
-    allItems.push_back(new Item(19, 2.10, "Cream Cheese Rangoon"));
-    allItems.push_back(new Item(20, 3.60, "Watermelon Mango Flavored Refresher"));
-    allItems.push_back(new Item(21, 2.70, "Fanta Orange"));
-    allItems.push_back(new Item(22, 2.70, "Dr Pepper"));
-    allItems.push_back(new Item(23, 2.70, "Dasani"));
-    allItems.push_back(new Item(24, 3.50, "Smartwater"));
-    allItems.push_back(new Item(25, 2.70, "Sprite"));
-    allItems.push_back(new Item(26, 2.70, "Minute Maid Lemonade"));
-    allItems.push_back(new Item(27, 3.60, "Pomegranate Pineapple Flavored Lemonade"));
-    allItems.push_back(new Item(28, 2.70, "Coca Cola Zero Sugar"));
+    allItems.push_back(new Item(1, ItemCategory::ENTREE, 13.80, "Cantonese BBQ Brisket"));
+    allItems.push_back(new Item(2, ItemCategory::ENTREE, 12.30, "Honey Walnut Shrimp"));
+    allItems.push_back(new Item(3, ItemCategory::ENTREE, 12.30, "Black Pepper Sirloin Steak"));
+    allItems.push_back(new Item(4, ItemCategory::ENTREE, 9.30, "Mushroom Chicken"));
+    allItems.push_back(new Item(5, ItemCategory::ENTREE, 9.30, "Kung Pao Chicken"));
+    allItems.push_back(new Item(6, ItemCategory::ENTREE, 9.30, "String Bean Chicken Breast"));
+    allItems.push_back(new Item(7, ItemCategory::ENTREE, 9.30, "The Original Orange Chicken"));
+    allItems.push_back(new Item(8, ItemCategory::ENTREE, 9.30, "SweetFire Chicken Breast"));
+    allItems.push_back(new Item(9, ItemCategory::ENTREE, 9.30, "Honey Sesame Chicken Breast"));
+    allItems.push_back(new Item(10, ItemCategory::ENTREE, 9.30, "Grilled Teriyaki Chicken"));
+    allItems.push_back(new Item(11, ItemCategory::ENTREE, 9.30, "Broccoli Beef"));
+    allItems.push_back(new Item(12, ItemCategory::ENTREE, 9.30, "Beijing Beef"));
+    allItems.push_back(new Item(13, ItemCategory::SIDE, 4.65, "White Steamed Rice"));
+    allItems.push_back(new Item(14, ItemCategory::SIDE, 4.65, "Fried Rice"));
+    allItems.push_back(new Item(15, ItemCategory::SIDE, 4.65, "Chow Mein"));
+    allItems.push_back(new Item(16, ItemCategory::SIDE, 4.65, "Super Greens"));
+    allItems.push_back(new Item(17, ItemCategory::SIDE, 2.10, "Veggie Spring Roll"));
+    allItems.push_back(new Item(18, ItemCategory::SIDE, 2.10, "Chicken Egg Roll"));
+    allItems.push_back(new Item(19, ItemCategory::SIDE, 2.10, "Cream Cheese Rangoon"));
+    allItems.push_back(new Item(20, ItemCategory::DRINK, 3.60, "Watermelon Mango Flavored Refresher"));
+    allItems.push_back(new Item(21, ItemCategory::DRINK, 2.70, "Fanta Orange"));
+    allItems.push_back(new Item(22, ItemCategory::DRINK, 2.70, "Dr Pepper"));
+    allItems.push_back(new Item(23, ItemCategory::DRINK, 2.70, "Dasani"));
+    allItems.push_back(new Item(24, ItemCategory::DRINK, 3.50, "Smartwater"));
+    allItems.push_back(new Item(25, ItemCategory::DRINK, 2.70, "Sprite"));
+    allItems.push_back(new Item(26, ItemCategory::DRINK, 2.70, "Minute Maid Lemonade"));
+    allItems.push_back(new Item(27, ItemCategory::DRINK, 3.60, "Pomegranate Pineapple Flavored Lemonade"));
+    allItems.push_back(new Item(28, ItemCategory::DRINK, 2.70, "Coca Cola Zero Sugar"));
     //allItems.push_back(new Item(2, , ""));
 }
