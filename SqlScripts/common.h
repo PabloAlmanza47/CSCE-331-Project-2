@@ -4,6 +4,9 @@
 #include <ctime>
 #include <random>
 
+// CATEGORY ENUM LENGTH (no easy way to dynamically get this)
+#define CATEGORY_LENGTH 3
+
 using namespace std;
 
 class Scriptable {
@@ -29,11 +32,14 @@ enum ItemCategory {
     ENTREE, SIDE, DRINK
 };
 
-struct AmountPerCategory {
-    int entrees, sides, drinks;
-
-    AmountPerCategory() : entrees(0), sides(0), drinks(0) {}
-};
+constexpr string_view to_string(ItemCategory category) {
+    switch (category) {
+        case ENTREE: return "Entree";
+        case SIDE: return "Side";
+        case DRINK: return "Drink";
+        default: return "Unknown";
+    }
+}
 
 class Item : public Scriptable {
     private:
@@ -70,18 +76,18 @@ class OrderObject : public Scriptable {
         int id;
         int parentId;
         int itemId;
-        uint amount;
+        int amount;
         Item* item;
 
     public:
-        OrderObject(int orderObjId, int itemId, uint amount, Item* item) {
+        OrderObject(int orderObjId, int itemId, int amount, Item* item) {
             id = orderObjId;
             parentId = -1;
             this->itemId = itemId;
             this->amount = amount;
             this->item = item;
         }
-        OrderObject(int itemId, uint amount, Item* item) {
+        OrderObject(int itemId, int amount, Item* item) {
             id = getId();
             parentId = -1;
             this->itemId = itemId;
@@ -108,7 +114,7 @@ class OrderObject : public Scriptable {
 
         Item*& getItem() noexcept;
         int& getItemId() noexcept;
-        uint& getAmount() noexcept;
+        int& getAmount() noexcept;
 };
 
 class Order : public Scriptable {
@@ -159,8 +165,14 @@ class Order : public Scriptable {
 
 class Generator {
     private:
+        Item** allItems;
+        int allItemsLen;
+        int categoryLens[CATEGORY_LENGTH];
+        int* peakDays;
+        int current;
+        int peakDaysLen;
+
         vector<vector<Order*>*> orders;
-        vector<Item*> allItems;
         time_t currentDay;
         mt19937 rngSeed;
 
@@ -171,7 +183,8 @@ class Generator {
 
         void setupRandomGenerators();
         void generateItems();
-        OrderObject* generateOrderObject(AmountPerCategory counts);
+        OrderObject* generateOrderObject(int counts[]);
+        void regenerateOrderObject(OrderObject* order, int count, ItemCategory category);
         Order* generateOrder(time_t durationOfOrder);
 
     public:
@@ -181,23 +194,28 @@ class Generator {
         void writeDays(ofstream& stream);
         void writeItems(const char* filename);
         void writeItems(ofstream& stream);
+        void writeCategories(ofstream& stream);
+        void writeCategories(const char* filename);
 
         void writeAll(const char* filename);
 
-        Generator(time_t start_day) {
-            currentDay = start_day;
+        Generator(time_t startDay, const int peakDays) : current(0), peakDaysLen(peakDays), currentDay(startDay) {
+            this->peakDays = new int[peakDays];
 
             generateItems();
 
             random_device rd;
             rngSeed = std::mt19937(rd());
-            setupRandomGenerators();
+            setupRandomGenerators();             
         }
-        Generator() : Generator(0) {}
+        Generator() : Generator(0, 0) {}
 
         ~Generator() {
-            for (size_t i = 0; i < allItems.size(); ++i)
+            delete[] peakDays;
+
+            for (int i = 0; i < allItemsLen; ++i)
                 delete allItems[i];
+            delete[] allItems;
 
             for (size_t i = 0; i < orders.size(); ++i) {
                 vector<Order*>* current = orders[i];
