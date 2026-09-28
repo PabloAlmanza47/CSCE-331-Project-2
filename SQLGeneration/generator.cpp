@@ -17,6 +17,9 @@ using namespace std;
 #define MIN_ORDERS_PER_DAY 20 // default: 200
 #define MAX_ORDERS_PER_DAY 50 // default: 300
 
+// How many cashiers each panda express has.
+#define EMPLOYEES_PER_LOCATION 3 // default: 3
+
 // DAYS
 #define LENGTH_IN_DAYS 7 //default: 7 * 52
 
@@ -54,6 +57,14 @@ int main() {
     int Scriptable::currentId = 0;
 
 // SQL CONVERT FUNCTIONS
+
+string Location::toSql() const {
+    return ""; // TODO
+}
+
+string User::toSql() const {
+    return ""; // TODO
+}
 
 string Item::toSql() const {
     string outp{"INSERT INTO item (item_id, category_id, price, name) VALUES ("};
@@ -115,6 +126,14 @@ ostream& operator<<(ostream& os, const Scriptable& obj) {
 }
 string Scriptable::toSql() const {
     return "";
+}
+
+int Location::getId() const noexcept {
+    return id;
+}
+
+int User::getUserId() const noexcept {
+    return userId;
 }
 
 int Item::getId() const noexcept {
@@ -300,7 +319,7 @@ Order* Generator::generateOrder(time_t durationOfOrder) {
         }
     }
 
-    Order* o = new Order(std::move(items), currentDay);
+    Order* o = new Order(currentLocation->getId(), currentUser->getUserId(), std::move(items), currentDay);
     currentDay += durationOfOrder;
     return o;
 }
@@ -337,23 +356,36 @@ void Generator::generateNDays(int days) {
         generateNextDay();
 }
 
-void Generator::writeDays(const char* filename) {
-    ofstream outputFile = ofstream(filename);
+void Generator::writeEnumTypes(ofstream& stream) const {
+    stream << "CREATE TYPE user_perm AS ENUM (";
 
-    if (!outputFile.is_open()) {
-        cerr << "Failed to write days: The output file did not open!!" << endl;
-        return;
+    for (int i = 0; i < USER_PERM_LENGTH; ++i) {
+        if (i != 0)
+            stream << ", ";
+        stream << to_string(static_cast<UserPerm>(i));
     }
 
-    writeDays(outputFile);
-
-    outputFile.close();
+    stream << ");\n";
 }
 
-void Generator::writeDays(ofstream& stream) {
+void Generator::writeTruncates(ofstream& stream) const {
+    stream << "TRUNCATE TABLE category CASCADE;\n";
+    stream << "TRUNCATE TABLE item CASCADE;\n";
+    stream << "TRUNCATE TABLE receipt CASCADE;\n";
+    stream << "TRUNCATE TABLE receipt_item CASCADE;\n";
+}
 
-    stream << "TRUNCATE TABLE receipt CASCADE;\nTRUNCATE TABLE receipt_item CASCADE;\n\n";
+void Generator::writeCategories(ofstream& stream) const {    
+    for (int i = 0; i < CATEGORY_LENGTH; ++i)
+        stream << "INSERT INTO category (category_id, name) VALUES (" << std::to_string(i + 1) << ", '" << to_string((ItemCategory)i) << "');\n";
+}
 
+void Generator::writeItems(ofstream& stream) const {
+    for (int i = 0; i < allItemsLen; ++i)
+        stream << *(allItems[i]) << '\n';
+}
+
+void Generator::writeDays(ofstream& stream) const {
     char buf[40];
     size_t orderLen = orders.size(), currentOrderLen;
     for (size_t i = 0; i < orderLen; ++i) {
@@ -387,49 +419,7 @@ void Generator::writeDays(ofstream& stream) {
     }
 }
 
-void Generator::writeItems(const char* filename) {
-    ofstream outputFile = ofstream(filename);
-
-    if (!outputFile.is_open()) {
-        cerr << "Failed to write items: The output file did not open!!" << endl;
-        return;
-    }
-
-    writeItems(outputFile);
-
-    outputFile.close();
-}
-
-void Generator::writeItems(ofstream& stream) {
-
-    stream << "TRUNCATE TABLE item CASCADE;\n\n";
-
-    for (int i = 0; i < allItemsLen; ++i)
-        stream << *(allItems[i]) << '\n';
-}
-
-void Generator::writeCategories(const char* filename) {
-    ofstream outputFile = ofstream(filename);
-
-    if (!outputFile.is_open()) {
-        cerr << "Failed to write categories: The output file did not open!!" << endl;
-        return;
-    }
-
-    writeItems(outputFile);
-
-    outputFile.close();
-}
-
-void Generator::writeCategories(ofstream& stream) {
-    
-    stream << "TRUNCATE TABLE category CASCADE;\n\n";
-
-    for (int i = 0; i < CATEGORY_LENGTH; ++i)
-        stream << "INSERT INTO category (category_id, name) VALUES (" << std::to_string(i + 1) << ", '" << to_string((ItemCategory)i) << "');\n";
-}
-
-void Generator::writeAll(const char* filename) {
+void Generator::writeAll(const char* filename) const {
     ofstream outputFile = ofstream(filename);
 
     if (!outputFile.is_open()) {
@@ -437,9 +427,13 @@ void Generator::writeAll(const char* filename) {
         return;
     }
 
+    outputFile << "-- ENUM STATEMENTS\n\n";
+    writeEnumTypes(outputFile);
+    outputFile << "\n-- TRUNCATE STATEMENTS\n\n";
+    writeTruncates(outputFile);
     outputFile << "\n-- CATEGORY GENERATION\n\n";
     writeCategories(outputFile);
-    outputFile << "-- ITEM GENERATION\n\n";
+    outputFile << "\n-- ITEM GENERATION\n\n";
     writeItems(outputFile);
     outputFile << "\n-- ORDER GENERATION\n\n";
     writeDays(outputFile);
@@ -447,7 +441,25 @@ void Generator::writeAll(const char* filename) {
     outputFile.close();
 }
 
-// ITEMS
+// HARDCODED FUNCTIONS
+
+void Generator::generateLocations() {
+    const int len = 1;
+    allLocations = new Location*[len];
+    allLocationsLen = len;
+
+    allLocations[0] = new Location(1, "Polo Garage", "College Station", "Texas");
+}
+
+void Generator::generateUsers() {
+    int len = allLocationsLen * EMPLOYEES_PER_LOCATION;
+    allUsers = new User*[len];
+    allUsersLen = len;
+
+    for (int i = 0, id = 1; i < allLocationsLen; ++i)
+        for (int j = 0; j < EMPLOYEES_PER_LOCATION; ++j, ++id)
+            allUsers[id - 1] = new User(id, "1234", UserPerm::CASHIER);
+}
 
 void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-blvd-sr16/menu/a-la-carte
     const int len = 28;

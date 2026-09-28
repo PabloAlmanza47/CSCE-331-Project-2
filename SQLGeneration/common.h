@@ -4,8 +4,9 @@
 #include <ctime>
 #include <random>
 
-// CATEGORY ENUM LENGTH (no easy way to dynamically get this)
+// ENUM LENGTHS (no easy way to dynamically get this)
 #define CATEGORY_LENGTH 3
+#define USER_PERM_LENGTH 2
 
 using namespace std;
 
@@ -40,6 +41,48 @@ constexpr string_view to_string(ItemCategory category) {
         default: return "Unknown";
     }
 }
+
+class Location : public Scriptable {
+    private:
+        int id;
+        string name;
+        string city;
+        string state;
+
+    public:
+        Location(int id, string name, string city, string state) : id(id), name(name), city(city), state(state) {}
+        Location(string name, string city, string state) : id(getId()), name(name), city(city), state(state) {}
+
+        string toSql() const override;
+
+        int getId() const noexcept;
+};
+
+enum UserPerm {
+    CASHIER, MANAGER
+};
+
+constexpr string_view to_string(UserPerm perms) {
+    switch (perms) {
+        case CASHIER: return "Cashier";
+        case MANAGER: return "Manager";
+        default: return "Unknown";
+    }
+}
+
+class User : public Scriptable {
+    private:
+        int userId;
+        string password;
+        UserPerm perm;
+
+    public:
+        User(int userId, string password, UserPerm perm) : userId(userId), password(password), perm(perm) {}
+
+        string toSql() const override;
+
+        int getUserId() const noexcept;
+};
 
 class Item : public Scriptable {
     private:
@@ -120,36 +163,22 @@ class OrderObject : public Scriptable {
 class Order : public Scriptable {
     private:
         int id;
+        int userId;
+        int locationId;
         vector<OrderObject*> items;
         time_t timestamp;
 
     public:
-        Order(int id, const vector<OrderObject*>& items, const time_t& timestamp) {
-            this->id = id;
-            this->items = items;
-            this->timestamp = timestamp;
-
+        Order(int id, int userId, int locationId, const vector<OrderObject*>& items, const time_t& timestamp) : id(id), userId(userId), locationId(locationId), items(items), timestamp(timestamp)  {
             setChildIds();
         }
-        Order(int id, vector<OrderObject*>&& items, const time_t& timestamp) {
-            this->id = id;
-            this->items = items;
-            this->timestamp = timestamp;
-
+        Order(int id, int userId, int locationId, vector<OrderObject*>&& items, const time_t& timestamp)  : id(id), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
             setChildIds();
         }
-        Order(vector<OrderObject*>& items, const time_t& timestamp) {
-            this->id = getId();
-            this->items = items;
-            this->timestamp = timestamp;
-
+        Order(int userId, int locationId, vector<OrderObject*>& items, const time_t& timestamp)  : id(getId()), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
             setChildIds();
         }
-        Order(vector<OrderObject*>&& items, const time_t& timestamp) {
-            this->id = getId();
-            this->items = items;
-            this->timestamp = timestamp;
-
+        Order(int userId, int locationId, vector<OrderObject*>&& items, const time_t& timestamp) : id(getId()), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
             setChildIds();
         }
 
@@ -165,15 +194,39 @@ class Order : public Scriptable {
 
 class Generator {
     private:
+        // all item pointers, in an array. Sorted by category.
         Item** allItems;
         int allItemsLen;
+
+        // How many items are in each category.
         int categoryLens[CATEGORY_LENGTH];
+
+        // which days are peak days.
         int* peakDays;
+        // when the next peak day is (if this equals peakDaysLen then there are no more peak days).
         int current;
+        // length of the peakDays array.
         int peakDaysLen;
 
+        // all used panda express locations 
+        Location** allLocations;
+        int allLocationsLen;
+
+        // all employees
+        User** allUsers;
+        int allUsersLen;
+
+        // Every order placed
         vector<vector<Order*>*> orders;
+
+        // The current location and employee
+        Location* currentLocation;
+        User* currentUser;
+
+        // The current day
         time_t currentDay;
+
+        // rng seed, used for the random gens below
         mt19937 rngSeed;
 
         uniform_real_distribution<double> percentGen;
@@ -183,6 +236,9 @@ class Generator {
 
         void setupRandomGenerators();
         void generateItems();
+        void generateLocations();
+        void generateUsers();
+
         OrderObject* generateOrderObject(int counts[]);
         void regenerateOrderObject(OrderObject* order, int count, ItemCategory category);
         Order* generateOrder(time_t durationOfOrder);
@@ -190,28 +246,45 @@ class Generator {
     public:
         void generateNextDay();
         void generateNDays(int days);
-        void writeDays(const char* filename);
-        void writeDays(ofstream& stream);
-        void writeItems(const char* filename);
-        void writeItems(ofstream& stream);
-        void writeCategories(ofstream& stream);
-        void writeCategories(const char* filename);
 
-        void writeAll(const char* filename);
+        void writeEnumTypes(ofstream& stream) const;
+        void writeTruncates(ofstream& stream) const;
+
+        void writeCategories(ofstream& stream) const;
+        void writeItems(ofstream& stream) const;
+        void writeDays(ofstream& stream) const;
+
+        void writeAll(const char* filename) const;
 
         Generator(time_t startDay, const int peakDays) : current(0), peakDaysLen(peakDays), currentDay(startDay) {
             this->peakDays = new int[peakDays];
 
             generateItems();
+            generateLocations();
+            generateUsers();
 
             random_device rd;
             rngSeed = std::mt19937(rd());
-            setupRandomGenerators();             
+            setupRandomGenerators();  
+            
+            // Just select a random location for now.
+            currentLocation = allLocations[(int)std::round(percentGen(rngSeed) * (allLocationsLen - 1))];
+
+            // Just select a random user for now.
+            currentUser = allUsers[(int)std::round(percentGen(rngSeed) * (allUsersLen - 1))];
         }
         Generator() : Generator(0, 0) {}
 
         ~Generator() {
             delete[] peakDays;
+            
+            for (int i = 0; i < allLocationsLen; ++i)
+                delete allLocations[i];
+            delete[] allLocations;
+
+            for (int i = 0; i < allUsersLen; ++i)
+                delete allUsers[i];
+            delete[] allUsers;
 
             for (int i = 0; i < allItemsLen; ++i)
                 delete allItems[i];

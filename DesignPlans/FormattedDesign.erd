@@ -11,7 +11,6 @@ erDiagram
         int location_id FK
         int user_id FK
         datetime timestamp
-        decimal total_cost
     }
 
     RECEIPT_ITEM {
@@ -27,10 +26,23 @@ erDiagram
         int category_id FK
         string nutrition
         decimal price
-        int stock
-        datetime next_shipment
         string unit_size
         string name
+    }
+
+    INVENTORY {
+        int inventory_id PK
+        string name
+        string nutrition
+        int stock
+        datetime next_shipment
+        datetime shelf_life
+        float unit_size
+    }
+
+    INGREDIENT_LIST {
+        int item_id FK
+        int inventory_id FK
     }
 
     CATEGORY {
@@ -41,9 +53,14 @@ erDiagram
 
     USER {
         int user_id PK
-        int location_id FK
         string password
         string perms
+    }
+
+    USER_TIMETABLE {
+        int timetable_id PK
+        int user_id FK
+        int location_id FK
         datetime clock_in_time
         datetime clock_out_time
     }
@@ -54,3 +71,6 @@ erDiagram
     CATEGORY ||--o{ ITEM : contains
     USER ||--o{ RECEIPT : creates
     LOCATION ||--o{ USER : has
+    USER ||--o{ USER_TIMETABLE : creates
+    INGREDIENT_LIST ||--o{ INVENTORY : has
+    INGREDIENT_LIST ||--o{ ITEM : has 

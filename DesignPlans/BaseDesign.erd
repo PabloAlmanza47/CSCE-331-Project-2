@@ -9,7 +9,6 @@
     +location_id
     +user_id
     timestamp
-    total_cost
 
 [ReceiptItem]
     *receipt_item_id
@@ -23,10 +22,21 @@
     +category_id
     nutrition
     price
-    stock
-    next_shipment # timestamp
     unit_size
     name
+
+[Inventory]
+    *Inventory_id
+    name
+    nutrition
+    stock
+    next_shipment
+    shelf_life
+    unit_size
+
+[IngredientList]
+    +item_id
+    +inventory_id
 
 [Category]
     *category_id
@@ -35,9 +45,14 @@
 
 [User]
     *user_id
-    +location_id
     password
     perms
+    
+
+[UserTimetable]
+    *timetable_id
+    +user_id
+    +location_id
     clock_in_time
     clock_out_time
 
@@ -48,3 +63,4 @@ Location 1--* Receipt
 Category 1--* Item 
 User 1--* Receipt
 Location 1--* User
+User 1--* UserTimetable
