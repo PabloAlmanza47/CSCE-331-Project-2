@@ -21,7 +21,7 @@ using namespace std;
 #define EMPLOYEES_PER_LOCATION 3 // default: 3
 
 // DAYS
-#define LENGTH_IN_DAYS 7 //default: 7 * 52
+#define LENGTH_IN_DAYS 1 //default: 7 * 52
 
 // Peak days double the number of orders on that day.
 #define NUMBER_OF_PEAK_DAYS 2 // default: 2
@@ -59,11 +59,35 @@ int main() {
 // SQL CONVERT FUNCTIONS
 
 string Location::toSql() const {
-    return ""; // TODO
+    string outp{"INSERT INTO location (location_id, name, city, state) VALUES ("};
+    outp.reserve(92);
+
+    outp += std::to_string(id);
+    outp += ", '";
+    outp += name;
+    outp += "', '";
+    outp += city;
+    outp += "', '";
+    outp += state;
+    outp += '\'';
+
+    return outp + ");";
 }
 
 string User::toSql() const {
-    return ""; // TODO
+    string outp{"INSERT INTO app_user (user_id, name, password, perms) VALUES ("};
+
+    outp += std::to_string(userId);
+    outp += ", '";
+    outp += name;
+    outp += "', '";
+    outp += password;
+    outp += "', '";
+    outp += to_string(perm);
+    outp += '\'';
+
+
+    return outp + ");";
 }
 
 string Item::toSql() const {
@@ -77,6 +101,44 @@ string Item::toSql() const {
     outp += std::to_string(price);
     outp += ", ";
     outp += '\'' + name + '\'';
+
+    return outp + ");";
+}
+
+string Ingredient::toSql() const {
+    string outp{"INSERT INTO inventory (inventory_id, name, stock, min_stock, next_shipment, shelf_life) VALUES ("};
+
+    outp += std::to_string(id);
+    outp += ", '";
+    outp += name;
+    outp += "', ";
+    outp += std::to_string(stock);
+    outp += ", ";
+    outp += std::to_string(minStock);
+    outp += ", '";
+
+    char buf[40];
+    std::tm* timepoint = std::localtime(&nextShipment);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", timepoint);
+
+    outp += buf;
+    outp += "', '";
+
+    timepoint = std::localtime(&shelfLife);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", timepoint);
+
+    outp += buf;
+    outp += '\'';
+
+    return outp + ");";
+}
+
+string IngredientRelation::toSql() const {
+    string outp{"INSERT INTO ingredient_list (item_id, inventory_id) VALUES ("};
+
+    outp += std::to_string(itemId);
+    outp += ", ";
+    outp += std::to_string(ingredientId);
 
     return outp + ");";
 }
@@ -356,23 +418,13 @@ void Generator::generateNDays(int days) {
         generateNextDay();
 }
 
-void Generator::writeEnumTypes(ofstream& stream) const {
-    stream << "CREATE TYPE user_perm AS ENUM (";
-
-    for (int i = 0; i < USER_PERM_LENGTH; ++i) {
-        if (i != 0)
-            stream << ", ";
-        stream << to_string(static_cast<UserPerm>(i));
-    }
-
-    stream << ");\n";
-}
-
 void Generator::writeTruncates(ofstream& stream) const {
     stream << "TRUNCATE TABLE category CASCADE;\n";
     stream << "TRUNCATE TABLE item CASCADE;\n";
     stream << "TRUNCATE TABLE receipt CASCADE;\n";
     stream << "TRUNCATE TABLE receipt_item CASCADE;\n";
+    stream << "TRUNCATE TABLE location CASCADE;\n";
+    stream << "TRUNCATE TABLE app_user CASCADE;\n";
 }
 
 void Generator::writeCategories(ofstream& stream) const {    
@@ -383,6 +435,16 @@ void Generator::writeCategories(ofstream& stream) const {
 void Generator::writeItems(ofstream& stream) const {
     for (int i = 0; i < allItemsLen; ++i)
         stream << *(allItems[i]) << '\n';
+}
+
+void Generator::writeInventory(ofstream& stream) const {
+    for (int i = 0; i < allIngredientsLen; ++i)
+        stream << allIngredients[i]->toSql() << '\n';
+}
+
+void Generator::writeInventoryRelations(ofstream& stream) const {
+    for (int i = 0; i < allRelationsLen; ++i)
+        stream << allRelations[i]->toSql() << '\n';
 }
 
 void Generator::writeDays(ofstream& stream) const {
@@ -419,6 +481,16 @@ void Generator::writeDays(ofstream& stream) const {
     }
 }
 
+void Generator::writeLocations(ofstream& stream) const {
+    for (int i = 0; i < allLocationsLen; ++i)
+        stream << allLocations[i]->toSql() << '\n';
+}
+
+void Generator::writeUsers(ofstream& stream) const {
+    for (int i = 0; i < allUsersLen; ++i)
+        stream << allUsers[i]->toSql() << '\n';
+}
+
 void Generator::writeAll(const char* filename) const {
     ofstream outputFile = ofstream(filename);
 
@@ -427,14 +499,20 @@ void Generator::writeAll(const char* filename) const {
         return;
     }
 
-    outputFile << "-- ENUM STATEMENTS\n\n";
-    writeEnumTypes(outputFile);
-    outputFile << "\n-- TRUNCATE STATEMENTS\n\n";
+    outputFile << "-- TRUNCATE STATEMENTS\n\n";
     writeTruncates(outputFile);
+    outputFile << "\n-- LOCATION GENERATION\n\n";
+    writeLocations(outputFile);
+    outputFile << "\n-- USER GENERATION\n\n";
+    writeUsers(outputFile);
     outputFile << "\n-- CATEGORY GENERATION\n\n";
     writeCategories(outputFile);
     outputFile << "\n-- ITEM GENERATION\n\n";
     writeItems(outputFile);
+    outputFile << "\n-- INVENTORY GENERATION\n\n";
+    writeInventory(outputFile);
+    outputFile << "\n-- INVENTORY RELATIONS GENERATION\n\n";
+    writeInventoryRelations(outputFile);
     outputFile << "\n-- ORDER GENERATION\n\n";
     writeDays(outputFile);
 
@@ -456,9 +534,35 @@ void Generator::generateUsers() {
     allUsers = new User*[len];
     allUsersLen = len;
 
+    const char fnameFile[] = "firstname.txt";
+    const char lnameFile[] = "lastname.txt";
+    ifstream firstNames = ifstream(fnameFile);
+    ifstream lastNames = ifstream(lnameFile);
+
+    if (!firstNames.is_open() || !lastNames.is_open()) {
+        cerr << "Issue open name files!!!" << endl;
+        return;
+    }
+
+    string line;
+    vector<string> firstList;
+    vector<string> lastList;
+
+    while (std::getline(firstNames, line))
+        firstList.push_back(line);
+    firstNames.close();
+
+    while (std::getline(lastNames, line))
+        lastList.push_back(line);
+    lastNames.close();
+
     for (int i = 0, id = 1; i < allLocationsLen; ++i)
-        for (int j = 0; j < EMPLOYEES_PER_LOCATION; ++j, ++id)
-            allUsers[id - 1] = new User(id, "1234", UserPerm::CASHIER);
+        for (int j = 0; j < EMPLOYEES_PER_LOCATION; ++j, ++id) {
+            string first = firstList[(int)std::round(percentGen(rngSeed) * (firstList.size() - 1))];
+            string last = lastList[(int)std::round(percentGen(rngSeed) * (lastList.size() - 1))];
+
+            allUsers[id - 1] = new User(id, first + ' ' + last, "1234", UserPerm::CASHIER);    
+        }
 }
 
 void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-blvd-sr16/menu/a-la-carte
@@ -501,4 +605,116 @@ void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-
     allItemsLen = len;
     for (int i = 0; i < len; ++i)
         ++(categoryLens[allItems[i]->getCategory()]);
+}
+
+void Generator::generateIngredients(time_t startTime) {
+    const int len = 28;
+    allIngredients = new Ingredient*[len];
+    allIngredientsLen = len;
+
+    allIngredients[0] = new Ingredient(1, "Chicken", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[1] = new Ingredient(2, "BBQ Sauce", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[2] = new Ingredient(3, "Beef", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[3] = new Ingredient(4, "Shrimp", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[4] = new Ingredient(5, "Honey Sauce", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[5] = new Ingredient(6, "Walnuts", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[6] = new Ingredient(7, "Black Pepper", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[7] = new Ingredient(8, "Vegetables", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[8] = new Ingredient(9, "Mushrooms", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[9] = new Ingredient(10, "Spices", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[10] = new Ingredient(11, "Assorted Nuts", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[11] = new Ingredient(12, "Peppers", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[12] = new Ingredient(13, "Soy Sauce", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[13] = new Ingredient(14, "Orange Sauce", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[14] = new Ingredient(15, "White Rice", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[15] = new Ingredient(16, "Noodles", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[16] = new Ingredient(17, "Cream Cheese", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[17] = new Ingredient(18, "Watermelon", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[18] = new Ingredient(19, "Mango", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[19] = new Ingredient(20, "Pomegranate", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[20] = new Ingredient(21, "Pineapple", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[21] = new Ingredient(22, "Fanta Orange", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[22] = new Ingredient(23, "Dr Pepper", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[23] = new Ingredient(24, "Dasani", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[24] = new Ingredient(25, "Smartwater", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[25] = new Ingredient(26, "Sprite", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[26] = new Ingredient(27, "Minute Maid Lemonade", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[27] = new Ingredient(28, "Coca Cola Zero Sugar", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    //allIngredients[2] = new Ingredient(2, "", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+
+}
+
+void Generator::generateIngredientRelations() {
+    const int len = 67;
+    allRelations = new IngredientRelation*[len];
+    allRelationsLen = len;
+
+    allRelations[0] = new IngredientRelation(1, 2);
+    allRelations[1] = new IngredientRelation(1, 3);
+    allRelations[2] = new IngredientRelation(2, 4);
+    allRelations[3] = new IngredientRelation(2, 5);
+    allRelations[4] = new IngredientRelation(2, 6);
+    allRelations[5] = new IngredientRelation(3, 7);
+    allRelations[6] = new IngredientRelation(3, 8);
+    allRelations[7] = new IngredientRelation(3, 3);
+    allRelations[8] = new IngredientRelation(4, 1);
+    allRelations[9] = new IngredientRelation(4, 9);
+    allRelations[10] = new IngredientRelation(4, 8);
+    allRelations[11] = new IngredientRelation(5, 8);
+    allRelations[12] = new IngredientRelation(5, 10);
+    allRelations[13] = new IngredientRelation(5, 11);
+    allRelations[14] = new IngredientRelation(5, 12);
+    allRelations[15] = new IngredientRelation(6, 1);
+    allRelations[16] = new IngredientRelation(6, 8);
+    allRelations[17] = new IngredientRelation(6, 13);
+    allRelations[18] = new IngredientRelation(7, 1);
+    allRelations[19] = new IngredientRelation(7, 14);
+    allRelations[20] = new IngredientRelation(8, 1);
+    allRelations[21] = new IngredientRelation(8, 8);
+    allRelations[22] = new IngredientRelation(8, 12);
+    allRelations[23] = new IngredientRelation(9, 1);
+    allRelations[24] = new IngredientRelation(9, 8);
+    allRelations[25] = new IngredientRelation(9, 10);
+    allRelations[26] = new IngredientRelation(10, 1);
+    allRelations[27] = new IngredientRelation(10, 10);
+    allRelations[28] = new IngredientRelation(11, 3);
+    allRelations[29] = new IngredientRelation(11, 8);
+    allRelations[30] = new IngredientRelation(11, 13);
+    allRelations[31] = new IngredientRelation(11, 10);
+    allRelations[32] = new IngredientRelation(12, 3);
+    allRelations[33] = new IngredientRelation(12, 13);
+    allRelations[34] = new IngredientRelation(12, 10);
+    allRelations[35] = new IngredientRelation(12, 12);
+    allRelations[36] = new IngredientRelation(13, 15);
+    allRelations[37] = new IngredientRelation(14, 15);
+    allRelations[38] = new IngredientRelation(14, 8);
+    allRelations[39] = new IngredientRelation(14, 13);
+    allRelations[40] = new IngredientRelation(15, 16);
+    allRelations[41] = new IngredientRelation(15, 13);
+    allRelations[42] = new IngredientRelation(15, 8);
+    allRelations[43] = new IngredientRelation(15, 10);
+    allRelations[44] = new IngredientRelation(16, 8);
+    allRelations[45] = new IngredientRelation(16, 10);
+    allRelations[46] = new IngredientRelation(17, 8);
+    allRelations[47] = new IngredientRelation(17, 10);
+    allRelations[48] = new IngredientRelation(17, 12);
+    allRelations[49] = new IngredientRelation(18, 1);
+    allRelations[50] = new IngredientRelation(18, 8);
+    allRelations[51] = new IngredientRelation(18, 10);
+    allRelations[52] = new IngredientRelation(18, 13);
+    allRelations[53] = new IngredientRelation(19, 17);
+    allRelations[54] = new IngredientRelation(19, 10);
+    allRelations[55] = new IngredientRelation(19, 8);
+    allRelations[56] = new IngredientRelation(20, 18);
+    allRelations[57] = new IngredientRelation(20, 19);
+    allRelations[58] = new IngredientRelation(21,22);
+    allRelations[59] = new IngredientRelation(22,23);
+    allRelations[60] = new IngredientRelation(23,24);
+    allRelations[61] = new IngredientRelation(24,25);
+    allRelations[62] = new IngredientRelation(25, 26);
+    allRelations[63] = new IngredientRelation(26, 27);
+    allRelations[64] = new IngredientRelation(27, 20);
+    allRelations[65] = new IngredientRelation(27, 21);
+    allRelations[66] = new IngredientRelation(28, 28);
+    //allRelations[6] = new IngredientRelation();
 }

@@ -35,6 +35,7 @@ erDiagram
         string name
         string nutrition
         int stock
+        int min_stock
         datetime next_shipment
         datetime shelf_life
         float unit_size
@@ -53,6 +54,7 @@ erDiagram
 
     USER {
         int user_id PK
+        string name
         string password
         string perms
     }

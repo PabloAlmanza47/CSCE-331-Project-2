@@ -30,6 +30,7 @@
     name
     nutrition
     stock
+    min_stock
     next_shipment
     shelf_life
     unit_size
@@ -45,6 +46,7 @@
 
 [User]
     *user_id
+    name
     password
     perms
     

@@ -73,15 +73,32 @@ constexpr string_view to_string(UserPerm perms) {
 class User : public Scriptable {
     private:
         int userId;
+        string name;
         string password;
         UserPerm perm;
 
     public:
-        User(int userId, string password, UserPerm perm) : userId(userId), password(password), perm(perm) {}
+        User(int userId, string name, string password, UserPerm perm) : userId(userId), name(name), password(password), perm(perm) {}
 
         string toSql() const override;
 
         int getUserId() const noexcept;
+};
+
+class Ingredient : public Scriptable {
+    private:
+        int id;
+        string name;
+        int stock;
+        int minStock;
+        time_t nextShipment;
+        time_t shelfLife;
+
+    public:
+        Ingredient(int id, string name, int stock, int minStock, time_t nextShipment, time_t shelfLife) : id(id), name(name), stock(stock), minStock(minStock), nextShipment(nextShipment), shelfLife(shelfLife) {}
+
+        string toSql() const override;
+
 };
 
 class Item : public Scriptable {
@@ -112,6 +129,16 @@ class Item : public Scriptable {
         int getId() const noexcept;
         float getPrice() const noexcept;
         ItemCategory getCategory() const noexcept;
+};
+
+struct IngredientRelation : public Scriptable {
+    public:
+        int itemId;
+        int ingredientId;
+
+        IngredientRelation(int itemId, int ingredientId) : itemId(itemId), ingredientId(ingredientId) {}
+
+        string toSql() const override;
 };
 
 class OrderObject : public Scriptable {
@@ -198,6 +225,14 @@ class Generator {
         Item** allItems;
         int allItemsLen;
 
+        // all ingredient points, in an array.
+        Ingredient** allIngredients;
+        int allIngredientsLen;
+
+        // all ingredient relations, in an array.
+        IngredientRelation** allRelations;
+        int allRelationsLen;
+
         // How many items are in each category.
         int categoryLens[CATEGORY_LENGTH];
 
@@ -236,6 +271,8 @@ class Generator {
 
         void setupRandomGenerators();
         void generateItems();
+        void generateIngredients(time_t startTime);
+        void generateIngredientRelations();
         void generateLocations();
         void generateUsers();
 
@@ -247,12 +284,15 @@ class Generator {
         void generateNextDay();
         void generateNDays(int days);
 
-        void writeEnumTypes(ofstream& stream) const;
         void writeTruncates(ofstream& stream) const;
 
         void writeCategories(ofstream& stream) const;
         void writeItems(ofstream& stream) const;
+        void writeInventory(ofstream& stream) const;
+        void writeInventoryRelations(ofstream& stream) const;
         void writeDays(ofstream& stream) const;
+        void writeLocations(ofstream& stream) const;
+        void writeUsers(ofstream& stream) const;
 
         void writeAll(const char* filename) const;
 
@@ -262,6 +302,8 @@ class Generator {
             generateItems();
             generateLocations();
             generateUsers();
+            generateIngredients(time(nullptr));
+            generateIngredientRelations();
 
             random_device rd;
             rngSeed = std::mt19937(rd());
@@ -289,6 +331,14 @@ class Generator {
             for (int i = 0; i < allItemsLen; ++i)
                 delete allItems[i];
             delete[] allItems;
+
+            for (int i = 0; i < allIngredientsLen; ++i)
+                delete allIngredients[i];
+            delete[] allIngredients;
+
+            for (int i = 0; i < allRelationsLen; ++i)
+                delete allRelations[i];
+            delete[] allRelations;
 
             for (size_t i = 0; i < orders.size(); ++i) {
                 vector<Order*>* current = orders[i];

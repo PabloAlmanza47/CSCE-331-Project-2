@@ -1,10 +1,21 @@
 -- Drop tables if they already exist
 DROP TABLE IF EXISTS receipt_item;
 DROP TABLE IF EXISTS receipt;
+DROP TABLE IF EXISTS ingredient_list;
 DROP TABLE IF EXISTS item;
+DROP TABLE IF EXISTS inventory;
+DROP TABLE IF EXISTS user_timetable;
 DROP TABLE IF EXISTS app_user;
 DROP TABLE IF EXISTS category;
 DROP TABLE IF EXISTS location;
+
+-- ENUM CREATION
+DO $$
+BEGIN
+    CREATE TYPE user_perm AS ENUM ('Cashier', 'Manager');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- LOCATION table
 CREATE TABLE location (
@@ -25,11 +36,24 @@ CREATE TABLE category (
 -- Named app_user to avoid PostgreSQL reserved keyword issues
 CREATE TABLE app_user (
     user_id INTEGER PRIMARY KEY,
-    location_id INTEGER NOT NULL,
+    name VARCHAR(64) NOT NULL,
     password VARCHAR(255) NOT NULL,
-    perms VARCHAR(50) NOT NULL,
+    perms user_perm NOT NULL
+);
+
+-- USER_TIMETABLE table
+CREATE TABLE user_timetable (
+    timetable_id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    location_id INTEGER NOT NULL,
     clock_in_time TIMESTAMP,
     clock_out_time TIMESTAMP,
+
+    CONSTRAINT fk_user_id
+        FOREIGN KEY (user_id)
+        REFERENCES app_user(user_id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
 
     CONSTRAINT fk_user_location
         FOREIGN KEY (location_id)
@@ -44,9 +68,6 @@ CREATE TABLE item (
     category_id INTEGER NOT NULL,
     nutrition TEXT,
     price NUMERIC(10, 2) NOT NULL,
-    stock INTEGER NOT NULL DEFAULT 0,
-    next_shipment TIMESTAMP,
-    unit_size VARCHAR(50),
     name VARCHAR(100) NOT NULL,
 
     CONSTRAINT fk_item_category
@@ -55,8 +76,40 @@ CREATE TABLE item (
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
-    CONSTRAINT chk_item_price CHECK (price >= 0),
-    CONSTRAINT chk_item_stock CHECK (stock >= 0)
+    CONSTRAINT chk_item_price CHECK (price >= 0)
+);
+
+-- INVENTORY table
+CREATE TABLE inventory (
+    inventory_id INTEGER PRIMARY KEY,
+    name VARCHAR(64) NOT NULL,
+    nutrition VARCHAR(128),
+    stock INT NOT NULL DEFAULT 0,
+    min_stock INT NOT NULL DEFAULT 0,
+    next_shipment TIMESTAMP,
+    shelf_life TIMESTAMP,
+    unit_size FLOAT,
+
+    CONSTRAINT chk_item_stock CHECK (stock >= 0),
+    CONSTRAINT chk_item_min_stock CHECK (min_stock >= 0)
+);
+
+-- INGREDIENT_LIST table
+CREATE TABLE ingredient_list (
+    item_id INTEGER NOT NULL,
+    inventory_id INTEGER NOT NULL,
+
+    CONSTRAINT fk_item_id
+        FOREIGN KEY (item_id)
+        REFERENCES item(item_id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+
+    CONSTRAINT fk_inventory_id
+        FOREIGN KEY (inventory_id)
+        REFERENCES inventory(inventory_id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
 );
 
 -- RECEIPT table
@@ -67,12 +120,11 @@ CREATE TABLE receipt (
     receipt_timestamp TIMESTAMP NOT NULL,
     total_cost NUMERIC(10, 2),
 
--- Location is not implemented yet, do not restrict for now.
-    --CONSTRAINT fk_receipt_location
-    --    FOREIGN KEY (location_id)
-    --    REFERENCES location(location_id)
-    --    ON DELETE RESTRICT
-    --    ON UPDATE CASCADE,
+    CONSTRAINT fk_receipt_location
+        FOREIGN KEY (location_id)
+        REFERENCES location(location_id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
 
     CONSTRAINT fk_receipt_user
         FOREIGN KEY (user_id)
@@ -109,7 +161,7 @@ CREATE TABLE receipt_item (
 
 -- Indexes for foreign keys
 CREATE INDEX idx_user_location_id
-    ON app_user(location_id);
+    ON user_timetable(location_id);
 
 CREATE INDEX idx_item_category_id
     ON item(category_id);
