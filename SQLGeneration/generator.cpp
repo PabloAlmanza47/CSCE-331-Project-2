@@ -362,7 +362,7 @@ void Generator::writeEnumTypes(ofstream& stream) const {
     for (int i = 0; i < USER_PERM_LENGTH; ++i) {
         if (i != 0)
             stream << ", ";
-        stream << to_string(static_cast<UserPerm>(i));
+        stream << "'" << to_string(static_cast<UserPerm>(i)) << "'";
     }
 
     stream << ");\n";
