@@ -61,7 +61,7 @@ string Item::toSql() const {
 
     outp += std::to_string(id);
     outp += ", ";
-    outp += std::to_string(category);
+    outp += std::to_string(category + 1);
     outp += ", ";
     outp += std::to_string(price);
     outp += ", ";
@@ -88,13 +88,18 @@ string OrderObject::toSql() const {
 }
 
 string Order::toSql() const {
-    string outp{"INSERT INTO receipt (receipt_id, timestamp) VALUES ("};
+    string outp{"INSERT INTO receipt (receipt_id, receipt_timestamp) VALUES ("};
     outp.reserve(64 + 192 * items.size());
 
     outp += std::to_string(id);
-    outp += ", ";
-    outp += std::to_string(timestamp);
-    outp += ");\n";
+    outp += ", '";
+
+    char buf[40];
+    std::tm* timepoint = std::localtime(&timestamp);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", timepoint);
+
+    outp += buf;
+    outp += "');\n";
 
     for (size_t i = 0; i < items.size(); ++i)
         outp += '\t' + items[i]->toSql() + '\n';
@@ -347,7 +352,7 @@ void Generator::writeDays(const char* filename) {
 
 void Generator::writeDays(ofstream& stream) {
 
-    stream << "TRUNCATE TABLE receiept;\nTRUNCATE TABLE receipt_item;\n\n";
+    stream << "TRUNCATE TABLE receipt CASCADE;\nTRUNCATE TABLE receipt_item CASCADE;\n\n";
 
     char buf[40];
     size_t orderLen = orders.size(), currentOrderLen;
@@ -397,7 +402,7 @@ void Generator::writeItems(const char* filename) {
 
 void Generator::writeItems(ofstream& stream) {
 
-    stream << "TRUNCATE TABLE item;\n\n";
+    stream << "TRUNCATE TABLE item CASCADE;\n\n";
 
     for (int i = 0; i < allItemsLen; ++i)
         stream << *(allItems[i]) << '\n';
@@ -418,7 +423,7 @@ void Generator::writeCategories(const char* filename) {
 
 void Generator::writeCategories(ofstream& stream) {
     
-    stream << "TRUNCATE TABLE category;\n\n";
+    stream << "TRUNCATE TABLE category CASCADE;\n\n";
 
     for (int i = 0; i < CATEGORY_LENGTH; ++i)
         stream << "INSERT INTO category (category_id, name) VALUES (" << std::to_string(i + 1) << ", '" << to_string((ItemCategory)i) << "');\n";
@@ -432,10 +437,10 @@ void Generator::writeAll(const char* filename) {
         return;
     }
 
-    outputFile << "-- ITEM GENERATION\n\n";
-    writeItems(outputFile);
     outputFile << "\n-- CATEGORY GENERATION\n\n";
     writeCategories(outputFile);
+    outputFile << "-- ITEM GENERATION\n\n";
+    writeItems(outputFile);
     outputFile << "\n-- ORDER GENERATION\n\n";
     writeDays(outputFile);
 

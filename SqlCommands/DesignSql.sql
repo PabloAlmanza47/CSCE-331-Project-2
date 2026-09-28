@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS location;
 
 -- LOCATION table
 CREATE TABLE location (
-    location_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    location_id INTEGER PRIMARY KEY,
     name VARCHAR(32) NOT NULL,
     city VARCHAR(32) NOT NULL,
     state VARCHAR(16) NOT NULL
@@ -16,7 +16,7 @@ CREATE TABLE location (
 
 -- CATEGORY table
 CREATE TABLE category (
-    category_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    category_id INTEGER PRIMARY KEY,
     name VARCHAR(32) NOT NULL,
     allergy_info TEXT
 );
@@ -24,7 +24,7 @@ CREATE TABLE category (
 -- USER table
 -- Named app_user to avoid PostgreSQL reserved keyword issues
 CREATE TABLE app_user (
-    user_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id INTEGER PRIMARY KEY,
     location_id INTEGER NOT NULL,
     password VARCHAR(255) NOT NULL,
     perms VARCHAR(50) NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE app_user (
 
 -- ITEM table
 CREATE TABLE item (
-    item_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    item_id INTEGER PRIMARY KEY,
     category_id INTEGER NOT NULL,
     nutrition TEXT,
     price NUMERIC(10, 2) NOT NULL,
@@ -61,17 +61,18 @@ CREATE TABLE item (
 
 -- RECEIPT table
 CREATE TABLE receipt (
-    receipt_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    location_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
+    receipt_id INTEGER PRIMARY KEY,
+    location_id INTEGER,
+    user_id INTEGER,
     receipt_timestamp TIMESTAMP NOT NULL,
-    total_cost NUMERIC(10, 2) NOT NULL,
+    total_cost NUMERIC(10, 2),
 
-    CONSTRAINT fk_receipt_location
-        FOREIGN KEY (location_id)
-        REFERENCES location(location_id)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE,
+-- Location is not implemented yet, do not restrict for now.
+    --CONSTRAINT fk_receipt_location
+    --    FOREIGN KEY (location_id)
+    --    REFERENCES location(location_id)
+    --    ON DELETE RESTRICT
+    --    ON UPDATE CASCADE,
 
     CONSTRAINT fk_receipt_user
         FOREIGN KEY (user_id)
@@ -84,7 +85,7 @@ CREATE TABLE receipt (
 
 -- RECEIPT_ITEM table
 CREATE TABLE receipt_item (
-    receipt_item_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    receipt_item_id INTEGER PRIMARY KEY,
     receipt_id INTEGER NOT NULL,
     item_id INTEGER NOT NULL,
     quantity INTEGER NOT NULL,
