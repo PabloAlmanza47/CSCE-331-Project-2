@@ -161,10 +161,14 @@ string OrderObject::toSql() const {
 }
 
 string Order::toSql() const {
-    string outp{"INSERT INTO receipt (receipt_id, receipt_timestamp) VALUES ("};
+    string outp{"INSERT INTO receipt (receipt_id, location_id, user_id, receipt_timestamp) VALUES ("};
     outp.reserve(64 + 192 * items.size());
 
     outp += std::to_string(id);
+    outp += ", ";
+    outp += std::to_string(locationId);
+    outp += ", ";
+    outp += std::to_string(userId);
     outp += ", '";
 
     char buf[40];
@@ -381,7 +385,7 @@ Order* Generator::generateOrder(time_t durationOfOrder) {
         }
     }
 
-    Order* o = new Order(currentLocation->getId(), currentUser->getUserId(), std::move(items), currentDay);
+    Order* o = new Order(currentUser->getUserId(), currentLocation->getId(), std::move(items), currentDay);
     currentDay += durationOfOrder;
     return o;
 }
@@ -421,6 +425,8 @@ void Generator::generateNDays(int days) {
 void Generator::writeTruncates(ofstream& stream) const {
     stream << "TRUNCATE TABLE category CASCADE;\n";
     stream << "TRUNCATE TABLE item CASCADE;\n";
+    stream << "TRUNCATE TABLE inventory CASCADE;\n";
+    stream << "TRUNCATE TABLE ingredient_list CASCADE;\n";
     stream << "TRUNCATE TABLE receipt CASCADE;\n";
     stream << "TRUNCATE TABLE receipt_item CASCADE;\n";
     stream << "TRUNCATE TABLE location CASCADE;\n";

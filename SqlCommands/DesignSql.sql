@@ -118,7 +118,6 @@ CREATE TABLE receipt (
     location_id INTEGER,
     user_id INTEGER,
     receipt_timestamp TIMESTAMP NOT NULL,
-    total_cost NUMERIC(10, 2),
 
     CONSTRAINT fk_receipt_location
         FOREIGN KEY (location_id)
@@ -130,9 +129,7 @@ CREATE TABLE receipt (
         FOREIGN KEY (user_id)
         REFERENCES app_user(user_id)
         ON DELETE RESTRICT
-        ON UPDATE CASCADE,
-
-    CONSTRAINT chk_receipt_total_cost CHECK (total_cost >= 0)
+        ON UPDATE CASCADE
 );
 
 -- RECEIPT_ITEM table
