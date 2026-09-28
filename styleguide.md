@@ -27,6 +27,8 @@
 - Closing brace goes on its own line
 
 ## General Formatting Example
+```
 if (condition){
     //code
 }
+```
