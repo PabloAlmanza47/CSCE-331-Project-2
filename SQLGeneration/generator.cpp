@@ -2,7 +2,7 @@
 #include <vector>
 #include <ctime>
 #include <fstream>
-#include "Common.h"
+#include "common.h"
 
 using namespace std;
 
