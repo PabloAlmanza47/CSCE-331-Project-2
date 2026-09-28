@@ -238,7 +238,7 @@ Order* Generator::generateOrder(time_t durationOfOrder) {
     items.reserve(numOfItems);
 
     bool canExit = false;
-    int counts[CATEGORY_LENGTH];
+    int counts[CATEGORY_LENGTH]{};
     int itemCount = 0;
     for (int i = 0; i < numOfItems || !canExit; ++i) {
         OrderObject* obj = generateOrderObject(counts);
