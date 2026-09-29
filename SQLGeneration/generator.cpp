@@ -2,7 +2,7 @@
 #include <vector>
 #include <ctime>
 #include <fstream>
-#include "Common.h"
+#include "common.h"
 
 using namespace std;
 
@@ -333,7 +333,7 @@ Order* Generator::generateOrder(time_t durationOfOrder) {
     items.reserve(numOfItems);
 
     bool canExit = false;
-    int counts[CATEGORY_LENGTH];
+    int counts[CATEGORY_LENGTH]{};
     int itemCount = 0;
     for (int i = 0; i < numOfItems || !canExit; ++i) {
         OrderObject* obj = generateOrderObject(counts);
