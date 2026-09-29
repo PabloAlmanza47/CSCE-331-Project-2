@@ -85,6 +85,21 @@ class User : public Scriptable {
         int getUserId() const noexcept;
 };
 
+class Timetable : public Scriptable {
+    private:
+        int id;
+        int userId;
+        int locationId;
+        time_t clockIn;
+        time_t clockOut;
+
+    public:
+        Timetable(int id, int userId, int locationId, time_t clockIn, time_t clockOut) : id(id), userId(userId), locationId(locationId), clockIn(clockIn), clockOut(clockOut) {}
+        Timetable(int userId, int locationId, time_t clockIn, time_t clockOut) : id(getId()), userId(userId), locationId(locationId), clockIn(clockIn), clockOut(clockOut) {}
+
+        string toSql() const override;
+};
+
 class Ingredient : public Scriptable {
     private:
         int id;
@@ -251,6 +266,9 @@ class Generator {
         User** allUsers;
         int allUsersLen;
 
+        // all employee time records
+        vector<Timetable*> userTimetables; 
+
         // Every order placed
         vector<vector<Order*>*> orders;
 
@@ -260,6 +278,8 @@ class Generator {
 
         // The current day
         time_t currentDay;
+        time_t clockInTime;
+        time_t clockOutTime;
 
         // rng seed, used for the random gens below
         mt19937 rngSeed;
@@ -271,10 +291,10 @@ class Generator {
 
         void setupRandomGenerators();
         void generateItems();
-        void generateIngredients(time_t startTime);
-        void generateIngredientRelations();
         void generateLocations();
         void generateUsers();
+        void generateIngredients(time_t startTime);
+        void generateIngredientRelations();
 
         OrderObject* generateOrderObject(int counts[]);
         void regenerateOrderObject(OrderObject* order, int count, ItemCategory category);
@@ -293,6 +313,7 @@ class Generator {
         void writeDays(ofstream& stream) const;
         void writeLocations(ofstream& stream) const;
         void writeUsers(ofstream& stream) const;
+        void writeTimetables(ofstream& stream) const;
 
         void writeAll(const char* filename) const;
 
@@ -313,7 +334,7 @@ class Generator {
             currentLocation = allLocations[(int)std::round(percentGen(rngSeed) * (allLocationsLen - 1))];
 
             // Just select a random user for now.
-            currentUser = allUsers[(int)std::round(percentGen(rngSeed) * (allUsersLen - 1))];
+            currentUser = allUsers[0];//allUsers[(int)std::round(percentGen(rngSeed) * (allUsersLen - 1))];
         }
         Generator() : Generator(0, 0) {}
 
@@ -327,6 +348,9 @@ class Generator {
             for (int i = 0; i < allUsersLen; ++i)
                 delete allUsers[i];
             delete[] allUsers;
+
+            for (size_t i = 0, size = userTimetables.size(); i < size; ++i)
+                delete userTimetables[i];
 
             for (int i = 0; i < allItemsLen; ++i)
                 delete allItems[i];

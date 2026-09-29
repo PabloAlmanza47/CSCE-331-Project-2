@@ -14,14 +14,17 @@ using namespace std;
 #define MIN_AMOUNT_OF_DRINKS 0 // default: 1
 #define MAX_AMOUNT_OF_DRINKS 2 // default: 2
 
-#define MIN_ORDERS_PER_DAY 20 // default: 200
-#define MAX_ORDERS_PER_DAY 50 // default: 300
+#define MIN_ORDERS_PER_DAY 200 // default: 200
+#define MAX_ORDERS_PER_DAY 300 // default: 300
 
 // How many cashiers each panda express has.
 #define EMPLOYEES_PER_LOCATION 3 // default: 3
 
+// How many hours a cashier works before being rotated out.
+#define EMPLOYEE_WORK_SHIFT 7 // default: 7
+
 // DAYS
-#define LENGTH_IN_DAYS 1 //default: 7 * 52
+#define LENGTH_IN_DAYS 7 * 52 //default: 7 * 52
 
 // Peak days double the number of orders on that day.
 #define NUMBER_OF_PEAK_DAYS 2 // default: 2
@@ -30,6 +33,7 @@ using namespace std;
 #define CLOSING_TIME_UNIX 3'600 * 21 // closes at 21:00 or 9:00 pm
 
 // DONT TOUCH THESE
+#define WORKSHIFT_SECONDS 3'600 * EMPLOYEE_WORK_SHIFT
 const int MIN_BY_CATEGORY[CATEGORY_LENGTH] = {MIN_AMOUNT_OF_ENTREES, MIN_AMOUNT_OF_SIDES, MIN_AMOUNT_OF_DRINKS};
 const int MAX_BY_CATEGORY[CATEGORY_LENGTH] = {MAX_AMOUNT_OF_ENTREES, MAX_AMOUNT_OF_SIDES, MAX_AMOUNT_OF_DRINKS};
 #define MIN_ITEMS_PER_ORDER MIN_AMOUNT_OF_ENTREES + MIN_AMOUNT_OF_SIDES + MIN_AMOUNT_OF_DRINKS
@@ -184,6 +188,31 @@ string Order::toSql() const {
     return outp;
 }
 
+string Timetable::toSql() const {
+    string outp{"INSERT INTO user_timetable (timetable_id, user_id, location_id, clock_in_time, clock_out_time) VALUES ("};
+
+    outp += std::to_string(id);
+    outp += ", ";
+    outp += std::to_string(userId);
+    outp += ", ";
+    outp += std::to_string(locationId);
+    outp += ", '";
+
+    char buf[40];
+    std::tm* timepoint = std::localtime(&clockIn);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", timepoint);
+
+    outp += buf;
+    outp += "', '";
+
+    timepoint = std::localtime(&clockOut);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", timepoint);
+
+    outp += buf;
+
+    return outp + "');";
+}
+
 // MISC FUNCTIONS
 
 ostream& operator<<(ostream& os, const Scriptable& obj) {
@@ -308,6 +337,7 @@ Order* Generator::generateOrder(time_t durationOfOrder) {
     int itemCount = 0;
     for (int i = 0; i < numOfItems || !canExit; ++i) {
         OrderObject* obj = generateOrderObject(counts);
+        int retries = 0;
 
     retry:
         Item* item = obj->getItem();
@@ -320,6 +350,12 @@ Order* Generator::generateOrder(time_t durationOfOrder) {
         if (count >= max) {
             category = static_cast<ItemCategory>(category + 1 == CATEGORY_LENGTH ? 0 : category + 1);
             regenerateOrderObject(obj, counts[category], category);
+
+            if (++retries >= CATEGORY_LENGTH) {
+                delete obj;
+                break;
+            }
+
             goto retry;
         }
         else if (count + obj->getAmount() > max)
@@ -386,7 +422,15 @@ Order* Generator::generateOrder(time_t durationOfOrder) {
     }
 
     Order* o = new Order(currentUser->getUserId(), currentLocation->getId(), std::move(items), currentDay);
+
     currentDay += durationOfOrder;
+    if (currentDay > clockOutTime) {
+        userTimetables.push_back(new Timetable(currentUser->getUserId(), currentLocation->getId(), clockInTime, clockOutTime));
+        clockInTime = clockOutTime;
+        clockOutTime += WORKSHIFT_SECONDS; 
+        currentUser = currentUser->getUserId() == allUsersLen ? allUsers[0] : allUsers[currentUser->getUserId()];
+    }
+
     return o;
 }
 
@@ -406,9 +450,17 @@ void Generator::generateNextDay() {
     ordersToday->reserve(numOfOrders);
 
     int durationPerOrder = dayLength / numOfOrders;
+    clockInTime = currentDay;
+    clockOutTime = currentDay + WORKSHIFT_SECONDS;
 
     for (size_t i = 0; i < numOfOrders; ++i)
         ordersToday->push_back(generateOrder(durationPerOrder));
+
+    // 30 min = 1,800 seconds
+    if (currentDay - clockInTime >= 1'800) {
+        userTimetables.push_back(new Timetable(currentUser->getUserId(), currentLocation->getId(), clockInTime, clockOutTime));
+        currentUser = currentUser->getUserId() == allUsersLen ? allUsers[0] : allUsers[currentUser->getUserId()];
+    }
 
     int extraTime = 86'400 - durationPerOrder * numOfOrders;
     if (extraTime > 0)
@@ -431,6 +483,7 @@ void Generator::writeTruncates(ofstream& stream) const {
     stream << "TRUNCATE TABLE receipt_item CASCADE;\n";
     stream << "TRUNCATE TABLE location CASCADE;\n";
     stream << "TRUNCATE TABLE app_user CASCADE;\n";
+    stream << "TRUNCATE TABLE user_timetable CASCADE;\n";
 }
 
 void Generator::writeCategories(ofstream& stream) const {    
@@ -497,6 +550,11 @@ void Generator::writeUsers(ofstream& stream) const {
         stream << allUsers[i]->toSql() << '\n';
 }
 
+void Generator::writeTimetables(ofstream& stream) const {
+    for (int i = 0, size = userTimetables.size(); i < size; ++i)
+        stream << userTimetables[i]->toSql() << '\n';
+}
+
 void Generator::writeAll(const char* filename) const {
     ofstream outputFile = ofstream(filename);
 
@@ -521,6 +579,8 @@ void Generator::writeAll(const char* filename) const {
     writeInventoryRelations(outputFile);
     outputFile << "\n-- ORDER GENERATION\n\n";
     writeDays(outputFile);
+    outputFile << "\n-- TIMETABLE GENERATION\n\n";
+    writeTimetables(outputFile);
 
     outputFile.close();
 }
@@ -569,6 +629,8 @@ void Generator::generateUsers() {
 
             allUsers[id - 1] = new User(id, first + ' ' + last, "1234", UserPerm::CASHIER);    
         }
+
+    clockOutTime = currentDay + WORKSHIFT_SECONDS;
 }
 
 void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-blvd-sr16/menu/a-la-carte
