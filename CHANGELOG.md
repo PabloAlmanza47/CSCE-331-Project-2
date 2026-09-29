@@ -1,16 +1,15 @@
 # Changelog
 
-### 9/28/2026
-    - Added table "user_timetable"
-        - This will have 5 attributes: timetable_id (int, pk), user_id (int, fk), location_id (int, fk), clock_in_time (datetime), clock_out_time (datetime).
-    - Removed 3 attributes from table "user": location_id, clock_in_time, clock_out_time.
-    - Added 1 releationship, "1 to many" between tables "user" and "user_timetable".
-    - Changed the "perms" attribute type from string to enum type "user_perm".
-    - Removed 1 attribute from table "receipt": total_cost.
-        - This was done since the attribute can be computed.
+### 9/28/2026 — Phase 2 schema changes
 
-    - Add table "inventory"
-        - This will have 7 attributes: inventory_id (int, pk), name (string), nutrition (string), stock (int), next_shipment (datetime), shelf_life (datetime), unit_size (float).
+- Added user_timetable with timetable_id, user_id, location_id, clock_in_time, and clock_out_time. Shift times and locations now belong to individual timetable records, allowing a user to have more than one shift. Removed location_id, clock_in_time, and clock_out_time from app_user and removed the direct LOCATION–USER relationship from the ERD.
 
-    - Added table "ingredient_list"
-        - This will have 2 attributes: item_id (int, fk), inventory_id (int, fk).
+- Changed app_user.perms from a string to the user_perm enum so permission values match the defined cashier and manager roles.
+
+- Removed receipt.total_cost because it can be calculated from the quantities and prices recorded in receipt_item.
+
+- Added inventory to record ingredient stock, shipment timing, shelf life, and unit size separately from menu items.
+
+- Added ingredient_list to associate menu items with their inventory ingredients.
+
+- Restored item.unit_size in the SQL schema so it matches the updated ERD’s menu item fields.
