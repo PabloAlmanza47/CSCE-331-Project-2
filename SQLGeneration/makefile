@@ -1,13 +1,22 @@
 CXX = g++
+WXX = clang++
 CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic-errors -fsanitize=undefined,address -g
 
 all: generator
 
+windows: generator_w
+
 generator: generator.o
 		${CXX} ${CXXFLAGS} generator.o -o generate
 
+generator_w: generator_w.o
+		${WXX} ${CXXFLAGS} generator.o -o generate
+
 generator.o: generator.cpp
 		${CXX} ${CXXFLAGS} -c generator.cpp
+
+generator_w.o: generator.cpp
+		${WXX} ${CXXFLAGS} -c generator.cpp
 
 run: generator
 		./generate

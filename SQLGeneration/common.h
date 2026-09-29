@@ -22,7 +22,9 @@ class Scriptable {
             return currentId;
         }
 
-        virtual string toSql() const;
+        virtual string toSql() const noexcept;
+        virtual string toVals() const noexcept;
+        virtual string toFullSql() const noexcept;
 
         friend ostream& operator<<(ostream& os, const Scriptable& obj);
 
@@ -53,7 +55,8 @@ class Location : public Scriptable {
         Location(int id, string name, string city, string state) : id(id), name(name), city(city), state(state) {}
         Location(string name, string city, string state) : id(getId()), name(name), city(city), state(state) {}
 
-        string toSql() const override;
+        string toSql() const noexcept override;
+        string toVals() const noexcept override;
 
         int getId() const noexcept;
 };
@@ -80,7 +83,8 @@ class User : public Scriptable {
     public:
         User(int userId, string name, string password, UserPerm perm) : userId(userId), name(name), password(password), perm(perm) {}
 
-        string toSql() const override;
+        string toSql() const noexcept override;
+        string toVals() const noexcept override;
 
         int getUserId() const noexcept;
 };
@@ -97,7 +101,8 @@ class Timetable : public Scriptable {
         Timetable(int id, int userId, int locationId, time_t clockIn, time_t clockOut) : id(id), userId(userId), locationId(locationId), clockIn(clockIn), clockOut(clockOut) {}
         Timetable(int userId, int locationId, time_t clockIn, time_t clockOut) : id(getId()), userId(userId), locationId(locationId), clockIn(clockIn), clockOut(clockOut) {}
 
-        string toSql() const override;
+        string toSql() const noexcept override;
+        string toVals() const noexcept override;
 };
 
 class Ingredient : public Scriptable {
@@ -112,7 +117,8 @@ class Ingredient : public Scriptable {
     public:
         Ingredient(int id, string name, int stock, int minStock, time_t nextShipment, time_t shelfLife) : id(id), name(name), stock(stock), minStock(minStock), nextShipment(nextShipment), shelfLife(shelfLife) {}
 
-        string toSql() const override;
+        string toSql() const noexcept override;
+        string toVals() const noexcept override;
 
 };
 
@@ -139,7 +145,8 @@ class Item : public Scriptable {
             name = std::move(move.name);
         }
 
-        string toSql() const override;
+        string toSql() const noexcept override;
+        string toVals() const noexcept override;
 
         int getId() const noexcept;
         float getPrice() const noexcept;
@@ -153,7 +160,8 @@ struct IngredientRelation : public Scriptable {
 
         IngredientRelation(int itemId, int ingredientId) : itemId(itemId), ingredientId(ingredientId) {}
 
-        string toSql() const override;
+        string toSql() const noexcept override;
+        string toVals() const noexcept override;
 };
 
 class OrderObject : public Scriptable {
@@ -194,12 +202,17 @@ class OrderObject : public Scriptable {
             item = move.item;
         }
 
-        string toSql() const override;
+        string toSql() const noexcept override;
+        string toVals() const noexcept override;
         void setParentId(int id);
 
         Item*& getItem() noexcept;
         int& getItemId() noexcept;
         int& getAmount() noexcept;
+
+        static string getSql() noexcept {
+            return OrderObject(-1,-1, -1, nullptr).toSql();
+        }
 };
 
 class Order : public Scriptable {
@@ -214,19 +227,22 @@ class Order : public Scriptable {
         Order(int id, int userId, int locationId, const vector<OrderObject*>& items, const time_t& timestamp) : id(id), userId(userId), locationId(locationId), items(items), timestamp(timestamp)  {
             setChildIds();
         }
-        Order(int id, int userId, int locationId, vector<OrderObject*>&& items, const time_t& timestamp)  : id(id), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
+        Order(int id, int userId, int locationId, vector<OrderObject*>&& items, const time_t& timestamp) : id(id), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
             setChildIds();
         }
-        Order(int userId, int locationId, vector<OrderObject*>& items, const time_t& timestamp)  : id(getId()), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
+        Order(int userId, int locationId, vector<OrderObject*>& items, const time_t& timestamp) : id(getId()), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
             setChildIds();
         }
         Order(int userId, int locationId, vector<OrderObject*>&& items, const time_t& timestamp) : id(getId()), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
             setChildIds();
         }
 
-        string toSql() const override;
+        string toSql() const noexcept override;
+        string toVals() const noexcept override;
+        string toFullSql() const noexcept override;
         void setChildIds();
         time_t getTimestamp() const noexcept;
+        const vector<OrderObject*>& getItems() const noexcept;
 
         ~Order() override {
             for (size_t i = 0; i < items.size(); ++i)
@@ -318,6 +334,18 @@ class Generator {
 
         void writeAll(const char* filename) const;
 
+        void writeFast(ofstream& stream, Scriptable** arr, int arrLen, int tabs = 0) const;
+
+        void writeItemsFast(ofstream& stream) const;
+        void writeInventoryFast(ofstream& stream) const;
+        void writeInventoryRelationsFast(ofstream& stream) const;
+        void writeDaysFast(ofstream& stream) const;
+        void writeLocationsFast(ofstream& stream) const;
+        void writeUsersFast(ofstream& stream) const;
+        void writeTimetablesFast(ofstream& stream) const;
+
+        void writeAllFast(const char* filename) const;
+
         Generator(time_t startDay, const int peakDays) : current(0), peakDaysLen(peakDays), currentDay(startDay) {
             this->peakDays = new int[peakDays];
 
@@ -335,7 +363,7 @@ class Generator {
             currentLocation = allLocations[(int)std::round(percentGen(rngSeed) * (allLocationsLen - 1))];
 
             // Just select a random user for now.
-            currentUser = allUsers[0];//allUsers[(int)std::round(percentGen(rngSeed) * (allUsersLen - 1))];
+            currentUser = allUsers[(int)std::round(percentGen(rngSeed) * (allUsersLen - 1))];
         }
         Generator() : Generator(0, 0) {}
 

@@ -23,6 +23,9 @@ using namespace std;
 // How many hours a cashier works before being rotated out.
 #define EMPLOYEE_WORK_SHIFT 7 // default: 7
 
+// Whether or not to make the script somewhat nice looking (false), or fast (true)
+#define FAST_MODE true // default: true
+
 // DAYS
 #define LENGTH_IN_DAYS 7 * 52 //default: 7 * 52
 
@@ -48,7 +51,12 @@ int main() {
 
     g->generateNDays(LENGTH_IN_DAYS);
 
-    g->writeAll("../SqlCommands/Script.sql");
+    const char* filename = "../SqlCommands/Script.sql";
+    if (FAST_MODE)
+        g->writeAllFast(filename);
+    else
+        g->writeAll(filename);
+
     g->writeTeardown("../SqlCommands/Teardown.sql");
 
     cout << "Generation completed successfully!" << endl;
@@ -63,9 +71,11 @@ int main() {
 
 // SQL CONVERT FUNCTIONS
 
-string Location::toSql() const {
-    string outp{"INSERT INTO location (location_id, name, city, state) VALUES ("};
-    outp.reserve(92);
+string Location::toSql() const noexcept {
+    return "INSERT INTO location (location_id, name, city, state)";
+}
+string Location::toVals() const noexcept {
+    string outp{"("};
 
     outp += std::to_string(id);
     outp += ", '";
@@ -76,11 +86,14 @@ string Location::toSql() const {
     outp += state;
     outp += '\'';
 
-    return outp + ");";
+    return outp + ")";
 }
 
-string User::toSql() const {
-    string outp{"INSERT INTO app_user (user_id, name, password, perms) VALUES ("};
+string User::toSql() const noexcept {
+    return "INSERT INTO app_user (user_id, name, password, perms)";
+}
+string User::toVals() const noexcept {
+    string outp{"("};
 
     outp += std::to_string(userId);
     outp += ", '";
@@ -92,12 +105,14 @@ string User::toSql() const {
     outp += '\'';
 
 
-    return outp + ");";
+    return outp + ")";
 }
 
-string Item::toSql() const {
-    string outp{"INSERT INTO item (item_id, category_id, price, name) VALUES ("};
-    outp.reserve(128);
+string Item::toSql() const noexcept {
+    return "INSERT INTO item (item_id, category_id, price, name)";
+}
+string Item::toVals() const noexcept {
+    string outp{"("};
 
     outp += std::to_string(id);
     outp += ", ";
@@ -107,11 +122,14 @@ string Item::toSql() const {
     outp += ", ";
     outp += '\'' + name + '\'';
 
-    return outp + ");";
+    return outp + ")";
 }
 
-string Ingredient::toSql() const {
-    string outp{"INSERT INTO inventory (inventory_id, name, stock, min_stock, next_shipment, shelf_life) VALUES ("};
+string Ingredient::toSql() const noexcept {
+    return "INSERT INTO inventory (inventory_id, name, stock, min_stock, next_shipment, shelf_life)";
+}
+string Ingredient::toVals() const noexcept {
+    string outp{"("};
 
     outp += std::to_string(id);
     outp += ", '";
@@ -135,22 +153,27 @@ string Ingredient::toSql() const {
     outp += buf;
     outp += '\'';
 
-    return outp + ");";
+    return outp + ')';
 }
 
-string IngredientRelation::toSql() const {
-    string outp{"INSERT INTO ingredient_list (item_id, inventory_id) VALUES ("};
+string IngredientRelation::toSql() const noexcept {
+    return "INSERT INTO ingredient_list (item_id, inventory_id)";
+}
+string IngredientRelation::toVals() const noexcept {
+    string outp{"("};
 
     outp += std::to_string(itemId);
     outp += ", ";
     outp += std::to_string(ingredientId);
 
-    return outp + ");";
+    return outp + ')';
 }
 
-string OrderObject::toSql() const {
-    string outp{"INSERT INTO receipt_item (receipt_item_id, receipt_id, item_id, quantity, price_at_sale) VALUES ("};
-    outp.reserve(192);
+string OrderObject::toSql() const noexcept {
+    return "INSERT INTO receipt_item (receipt_item_id, receipt_id, item_id, quantity, price_at_sale)";
+}
+string OrderObject::toVals() const noexcept {
+    string outp{"("};
 
     outp += std::to_string(id);
     outp += ", ";
@@ -162,12 +185,14 @@ string OrderObject::toSql() const {
     outp += ", ";
     outp += std::to_string(amount * item->getPrice());
     
-    return outp + ");";
+    return outp + ')';
 }
 
-string Order::toSql() const {
-    string outp{"INSERT INTO receipt (receipt_id, location_id, user_id, receipt_timestamp) VALUES ("};
-    outp.reserve(64 + 192 * items.size());
+string Order::toSql() const noexcept {
+    return "INSERT INTO receipt (receipt_id, location_id, user_id, receipt_timestamp)";
+}
+string Order::toVals() const noexcept {
+    string outp{"("};
 
     outp += std::to_string(id);
     outp += ", ";
@@ -181,16 +206,30 @@ string Order::toSql() const {
     std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", timepoint);
 
     outp += buf;
-    outp += "');\n";
+    outp += "')";
 
-    for (size_t i = 0; i < items.size(); ++i)
-        outp += '\t' + items[i]->toSql() + '\n';
+    return outp;
+}
+string Order::toFullSql() const noexcept {
+    string outp{toSql() + " VALUES " + toVals() + ';'};
+    outp.reserve(64 + 192 * items.size());
+
+    if (items.empty())
+        return outp;
+
+    outp += "\n\t" + items[0]->toSql() + " VALUES\n";
+
+    for (int i = 0, size = items.size(); i < size; ++i)
+        outp += "\t\t" + items[i]->toVals() + (i == size - 1 ? ";\n" : ",\n");
 
     return outp;
 }
 
-string Timetable::toSql() const {
-    string outp{"INSERT INTO user_timetable (timetable_id, user_id, location_id, clock_in_time, clock_out_time) VALUES ("};
+string Timetable::toSql() const noexcept {
+    return "INSERT INTO user_timetable (timetable_id, user_id, location_id, clock_in_time, clock_out_time)";
+}
+string Timetable::toVals() const noexcept {
+    string outp{"("};
 
     outp += std::to_string(id);
     outp += ", ";
@@ -211,17 +250,23 @@ string Timetable::toSql() const {
 
     outp += buf;
 
-    return outp + "');";
+    return outp + "')";
 }
 
 // MISC FUNCTIONS
 
 ostream& operator<<(ostream& os, const Scriptable& obj) {
-    os << obj.toSql();
+    os << obj.toFullSql();
     return os;
 }
-string Scriptable::toSql() const {
+string Scriptable::toSql() const noexcept {
     return "";
+}
+string Scriptable::toVals() const noexcept {
+    return "";
+}
+string Scriptable::toFullSql() const noexcept {
+    return toSql() + " VALUES " + toVals() + ';';
 }
 
 int Location::getId() const noexcept {
@@ -269,6 +314,10 @@ void Order::setChildIds() {
 
         items[i]->setParentId(id);
     }
+}
+
+const vector<OrderObject*>& Order::getItems() const noexcept {
+    return items;
 }
 
 time_t Order::getTimestamp() const noexcept {
@@ -475,6 +524,18 @@ void Generator::generateNDays(int days) {
         generateNextDay();
 }
 
+void Generator::writeFast(ofstream& stream, Scriptable** arr, int arrLen, int tabs) const {
+    if (arrLen == 0)
+        return;
+
+    string tabStr = tabs == 0 ? "" : string('\t', tabs); 
+
+    stream << arr[0]->toSql() << " VALUES\n";
+
+    for (int i = 0; i < arrLen; ++i)
+        stream << tabStr << arr[i]->toVals() << (i == arrLen - 1 ? ";\n" : ",\n");
+}
+
 void Generator::writeTruncates(ofstream& stream) const {
     stream << "TRUNCATE TABLE category CASCADE;\n";
     stream << "TRUNCATE TABLE item CASCADE;\n";
@@ -496,15 +557,24 @@ void Generator::writeItems(ofstream& stream) const {
     for (int i = 0; i < allItemsLen; ++i)
         stream << *(allItems[i]) << '\n';
 }
+void Generator::writeItemsFast(ofstream& stream) const {
+    writeFast(stream, (Scriptable**)allItems, allItemsLen);
+}
 
 void Generator::writeInventory(ofstream& stream) const {
     for (int i = 0; i < allIngredientsLen; ++i)
-        stream << allIngredients[i]->toSql() << '\n';
+        stream << *(allIngredients[i]) << '\n';
+}
+void Generator::writeInventoryFast(ofstream& stream) const {
+    writeFast(stream, (Scriptable**)allIngredients, allIngredientsLen);
 }
 
 void Generator::writeInventoryRelations(ofstream& stream) const {
     for (int i = 0; i < allRelationsLen; ++i)
-        stream << allRelations[i]->toSql() << '\n';
+        stream << *(allRelations[i]) << '\n';
+}
+void Generator::writeInventoryRelationsFast(ofstream& stream) const {
+    writeFast(stream, (Scriptable**)allRelations, allRelationsLen);
 }
 
 void Generator::writeDays(ofstream& stream) const {
@@ -540,20 +610,52 @@ void Generator::writeDays(ofstream& stream) const {
         }
     }
 }
+void Generator::writeDaysFast(ofstream& stream) const {
+    size_t size = orders.size(), currentOrderLen;
+    for (size_t i = 0; i < size; ++i) {
+        vector<Order*> current = *(orders[i]);
+        currentOrderLen = current.size();
+
+        if (currentOrderLen <= 0)
+            continue;
+
+        stream << current[0]->toSql() << " VALUES\n";
+        for (size_t j = 0; j < currentOrderLen; ++j) {
+            stream << current[j]->toVals() << (j == currentOrderLen - 1 ? ";\n" : ",\n");
+        }
+        stream << '\n' << OrderObject::getSql() << " VALUES\n";
+        for (size_t j = 0; j < currentOrderLen; ++j) {
+            const vector<OrderObject*>& arr = current[j]->getItems();
+            bool last = j == currentOrderLen - 1;
+            for (size_t k = 0; k < arr.size(); ++k)
+                stream << arr[k]->toVals() << (last && k == arr.size() - 1 ? ";\n" : ",\n");
+        }
+    }
+}
 
 void Generator::writeLocations(ofstream& stream) const {
     for (int i = 0; i < allLocationsLen; ++i)
-        stream << allLocations[i]->toSql() << '\n';
+        stream << *(allLocations[i]) << '\n';
+}
+void Generator::writeLocationsFast(ofstream& stream) const {
+    writeFast(stream, (Scriptable**)allLocations, allLocationsLen);
 }
 
 void Generator::writeUsers(ofstream& stream) const {
     for (int i = 0; i < allUsersLen; ++i)
-        stream << allUsers[i]->toSql() << '\n';
+        stream << *(allUsers[i]) << '\n';
+}
+void Generator::writeUsersFast(ofstream& stream) const {
+    writeFast(stream, (Scriptable**)allUsers, allUsersLen);
 }
 
 void Generator::writeTimetables(ofstream& stream) const {
     for (int i = 0, size = userTimetables.size(); i < size; ++i)
-        stream << userTimetables[i]->toSql() << '\n';
+        stream << *(userTimetables[i]) << '\n';
+}
+void Generator::writeTimetablesFast(ofstream& stream) const {
+    Timetable* const* point = (userTimetables.data());
+    writeFast(stream, (Scriptable**)point, userTimetables.size());
 }
 
 void Generator::writeTeardown(const char* filename) const {
@@ -605,6 +707,26 @@ void Generator::writeAll(const char* filename) const {
     writeDays(outputFile);
     outputFile << "\n-- TIMETABLE GENERATION\n\n";
     writeTimetables(outputFile);
+
+    outputFile.close();
+}
+void Generator::writeAllFast(const char* filename) const {
+    ofstream outputFile = ofstream(filename);
+
+    if (!outputFile.is_open()) {
+        cerr << "Failed to write all fast: The output file did not open!!" << endl;
+        return;
+    }
+
+    writeTruncates(outputFile);
+    writeLocationsFast(outputFile);
+    writeUsersFast(outputFile);
+    writeCategories(outputFile);
+    writeItemsFast(outputFile);
+    writeInventoryFast(outputFile);
+    writeInventoryRelationsFast(outputFile);
+    writeDaysFast(outputFile);
+    writeTimetablesFast(outputFile);
 
     outputFile.close();
 }
