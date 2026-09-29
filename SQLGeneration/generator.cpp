@@ -49,6 +49,7 @@ int main() {
     g->generateNDays(LENGTH_IN_DAYS);
 
     g->writeAll("../SqlCommands/Script.sql");
+    g->writeTeardown("../SqlCommands/Teardown.sql");
 
     cout << "Generation completed successfully!" << endl;
 
@@ -553,6 +554,29 @@ void Generator::writeUsers(ofstream& stream) const {
 void Generator::writeTimetables(ofstream& stream) const {
     for (int i = 0, size = userTimetables.size(); i < size; ++i)
         stream << userTimetables[i]->toSql() << '\n';
+}
+
+void Generator::writeTeardown(const char* filename) const {
+    ofstream outputFile = ofstream(filename);
+
+    if (!outputFile.is_open()) {
+        cerr << "Failed to write teardown: The output file did not open!!" << endl;
+        return;
+    }
+
+    outputFile << "-- Drop tables if they already exist\n";
+    outputFile << "DROP TABLE IF EXISTS receipt_item;\n";
+    outputFile << "DROP TABLE IF EXISTS receipt;\n";
+    outputFile << "DROP TABLE IF EXISTS ingredient_list;\n";
+    outputFile << "DROP TABLE IF EXISTS item;\n";
+    outputFile << "DROP TABLE IF EXISTS inventory;\n";
+    outputFile << "DROP TABLE IF EXISTS user_timetable;\n";
+    outputFile << "DROP TABLE IF EXISTS app_user;\n";
+    outputFile << "DROP TYPE IF EXISTS user_perm;\n";
+    outputFile << "DROP TABLE IF EXISTS category;\n";
+    outputFile << "DROP TABLE IF EXISTS location;\n";
+
+    outputFile.close();
 }
 
 void Generator::writeAll(const char* filename) const {
