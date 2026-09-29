@@ -56,7 +56,7 @@ erDiagram
         int user_id PK
         string name
         string password
-        string perms
+        user_perm perms
     }
 
     USER_TIMETABLE {
@@ -72,7 +72,6 @@ erDiagram
     LOCATION ||--o{ RECEIPT : has
     CATEGORY ||--o{ ITEM : contains
     USER ||--o{ RECEIPT : creates
-    LOCATION ||--o{ USER : has
     USER ||--o{ USER_TIMETABLE : creates
     INGREDIENT_LIST ||--o{ INVENTORY : has
-    INGREDIENT_LIST ||--o{ ITEM : has 
+    INGREDIENT_LIST ||--o{ ITEM : has

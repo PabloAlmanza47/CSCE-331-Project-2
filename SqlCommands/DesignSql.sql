@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS item;
 DROP TABLE IF EXISTS inventory;
 DROP TABLE IF EXISTS user_timetable;
 DROP TABLE IF EXISTS app_user;
+DROP TYPE IF EXISTS user_perm;
 DROP TABLE IF EXISTS category;
 DROP TABLE IF EXISTS location;
 
@@ -68,6 +69,7 @@ CREATE TABLE item (
     category_id INTEGER NOT NULL,
     nutrition TEXT,
     price NUMERIC(10, 2) NOT NULL,
+    unit_size VARCHAR(50),
     name VARCHAR(100) NOT NULL,
 
     CONSTRAINT fk_item_category
