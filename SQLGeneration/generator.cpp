@@ -547,10 +547,19 @@ void Generator::writeTruncates(ofstream& stream) const {
     stream << "TRUNCATE TABLE app_user CASCADE;\n";
     stream << "TRUNCATE TABLE user_timetable CASCADE;\n";
 }
+void Generator::writeTruncatesFast(ofstream& stream) const {
+    stream << "TRUNCATE TABLE category, item, inventory, ingredient_list, receipt, receipt_item, location, app_user, user_timetable;\n";
+}
+
 
 void Generator::writeCategories(ofstream& stream) const {    
     for (int i = 0; i < CATEGORY_LENGTH; ++i)
         stream << "INSERT INTO category (category_id, name) VALUES (" << std::to_string(i + 1) << ", '" << to_string((ItemCategory)i) << "');\n";
+}
+void Generator::writeCategoriesFast(ofstream& stream) const {
+    stream << "INSERT INTO category (category_id, name) VALUES\n";
+    for (int i = 0; i < CATEGORY_LENGTH; ++i)
+        stream << '(' << std::to_string(i + 1) << ", '" << to_string((ItemCategory)i) << (i == CATEGORY_LENGTH - 1 ? "');\n" : "'),\n"); 
 }
 
 void Generator::writeItems(ofstream& stream) const {
@@ -612,23 +621,28 @@ void Generator::writeDays(ofstream& stream) const {
 }
 void Generator::writeDaysFast(ofstream& stream) const {
     size_t size = orders.size(), currentOrderLen;
+    stream << (*(orders[0]))[0]->toSql() << " VALUES\n";
     for (size_t i = 0; i < size; ++i) {
         vector<Order*> current = *(orders[i]);
         currentOrderLen = current.size();
+        bool last = i == size - 1;
 
-        if (currentOrderLen <= 0)
-            continue;
-
-        stream << current[0]->toSql() << " VALUES\n";
         for (size_t j = 0; j < currentOrderLen; ++j) {
-            stream << current[j]->toVals() << (j == currentOrderLen - 1 ? ";\n" : ",\n");
+            stream << current[j]->toVals() << (last && j == currentOrderLen - 1 ? ";\n" : ",\n");
         }
-        stream << '\n' << OrderObject::getSql() << " VALUES\n";
+    }
+
+    stream << '\n' << OrderObject::getSql() << " VALUES\n";
+    for (size_t i = 0; i < size; ++i) {
+        vector<Order*> current = *(orders[i]);
+        currentOrderLen = current.size();
+        bool last1 = i == size - 1;
+
         for (size_t j = 0; j < currentOrderLen; ++j) {
             const vector<OrderObject*>& arr = current[j]->getItems();
-            bool last = j == currentOrderLen - 1;
+            bool last2 = j == currentOrderLen - 1;
             for (size_t k = 0; k < arr.size(); ++k)
-                stream << arr[k]->toVals() << (last && k == arr.size() - 1 ? ";\n" : ",\n");
+                stream << arr[k]->toVals() << (last1 && last2 && k == arr.size() - 1 ? ";\n" : ",\n");
         }
     }
 }
@@ -718,10 +732,10 @@ void Generator::writeAllFast(const char* filename) const {
         return;
     }
 
-    writeTruncates(outputFile);
+    writeTruncatesFast(outputFile);
     writeLocationsFast(outputFile);
     writeUsersFast(outputFile);
-    writeCategories(outputFile);
+    writeCategoriesFast(outputFile);
     writeItemsFast(outputFile);
     writeInventoryFast(outputFile);
     writeInventoryRelationsFast(outputFile);

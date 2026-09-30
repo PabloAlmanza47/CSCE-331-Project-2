@@ -336,6 +336,8 @@ class Generator {
 
         void writeFast(ofstream& stream, Scriptable** arr, int arrLen, int tabs = 0) const;
 
+        void writeTruncatesFast(ofstream& stream) const;
+        void writeCategoriesFast(ofstream& stream) const;
         void writeItemsFast(ofstream& stream) const;
         void writeInventoryFast(ofstream& stream) const;
         void writeInventoryRelationsFast(ofstream& stream) const;
