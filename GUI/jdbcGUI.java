@@ -55,10 +55,10 @@ public class jdbcGUI {
       ResultSet result = stmt.executeQuery(sqlStatement);
 
       // gather result
-      String data = String.format("%-30s", "Vendors") + "\tProducts\n";
+      String data = String.format("%-30s", "Item") + "\tPrice\n";
       data += "==========================================\n";
       while (result.next()) {
-        data += String.format("%-30s", result.getString("v_name")) + "\t" + result.getString("p_name") + "\n";
+        data += String.format("%-30s", result.getString("item_name")) + "\t" + result.getString("price") + "\n";
       }
 
       // output result
