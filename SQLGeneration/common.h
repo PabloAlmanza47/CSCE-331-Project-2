@@ -305,6 +305,10 @@ class Generator {
         uniform_int_distribution<int> itemChoice;
         uniform_int_distribution<int> ordersPerDay;
 
+        normal_distribution<float> lunchOrderTimes;
+        normal_distribution<float> dinnerOrderTimes;
+        bernoulli_distribution orderChoice;
+
         void setupRandomGenerators();
         void generateItems();
         void generateLocations();
@@ -314,7 +318,7 @@ class Generator {
 
         OrderObject* generateOrderObject(int counts[]);
         void regenerateOrderObject(OrderObject* order, int count, ItemCategory category);
-        Order* generateOrder(time_t durationOfOrder);
+        Order* generateOrder(time_t timeOfOrder);
 
     public:
         void generateNextDay();
@@ -334,7 +338,7 @@ class Generator {
 
         void writeAll(const char* filename) const;
 
-        void writeFast(ofstream& stream, Scriptable** arr, int arrLen, int tabs = 0) const;
+        void writeFast(ofstream& stream, Scriptable** arr, int arrLen) const;
 
         void writeTruncatesFast(ofstream& stream) const;
         void writeCategoriesFast(ofstream& stream) const;
@@ -352,15 +356,16 @@ class Generator {
             this->peakDays = new int[peakDays];
 
             generateItems();
+
+            random_device rd{};
+            rngSeed = std::mt19937(rd());
+            setupRandomGenerators();  
+
             generateLocations();
             generateUsers();
             generateIngredients(time(nullptr));
             generateIngredientRelations();
 
-            random_device rd;
-            rngSeed = std::mt19937(rd());
-            setupRandomGenerators();  
-            
             // Just select a random location for now.
             currentLocation = allLocations[(int)std::round(percentGen(rngSeed) * (allLocationsLen - 1))];
 
