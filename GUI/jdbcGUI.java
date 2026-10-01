@@ -90,7 +90,8 @@ public class jdbcGUI {
       frame.setVisible(true);
 
     } catch (Exception e) {
-      JOptionPane.showMessageDialog(null,"Error accessing database.");
+      // added error logging 
+      JOptionPane.showMessageDialog(null,"Error accessing database." + e.getMessage());
     }
   }
 }
