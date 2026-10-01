@@ -1,5 +1,7 @@
 #include <iostream>
+#include <random>
 #include <vector>
+#include <algorithm>
 #include <ctime>
 #include <fstream>
 #include "common.h"
@@ -8,17 +10,17 @@ using namespace std;
 
 // BOUNDS
 #define MIN_AMOUNT_OF_ENTREES 1 // default: 1
-#define MAX_AMOUNT_OF_ENTREES 1 // default: 2
-#define MIN_AMOUNT_OF_SIDES 0 // default: 1
+#define MAX_AMOUNT_OF_ENTREES 2 // default: 2
+#define MIN_AMOUNT_OF_SIDES 1 // default: 1
 #define MAX_AMOUNT_OF_SIDES 2 // default: 2
-#define MIN_AMOUNT_OF_DRINKS 0 // default: 1
+#define MIN_AMOUNT_OF_DRINKS 1 // default: 1
 #define MAX_AMOUNT_OF_DRINKS 2 // default: 2
 
 #define MIN_ORDERS_PER_DAY 200 // default: 200
 #define MAX_ORDERS_PER_DAY 300 // default: 300
 
 // How many cashiers each panda express has.
-#define EMPLOYEES_PER_LOCATION 3 // default: 3
+#define EMPLOYEES_PER_LOCATION 6 // default: 3
 
 // How many hours a cashier works before being rotated out.
 #define EMPLOYEE_WORK_SHIFT 7 // default: 7
@@ -35,6 +37,9 @@ using namespace std;
 #define OPENING_TIME_UNIX 3'600 * 7 // opens at 7:00 am
 #define CLOSING_TIME_UNIX 3'600 * 21 // closes at 21:00 or 9:00 pm
 
+#define PEAK_LUNCH_TIME_UNIX 3'600 * 13 // peak lunch time is 1:00 pm
+#define PEAK_DINNER_TIME_UNIX 3'600 * 18 // peak dinner time is 6:00 pm
+
 // DONT TOUCH THESE
 #define WORKSHIFT_SECONDS 3'600 * EMPLOYEE_WORK_SHIFT
 const int MIN_BY_CATEGORY[CATEGORY_LENGTH] = {MIN_AMOUNT_OF_ENTREES, MIN_AMOUNT_OF_SIDES, MIN_AMOUNT_OF_DRINKS};
@@ -46,7 +51,7 @@ int main() {
     //The timespan will be LENGTH_IN_DAYS days before now to now.
     time_t startTime = time(nullptr) - 86'400 * LENGTH_IN_DAYS;
     tm* timeinfo = std::localtime(&startTime);
-    startTime = startTime - (timeinfo->tm_hour * 3'600 + timeinfo->tm_min * 60 + timeinfo->tm_sec) + OPENING_TIME_UNIX;
+    startTime = startTime - (timeinfo->tm_hour * 3'600 + timeinfo->tm_min * 60 + timeinfo->tm_sec);
     Generator* g = new Generator(startTime, NUMBER_OF_PEAK_DAYS);
 
     g->generateNDays(LENGTH_IN_DAYS);
@@ -333,6 +338,10 @@ void Generator::setupRandomGenerators() {
     itemChoice = uniform_int_distribution<int>(0, allItemsLen - 1);
     ordersPerDay = uniform_int_distribution<int>(MIN_ORDERS_PER_DAY, MAX_ORDERS_PER_DAY);
 
+    lunchOrderTimes = normal_distribution<float>(PEAK_LUNCH_TIME_UNIX, 3'600 * 2);
+    dinnerOrderTimes = normal_distribution<float>(PEAK_DINNER_TIME_UNIX, 3'600 * 1);
+    orderChoice = bernoulli_distribution(0.65f);
+
     cout << "The peak days are on ";
     for (int i = 0, prev = 0; i < peakDaysLen; ++i) {
         if (peakDaysLen > 2 && i != 0 && i != peakDaysLen - 1)
@@ -376,7 +385,7 @@ void Generator::regenerateOrderObject(OrderObject* order, int count, ItemCategor
     order->getAmount() = max <= 1 ? 1 : std::round(percentGen(rngSeed) * (max - 1)) + 1;
 }
 
-Order* Generator::generateOrder(time_t durationOfOrder) {
+Order* Generator::generateOrder(time_t timeOfOrder) {
 
     int numOfItems = itemsInOrder(rngSeed);
     vector<OrderObject*> items;
@@ -471,10 +480,10 @@ Order* Generator::generateOrder(time_t durationOfOrder) {
         }
     }
 
-    Order* o = new Order(currentUser->getUserId(), currentLocation->getId(), std::move(items), currentDay);
+    time_t timestamp = timeOfOrder;
+    Order* o = new Order(currentUser->getUserId(), currentLocation->getId(), std::move(items), timestamp);
 
-    currentDay += durationOfOrder;
-    if (currentDay > clockOutTime) {
+    if (timestamp > clockOutTime) {
         userTimetables.push_back(new Timetable(currentUser->getUserId(), currentLocation->getId(), clockInTime, clockOutTime));
         clockInTime = clockOutTime;
         clockOutTime += WORKSHIFT_SECONDS; 
@@ -486,7 +495,7 @@ Order* Generator::generateOrder(time_t durationOfOrder) {
 
 void Generator::generateNextDay() {
 
-    const int dayLength = CLOSING_TIME_UNIX - OPENING_TIME_UNIX;
+    // const int dayLength = CLOSING_TIME_UNIX - OPENING_TIME_UNIX;
 
     size_t numOfOrders = ordersPerDay(rngSeed);
     int totalOrders = orders.size();
@@ -499,12 +508,20 @@ void Generator::generateNextDay() {
     vector<Order*>* ordersToday = new vector<Order*>();
     ordersToday->reserve(numOfOrders);
 
-    int durationPerOrder = dayLength / numOfOrders;
-    clockInTime = currentDay;
-    clockOutTime = currentDay + WORKSHIFT_SECONDS;
+    time_t* orderTimes = new time_t[numOfOrders];
 
     for (size_t i = 0; i < numOfOrders; ++i)
-        ordersToday->push_back(generateOrder(durationPerOrder));
+        orderTimes[i] = min(max((int)round(orderChoice(rngSeed) ? lunchOrderTimes(rngSeed) : dinnerOrderTimes(rngSeed)), OPENING_TIME_UNIX), CLOSING_TIME_UNIX) + currentDay;
+
+    std::sort(orderTimes, orderTimes + numOfOrders);
+
+    clockInTime = currentDay + OPENING_TIME_UNIX;
+    clockOutTime = currentDay + WORKSHIFT_SECONDS + OPENING_TIME_UNIX;
+
+    for (size_t i = 0; i < numOfOrders; ++i)
+        ordersToday->push_back(generateOrder(orderTimes[i]));
+    
+    delete[] orderTimes;
 
     // 30 min = 1,800 seconds
     if (currentDay - clockInTime >= 1'800) {
@@ -512,9 +529,7 @@ void Generator::generateNextDay() {
         currentUser = currentUser->getUserId() == allUsersLen ? allUsers[0] : allUsers[currentUser->getUserId()];
     }
 
-    int extraTime = 86'400 - durationPerOrder * numOfOrders;
-    if (extraTime > 0)
-        currentDay += extraTime;
+    currentDay += 86'400;
 
     orders.push_back(ordersToday);
 }
@@ -524,16 +539,14 @@ void Generator::generateNDays(int days) {
         generateNextDay();
 }
 
-void Generator::writeFast(ofstream& stream, Scriptable** arr, int arrLen, int tabs) const {
+void Generator::writeFast(ofstream& stream, Scriptable** arr, int arrLen) const {
     if (arrLen == 0)
         return;
 
-    string tabStr = tabs == 0 ? "" : string('\t', tabs); 
-
-    stream << arr[0]->toSql() << " VALUES\n";
+    stream << arr[0]->toSql() << " VALUES ";
 
     for (int i = 0; i < arrLen; ++i)
-        stream << tabStr << arr[i]->toVals() << (i == arrLen - 1 ? ";\n" : ",\n");
+        stream << arr[i]->toVals() << (i == arrLen - 1 ? ';' : ',');
 }
 
 void Generator::writeTruncates(ofstream& stream) const {
@@ -548,7 +561,7 @@ void Generator::writeTruncates(ofstream& stream) const {
     stream << "TRUNCATE TABLE user_timetable CASCADE;\n";
 }
 void Generator::writeTruncatesFast(ofstream& stream) const {
-    stream << "TRUNCATE TABLE category, item, inventory, ingredient_list, receipt, receipt_item, location, app_user, user_timetable;\n";
+    stream << "TRUNCATE TABLE category,item,inventory,ingredient_list,receipt,receipt_item,location,app_user,user_timetable;";
 }
 
 
@@ -559,7 +572,7 @@ void Generator::writeCategories(ofstream& stream) const {
 void Generator::writeCategoriesFast(ofstream& stream) const {
     stream << "INSERT INTO category (category_id, name) VALUES\n";
     for (int i = 0; i < CATEGORY_LENGTH; ++i)
-        stream << '(' << std::to_string(i + 1) << ", '" << to_string((ItemCategory)i) << (i == CATEGORY_LENGTH - 1 ? "');\n" : "'),\n"); 
+        stream << '(' << std::to_string(i + 1) << ", '" << to_string((ItemCategory)i) << (i == CATEGORY_LENGTH - 1 ? "');" : "'),"); 
 }
 
 void Generator::writeItems(ofstream& stream) const {
@@ -621,18 +634,18 @@ void Generator::writeDays(ofstream& stream) const {
 }
 void Generator::writeDaysFast(ofstream& stream) const {
     size_t size = orders.size(), currentOrderLen;
-    stream << (*(orders[0]))[0]->toSql() << " VALUES\n";
+    stream << (*(orders[0]))[0]->toSql() << " VALUES ";
     for (size_t i = 0; i < size; ++i) {
         vector<Order*> current = *(orders[i]);
         currentOrderLen = current.size();
         bool last = i == size - 1;
 
         for (size_t j = 0; j < currentOrderLen; ++j) {
-            stream << current[j]->toVals() << (last && j == currentOrderLen - 1 ? ";\n" : ",\n");
+            stream << current[j]->toVals() << (last && j == currentOrderLen - 1 ? ';' : ',');
         }
     }
 
-    stream << '\n' << OrderObject::getSql() << " VALUES\n";
+    stream << '\n' << OrderObject::getSql() << " VALUES ";
     for (size_t i = 0; i < size; ++i) {
         vector<Order*> current = *(orders[i]);
         currentOrderLen = current.size();
@@ -642,7 +655,7 @@ void Generator::writeDaysFast(ofstream& stream) const {
             const vector<OrderObject*>& arr = current[j]->getItems();
             bool last2 = j == currentOrderLen - 1;
             for (size_t k = 0; k < arr.size(); ++k)
-                stream << arr[k]->toVals() << (last1 && last2 && k == arr.size() - 1 ? ";\n" : ",\n");
+                stream << arr[k]->toVals() << (last1 && last2 && k == arr.size() - 1 ? ';' : ',');
         }
     }
 }
@@ -762,35 +775,82 @@ void Generator::generateUsers() {
 
     const char fnameFile[] = "firstname.txt";
     const char lnameFile[] = "lastname.txt";
+    const char passwordFile[] = "passwords.txt";
+    const int fnameLen = 38'407;
+    const int lnameLen = 151'670;
+    const int passwordLen = 99'839;
+
     ifstream firstNames = ifstream(fnameFile);
     ifstream lastNames = ifstream(lnameFile);
+    ifstream passwordStream = ifstream(passwordFile);
 
     if (!firstNames.is_open() || !lastNames.is_open()) {
         cerr << "Issue open name files!!!" << endl;
         return;
     }
 
-    string line;
-    vector<string> firstList;
-    vector<string> lastList;
+    const int totalEmployees = EMPLOYEES_PER_LOCATION * allLocationsLen; 
+    int* fnameLines = new int[totalEmployees];
+    int* lnameLines = new int[totalEmployees];
+    int* passwordLines = new int[totalEmployees];
 
-    while (std::getline(firstNames, line))
-        firstList.push_back(line);
+    for (int i = 0; i < totalEmployees; ++i) {
+        fnameLines[i] = (int)std::round(percentGen(rngSeed) * (fnameLen - 1));
+        lnameLines[i] = (int)std::round(percentGen(rngSeed) * (lnameLen - 1));
+        passwordLines[i] = (int)std::round(percentGen(rngSeed) * (passwordLen - 1));
+        // cout << '(' << to_string(fnameLines[i]) << ", " << to_string(lnameLines[i]) << "), ";
+    }
+    cout << endl;
+
+    std::sort(fnameLines, fnameLines + totalEmployees);
+    std::sort(lnameLines, lnameLines + totalEmployees);
+
+    string* names = new string[totalEmployees];
+    string* passwords = new string[totalEmployees];
+    string line; 
+
+    for (int currentLine = 0, i = 0, nextLine = fnameLines[0]; std::getline(firstNames, line) && i < totalEmployees; ++currentLine) {
+        if (currentLine >= nextLine) {
+            names[i] = line + ' ';
+            if (++i < totalEmployees)
+                nextLine = fnameLines[i];
+            else break;
+        }
+    }
     firstNames.close();
 
-    while (std::getline(lastNames, line))
-        lastList.push_back(line);
+    for (int currentLine = 0, i = 0, nextLine = lnameLines[0]; std::getline(lastNames, line) && i < totalEmployees; ++currentLine) {
+        if (currentLine >= nextLine) {
+            names[i] += line;
+            if (++i < totalEmployees)
+                nextLine = lnameLines[i];
+            else break;
+        }
+    }
     lastNames.close();
 
-    for (int i = 0, id = 1; i < allLocationsLen; ++i)
-        for (int j = 0; j < EMPLOYEES_PER_LOCATION; ++j, ++id) {
-            string first = firstList[(int)std::round(percentGen(rngSeed) * (firstList.size() - 1))];
-            string last = lastList[(int)std::round(percentGen(rngSeed) * (lastList.size() - 1))];
-
-            allUsers[id - 1] = new User(id, first + ' ' + last, "1234", UserPerm::CASHIER);    
+    for (int currentLine = 0, i = 0, nextLine = passwordLines[0]; std::getline(passwordStream, line) && i < totalEmployees; ++currentLine) {
+        if (currentLine >= nextLine) {
+            passwords[i] = line;
+            if (++i < totalEmployees)
+                nextLine = passwordLines[i];
+            else break;
         }
+    }
+    passwordStream.close();
 
-    clockOutTime = currentDay + WORKSHIFT_SECONDS;
+    delete[] fnameLines;
+    delete[] lnameLines;
+    delete[] passwordLines;
+
+    for (int i = 0, id = 1; i < allLocationsLen; ++i)
+        for (int j = 0; j < EMPLOYEES_PER_LOCATION; ++j, ++id)
+            allUsers[id - 1] = new User(id, names[id - 1], passwords[id - 1], UserPerm::CASHIER);    
+
+    delete[] names;
+    delete[] passwords;
+
+    clockOutTime = currentDay + WORKSHIFT_SECONDS + OPENING_TIME_UNIX;
 }
 
 void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-blvd-sr16/menu/a-la-carte
