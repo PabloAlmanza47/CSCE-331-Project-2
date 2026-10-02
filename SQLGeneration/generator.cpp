@@ -781,7 +781,7 @@ void Generator::generateUsers() {
     const char passwordFile[] = "passwords.txt";
     const int fnameLen = 38'407;
     const int lnameLen = 151'670;
-    const int passwordLen = 99'839;
+    const int passwordLen = 9'998;
 
     ifstream firstNames = ifstream(fnameFile);
     ifstream lastNames = ifstream(lnameFile);
