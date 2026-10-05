@@ -513,8 +513,10 @@ void Generator::generateNextDay() {
 
     time_t* orderTimes = new time_t[numOfOrders];
 
-    for (size_t i = 0; i < numOfOrders; ++i)
-        orderTimes[i] = min(max((int)round(orderChoice(rngSeed) ? lunchOrderTimes(rngSeed) : dinnerOrderTimes(rngSeed)), OPENING_TIME_UNIX), CLOSING_TIME_UNIX) + currentDay;
+    for (size_t i = 0; i < numOfOrders; ++i) {
+        time_t localOrderTime = min(max((int)round(orderChoice(rngSeed) ? lunchOrderTimes(rngSeed) : dinnerOrderTimes(rngSeed)), OPENING_TIME_UNIX), CLOSING_TIME_UNIX);
+        orderTimes[i] = currentDay + localOrderTime;
+    }
 
     std::sort(orderTimes, orderTimes + numOfOrders);
 
@@ -532,7 +534,15 @@ void Generator::generateNextDay() {
         currentUser = currentUser->getUserId() == allUsersLen ? allUsers[0] : allUsers[currentUser->getUserId()];
     }
 
-    currentDay += 86'400;
+    // Use end of day because DST happens at 2 AM instead of midnight.
+    // 82'800 = 23 hours in seconds.
+    time_t endOfCurrentDay = currentDay + 82'800;
+    tm* currentTimepoint = std::localtime(&endOfCurrentDay);
+    currentTimepoint->tm_mday += 1; // Increment day
+    currentTimepoint->tm_isdst = -1; // auto check if dst.
+
+    // Adjust the time back to midnight.
+    currentDay = std::mktime(currentTimepoint) - 82'800;
 
     orders.push_back(ordersToday);
 }
@@ -788,7 +798,7 @@ void Generator::generateUsers() {
     ifstream passwordStream = ifstream(passwordFile);
 
     if (!firstNames.is_open() || !lastNames.is_open()) {
-        cerr << "Issue open name files!!!" << endl;
+        cerr << "Issue opening name files!!!" << endl;
         return;
     }
 
