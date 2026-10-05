@@ -59,8 +59,8 @@ public class DatabaseController {
           String name = resultSet.getString("name");
           String price = resultSet.getString("price");
 
-          Checkbox checkBox = new CheckBox(name + " $" + price); // change to spinner 
-          Label itemLabel = new Label(name + " $" + price);
+          CheckBox checkBox = new CheckBox(name + " $" + price); // change to spinner 
+          Label cartItem = new Label(name + " $" + price);
 
           currentBox.getChildren().add(checkBox);
 
