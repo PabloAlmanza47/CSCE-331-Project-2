@@ -1,7 +1,7 @@
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.sql.*;
 import javax.swing.*;
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
 
 /*
 CSCE 331
@@ -9,14 +9,14 @@ CSCE 331
 2/7/2020 Update for AWS
  */
 
-public class jdbcGUI {
+public class jdbcGUI {  
 
   // Database connection object
   static Connection conn = null;
 
-
   public static void openConnection(dbSetup credentials) {
     try {
+
       conn = DriverManager.getConnection(
         "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db", 
         credentials.user, credentials.pswd);
@@ -49,17 +49,38 @@ public class jdbcGUI {
     try {
       // create an sql statement
       Statement stmt = conn.createStatement();
-      String sqlStatement = 
-        "SELECT name AS item_name, price FROM item;";
+      String mainSqlStmnt = 
+        "SELECT name AS name, price FROM item WHERE category_id = 1";
+      String sideSqlStmnt = 
+        "SELECT name AS name, price FROM item WHERE category_id = 2";
+      String drinkSqlStmnt = 
+        "SELECT name AS name, price FROM item WHERE category_id = 3";
       // send the sql statement to the db
-      ResultSet result = stmt.executeQuery(sqlStatement);
+      ResultSet main = stmt.executeQuery(mainSqlStmnt);
 
       // gather result
-      String data = String.format("%-30s", "Item") + "\tPrice\n";
-      data += "==========================================\n";
-      while (result.next()) {
-        data += String.format("%-30s", result.getString("item_name")) + "\t" + result.getString("price") + "\n";
+      String mainData = String.format("%-30s", "Item") + "\tPrice\n";
+      mainData += "==========================================\n";
+      while (main.next()) {
+        mainData += String.format("%-30s", main.getString("name")) + "\t" + main.getString("price") + "\n";
       }
+
+      ResultSet side = stmt.executeQuery(sideSqlStmnt);
+      String sideData = String.format("%-30s", "Item") + "\tPrice\n";
+      sideData += "==========================================\n";
+      while (side.next()) {
+        sideData += String.format("%-30s", side.getString("name")) + "\t" + side.getString("price") + "\n";
+      }
+
+      ResultSet drink = stmt.executeQuery(drinkSqlStmnt);
+      String drinkData = String.format("%-30s", "Item") + "\tPrice\n";
+      drinkData += "==========================================\n";
+      while (drink.next()) {
+        drinkData += String.format("%-30s", drink.getString("name")) + "\t" + drink.getString("price") + "\n";
+      }
+
+      
+      // "SELECT name AS name, price FROM item WHEN = category_id;"
 
       // output result
       // creating a custom JFrame that displays the result and closes the window and connection when "Done" button clicked
@@ -68,7 +89,9 @@ public class jdbcGUI {
       frame.setSize(600, 400);
       frame.setLocationRelativeTo(null); // center window on screen
       
-      JTextArea text = new JTextArea(data);
+      JTextArea mainText = new JTextArea(mainData);
+      JTextArea sideText = new JTextArea(sideData);
+      JTextArea drinkText = new JTextArea(drinkData);
       
       JButton button = new JButton("Done");
       button.addActionListener(new ActionListener() {
@@ -83,7 +106,9 @@ public class jdbcGUI {
       });
 
       JPanel panel = new JPanel();
-      panel.add(text);
+      panel.add(mainText);
+      panel.add(sideText);
+      panel.add(drinkText);
       panel.add(button);
       
       frame.add(panel);
