@@ -22,6 +22,9 @@ using namespace std;
 // How many cashiers each panda express has.
 #define EMPLOYEES_PER_LOCATION 6 // default: 3
 
+// How many managers each panda express has.
+#define MANAGERS_PER_LOCATION 1 // default: 1
+
 // How many hours a cashier works before being rotated out.
 #define EMPLOYEE_WORK_SHIFT 7 // default: 7
 
@@ -769,16 +772,16 @@ void Generator::generateLocations() {
 }
 
 void Generator::generateUsers() {
-    int len = allLocationsLen * EMPLOYEES_PER_LOCATION;
-    allUsers = new User*[len];
-    allUsersLen = len;
+    const int totalEmployees = (EMPLOYEES_PER_LOCATION + MANAGERS_PER_LOCATION) * allLocationsLen; 
+    allUsers = new User*[totalEmployees];
+    allUsersLen = totalEmployees;
 
     const char fnameFile[] = "firstname.txt";
     const char lnameFile[] = "lastname.txt";
     const char passwordFile[] = "passwords.txt";
     const int fnameLen = 38'407;
     const int lnameLen = 151'670;
-    const int passwordLen = 99'839;
+    const int passwordLen = 9'998;
 
     ifstream firstNames = ifstream(fnameFile);
     ifstream lastNames = ifstream(lnameFile);
@@ -789,7 +792,6 @@ void Generator::generateUsers() {
         return;
     }
 
-    const int totalEmployees = EMPLOYEES_PER_LOCATION * allLocationsLen; 
     int* fnameLines = new int[totalEmployees];
     int* lnameLines = new int[totalEmployees];
     int* passwordLines = new int[totalEmployees];
@@ -843,9 +845,12 @@ void Generator::generateUsers() {
     delete[] lnameLines;
     delete[] passwordLines;
 
-    for (int i = 0, id = 1; i < allLocationsLen; ++i)
+    for (int i = 0, id = 1; i < allLocationsLen; ++i) {
         for (int j = 0; j < EMPLOYEES_PER_LOCATION; ++j, ++id)
-            allUsers[id - 1] = new User(id, names[id - 1], passwords[id - 1], UserPerm::CASHIER);    
+            allUsers[id - 1] = new User(id, names[id - 1], passwords[id - 1], UserPerm::CASHIER); 
+        for (int j = 0; j < MANAGERS_PER_LOCATION; ++j, ++id)
+            allUsers[id - 1] = new User(id, names[id - 1], passwords[id - 1], UserPerm::MANAGER);   
+    }
 
     delete[] names;
     delete[] passwords;
