@@ -27,7 +27,7 @@
             </ScrollPane>
             <VBox fx:id="cartBox" prefHeight="461.0" prefWidth="274.0">
                <children>
-                  <Button alignment="TOP_LEFT" mnemonicParsing="false" prefHeight="25.0" prefWidth="152.0" text="Checkout" />
+                  <Button fx:id="checkout" mnemonicParsing="false" prefHeight="25.0" prefWidth="152.0" text="Checkout" />
                </children>
             </VBox>
          </children>

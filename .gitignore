@@ -1,2 +1,3 @@
-GUI/dbSetup.java
+dbSetup.java
 *.class
+javafx-sdk-25.0.4/

@@ -1,6 +1,6 @@
-import java.awt.Checkbox;
-import java.beans.EventHandler;
 import java.sql.*;
+import java.util.HashMap;
+import java.util.Map;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
@@ -14,7 +14,7 @@ import javax.print.attribute.standard.Sides;
 public class DatabaseController {
     
   @FXML
-  private Button queryButton; //match the fx:id value from Scene Builder
+  private Button queryButton, checkout; //match the fx:id value from Scene Builder
   
   @FXML
   private VBox mainBox, sideBox, drinkBox, cartBox; //match the fx:id value from Scene Builder
@@ -23,7 +23,10 @@ public class DatabaseController {
   private Button closeButton; //match the fx:id value from Scene Builder
   
   private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; //database location
-  
+
+  private HashMap<Integer, Integer> cart = new HashMap<Integer, Integer>();
+  private HashMap<Integer, CheckBox> cartRows = new HashMap<>();
+
   // This method runs automatically when the FXML loads
   @FXML
   public void initialize() {
@@ -31,6 +34,7 @@ public class DatabaseController {
     // queryButton.setOnAction(event -> runQuery());
     runQuery();
     closeButton.setOnAction(event -> closeWindow());
+    //checkout.setOnAction(event -> confirmCheckout());
   }
   
   // Your method to run the database query
@@ -52,25 +56,39 @@ public class DatabaseController {
       for (int i = 0; i < areas.length; i++) {
         VBox currentBox = areas[i];
 
-        ResultSet resultSet = stmt.executeQuery("SELECT name, price FROM item WHERE category_id = " + (i + 1));
+        ResultSet resultSet = stmt.executeQuery("SELECT name, price, item_id FROM item WHERE category_id = " + (i + 1));
 
         while (resultSet.next()) {
           
           String name = resultSet.getString("name");
-          String price = resultSet.getString("price");
+          double price = resultSet.getDouble("price");
+          int itemID = resultSet.getInt("item_id");
 
-          CheckBox checkBox = new CheckBox(name + " $" + price); // change to spinner 
-          Label cartItem = new Label(name + " $" + price);
+          Button button = new Button(name + " $" + price);
+          //Label cartItem = new Label(name + " $" + price);
 
-          currentBox.getChildren().add(checkBox);
+          currentBox.getChildren().add(button);
 
-          checkBox.setOnAction(event -> {
-            if (checkBox.isSelected()){
-              cartBox.getChildren().add(cartItem); // when selected, adds to cart
+          button.setOnAction(event -> {
+            if (!cart.containsKey(itemID)) {            
+              CheckBox checkBox = new CheckBox();
+              checkBox.setSelected(true);
+              checkBox.setOnAction(e -> {
+                if (!checkBox.isSelected()) {
+                  cartBox.getChildren().remove(checkBox);
+                  cart.remove(itemID);               
+                  cartRows.remove(itemID);
+                }
+              });
+              cartBox.getChildren().add(checkBox);
+              cartRows.put(itemID, checkBox);
+              cart.put(itemID, 1);
+            } 
+            else {                                  
+              cart.merge(itemID, 1, Integer::sum);
             }
-            else {
-              cartBox.getChildren().remove(cartItem); 
-            }
+            int quantity = cart.get(itemID);
+            cartRows.get(itemID).setText(quantity + "x" + name + " $" + (price * quantity));
           });
         }
       }
@@ -88,5 +106,9 @@ public class DatabaseController {
   private void closeWindow() { 
     Stage stage = (Stage) closeButton.getScene().getWindow();
     stage.close();
+  }
+
+  private void confirmCheckout(){
+
   }
 }
