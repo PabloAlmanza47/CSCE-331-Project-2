@@ -87,9 +87,11 @@ public class cashierController {
               checkBox.setSelected(true);
               checkBox.setOnAction(e -> {
                 if (!checkBox.isSelected()) {
+                  totalPrice -= price * cart.get(itemID);
                   cartBox.getChildren().remove(checkBox);
                   cart.remove(itemID);               
                   cartRows.remove(itemID);
+                  totalPriceLabel.setText("Total Price: " + totalPrice   + "$");
                 }
               });
               cartBox.getChildren().add(checkBox);
