@@ -23,6 +23,9 @@ public class cashierController {
   
   @FXML
   private VBox mainBox, sideBox, drinkBox, cartBox; //match the fx:id value from Scene Builder
+
+  @FXML 
+  private Label totalPriceLabel;
   
   @FXML
   private Button closeButton; //match the fx:id value from Scene Builder
@@ -60,7 +63,7 @@ public class cashierController {
 
       VBox[] areas = { mainBox, sideBox, drinkBox };
 
-      Label totalPriceLabel = new Label("Total Price: 0.0$");
+      totalPriceLabel = new Label("Total Price: 0.0$");
       cartBox.getChildren().add(totalPriceLabel);
 
       for (int i = 0; i < areas.length; i++) {
@@ -180,7 +183,7 @@ public class cashierController {
     cartRows.clear();
     cart.clear();
     totalPrice = 0;
-    totalPricceLabel.setText("Total Price: 0.0$");
+    totalPriceLabel.setText("Total Price: 0.0$");
   }
   //clear cart
   //change view to manager
