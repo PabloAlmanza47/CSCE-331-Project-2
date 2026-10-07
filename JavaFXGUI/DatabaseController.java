@@ -10,6 +10,11 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javax.print.attribute.standard.Sides;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+import javafx.event.ActionEvent;
 
 public class DatabaseController {
     
@@ -158,4 +163,14 @@ public class DatabaseController {
     }
   }
   //clear cart
+  //change view to manager
+  //TODO: add onAction="#changeView" to the desired button in database-view.fxml
+  @FXML public void changeView(ActionEvent event) throws Exception {
+      Parent root = FXMLLoader.load(getClass().getResource("/manager.fxml"));
+
+      Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
+
+      stage.setScene(new Scene(root, 600, 400));
+      stage.show();
+  }
 }
