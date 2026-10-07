@@ -191,7 +191,7 @@ public class managerController{
      * @throws IOException if the FXML resource cannot be loaded
     */
     @FXML public void changeView(ActionEvent event) throws IOException {
-        Parent root = FXMLLoader.load(getClass().getResource("/database-view.fxml"));
+        Parent root = FXMLLoader.load(getClass().getResource("/cashierGUI.fxml"));
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
 
