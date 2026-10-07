@@ -17,10 +17,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.event.ActionEvent;
+import javafx.scene.control.Button;
 
-
-
-//import manager;
 
 public class managerController{
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; //database location
@@ -70,10 +68,17 @@ public class managerController{
         }
     }
 
-    /*private void closeWindow() { 
+    /**
+     * Closes the current window when the close button is clicked.
+     * @author Ashley Hoang
+     * @param event - the action event triggered by clicking the close button
+    */
+    @FXML public void closeWindow(ActionEvent event) {
+        Button closeButton = (Button) event.getSource();
         Stage stage = (Stage) closeButton.getScene().getWindow();
         stage.close();
-    }*/
+    }
+
 
     //Sales Graph creation
     @FXML BarChart<Number, String> salesGraph;
@@ -199,7 +204,6 @@ public class managerController{
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
 
-        stage.setTitle("Cashier View");
         stage.setScene(new Scene(root, 1200, 800));
         stage.show();
     }
