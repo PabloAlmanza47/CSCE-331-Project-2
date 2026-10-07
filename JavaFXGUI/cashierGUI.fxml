@@ -5,9 +5,9 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox alignment="CENTER" prefHeight="520.0" prefWidth="695.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="DatabaseController">
+<VBox alignment="CENTER" prefHeight="520.0" prefWidth="695.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="cashierController">
    <children>
-      <Button fx:id="queryButton" mnemonicParsing="false" text="Display Vendors and Products" />
+      <Button fx:id="changeView" mnemonicParsing="false" onAction="#changeView" text="Change View" />
       <HBox alignment="CENTER" prefHeight="461.0" prefWidth="803.0" VBox.vgrow="ALWAYS">
          <children>
             <ScrollPane prefHeight="200.0" prefWidth="200.0" HBox.hgrow="ALWAYS">

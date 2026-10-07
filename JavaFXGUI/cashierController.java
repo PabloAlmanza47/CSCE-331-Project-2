@@ -16,10 +16,10 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.event.ActionEvent;
 
-public class DatabaseController {
+public class cashierController {
     
   @FXML
-  private Button queryButton, checkout; //match the fx:id value from Scene Builder
+  private Button changeView, checkout; //match the fx:id value from Scene Builder
   
   @FXML
   private VBox mainBox, sideBox, drinkBox, cartBox; //match the fx:id value from Scene Builder
@@ -31,6 +31,7 @@ public class DatabaseController {
 
   private HashMap<Integer, Integer> cart = new HashMap<Integer, Integer>();
   private HashMap<Integer, CheckBox> cartRows = new HashMap<>();
+  private double totalPrice;
 
   // This method runs automatically when the FXML loads
   @FXML
@@ -40,6 +41,7 @@ public class DatabaseController {
     runQuery();
     closeButton.setOnAction(event -> closeWindow());
     checkout.setOnAction(event -> confirmCheckout());
+    //changeView.setOnAction(event -> changeView());
   }
   
   // Your method to run the database query
@@ -58,6 +60,9 @@ public class DatabaseController {
 
       VBox[] areas = { mainBox, sideBox, drinkBox };
 
+      Label totalPriceLabel = new Label("Total Price: 0.0$");
+      cartBox.getChildren().add(totalPriceLabel);
+
       for (int i = 0; i < areas.length; i++) {
         VBox currentBox = areas[i];
 
@@ -69,7 +74,9 @@ public class DatabaseController {
           double price = resultSet.getDouble("price");
           int itemID = resultSet.getInt("item_id");
 
-          Button button = new Button(name + " $" + price);
+          Button button = new Button(name);
+          button.setPrefSize(currentBox.getPrefWidth(), 30);
+
           //Label cartItem = new Label(name + " $" + price);
 
           currentBox.getChildren().add(button);
@@ -92,10 +99,13 @@ public class DatabaseController {
             else {                                  
               cart.merge(itemID, 1, Integer::sum);
             }
+            totalPrice += price;
             int quantity = cart.get(itemID);
             cartRows.get(itemID).setText(quantity + "x" + name + " $" + (price * quantity));
+            totalPriceLabel.setText("Total Price: " + totalPrice   + "$");
           });
         }
+
       }
 
       // Close connection
@@ -161,12 +171,18 @@ public class DatabaseController {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    for (Map.Entry<Integer, CheckBox> entry : cartRows.entrySet()){
+      CheckBox item = entry.getValue();
+      cartBox.getChildren().remove(item);
+    }
+    cartRows.clear();
+    cart.clear();
   }
   //clear cart
   //change view to manager
   //TODO: add onAction="#changeView" to the desired button in database-view.fxml
   @FXML public void changeView(ActionEvent event) throws Exception {
-      Parent root = FXMLLoader.load(getClass().getResource("/manager.fxml"));
+      Parent root = FXMLLoader.load(getClass().getResource("/managerGUI.fxml"));
 
       Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
 
