@@ -84,31 +84,7 @@ public class cashierController {
 
           currentBox.getChildren().add(button);
 
-          button.setOnAction(event -> {
-            if (!cart.containsKey(itemID)) {            
-              CheckBox checkBox = new CheckBox();
-              checkBox.setSelected(true);
-              checkBox.setOnAction(e -> {
-                if (!checkBox.isSelected()) {
-                  totalPrice -= price * cart.get(itemID);
-                  cartBox.getChildren().remove(checkBox);
-                  cart.remove(itemID);               
-                  cartRows.remove(itemID);
-                  totalPriceLabel.setText("Total Price: " + totalPrice   + "$");
-                }
-              });
-              cartBox.getChildren().add(checkBox);
-              cartRows.put(itemID, checkBox);
-              cart.put(itemID, 1);
-            } 
-            else {                                  
-              cart.merge(itemID, 1, Integer::sum);
-            }
-            totalPrice += price;
-            int quantity = cart.get(itemID);
-            cartRows.get(itemID).setText(quantity + "x" + name + " $" + (price * quantity));
-            totalPriceLabel.setText("Total Price: " + totalPrice   + "$");
-          });
+          button.setOnAction(event -> onButtonPressed(itemID, price, name));
         }
 
       }
@@ -120,6 +96,34 @@ public class cashierController {
     } catch (Exception e) {
       e.printStackTrace();
       System.exit(0);
+    }
+  }
+
+  private void onButtonPressed(int itemID, double price, String name) {
+    if (!cart.containsKey(itemID)) {            
+      CheckBox checkBox = new CheckBox();
+      checkBox.setSelected(true);
+      checkBox.setOnAction(e -> onCheckboxSelected(itemID, price, checkBox));
+      cartBox.getChildren().add(checkBox);
+      cartRows.put(itemID, checkBox);
+      cart.put(itemID, 1);
+    } 
+    else {                                  
+      cart.merge(itemID, 1, Integer::sum);
+    }
+    totalPrice += price;
+    int quantity = cart.get(itemID);
+    cartRows.get(itemID).setText(quantity + "x" + name + " $%.2f".formatted(price * quantity));
+    totalPriceLabel.setText("Total Price: $%.2f".formatted(totalPrice));
+  }
+
+  private void onCheckboxSelected(int itemID, double price, CheckBox parent) {
+    if (!parent.isSelected()) {
+      totalPrice -= price * cart.get(itemID);
+      cartBox.getChildren().remove(parent);
+      cart.remove(itemID);               
+      cartRows.remove(itemID);
+      totalPriceLabel.setText("Total Price: $%.2f".formatted(totalPrice));
     }
   }
 
