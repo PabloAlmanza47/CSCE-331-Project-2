@@ -179,6 +179,8 @@ public class cashierController {
     }
     cartRows.clear();
     cart.clear();
+    totalPrice = 0;
+    totalPricceLabel.setText("Total Price: 0.0$")
   }
   //clear cart
   //change view to manager
