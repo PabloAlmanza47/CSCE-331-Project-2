@@ -9,3 +9,6 @@ Compile:
 Run:
 > java --enable-native-access=javafx.graphics --module-path ../javafx-sdk-25/lib/ --add-modules javafx.controls,javafx.fxml -cp ".;postgresql-42.2.8.jar" DatabaseApp.java
 > java --enable-native-access=javafx.graphics --module-path ~/javafx-sdk-25/lib/ --add-modules javafx.controls,javafx.fxml -cp ".:postgresql-42.2.8.jar" DatabaseApp.java
+
+Doc:
+> javadoc -d doc --module-path ~/javafx-sdk-25/lib/ --add-modules javafx.controls,javafx.fxml -cp ".:postgresql-42.2.8.jar" -sourcepath ./ JavaFXGUI/*.java
