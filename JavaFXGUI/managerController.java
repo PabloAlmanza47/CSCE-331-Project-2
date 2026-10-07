@@ -199,6 +199,7 @@ public class managerController{
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
 
+        stage.setTitle("Cashier View");
         stage.setScene(new Scene(root, 1200, 800));
         stage.show();
     }

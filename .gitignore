@@ -1,4 +1,14 @@
-dbSetup.java
 *.class
+JavaFXGUI/dbSetup.java
 javafx-sdk-25.0.4/
 .vscode/
+# Local database setup
+GUI/dbSetup.java
+
+# Generated SQL data
+SqlCommands/Script.sql
+SqlCommands/Script.before-full-run.sql
+
+# C++ build artifacts
+SQLGeneration/generate
+SQLGeneration/*.o
