@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.control.Accordion?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox alignment="CENTER" prefHeight="520.0" prefWidth="695.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="managerController">
+<TabPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+  <tabs>
+    <!-- Item Sold Tab (Bar Graph) -->
+    <Tab text="Items Sold"><content>
+      <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" styleClass="genericStyle">
+        <children>
+          <Button fx:id="changeViewButton" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+          <BarChart fx:id="salesGraph" layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Items Sold">
+            <xAxis>
+              <NumberAxis label="Number Sold" tickLabelRotation="0.01" />
+            </xAxis>
+            <yAxis>
+              <CategoryAxis label="Item Name" side="LEFT" />
+            </yAxis>
+          </BarChart>
+        </children>
+      </AnchorPane>
+    </content></Tab>
+
+    <!-- Stock Tab -->
+    <Tab text="Stock"><content>
+      <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" styleClass="genericStyle">
+        <children>
+          <Button fx:id="changeViewButton" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+            <ListView fx:id="stockListView" layoutX="14.0" layoutY="49.0" prefHeight="312.0" prefWidth="575.0" />
+        </children>
+      </AnchorPane> 
+    </content></Tab>
+
+      <!-- Order History (Receipts) Tab -->
+      <Tab text="Order History"><content>
+        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" styleClass="genericStyle">
+          <children>
+            <Button fx:id="changeViewButton" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+                  <ScrollPane layoutX="14.0" layoutY="46.0" prefHeight="316.0" prefWidth="572.0">
+                    <content>
+                      <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="315.0" prefWidth="571.0">
+                           <children>
+                              <Accordion fx:id="receiptAccordion" prefHeight="302.0" prefWidth="556.0">
+                                <panes>
+                                </panes>
+                              </Accordion>
+                           </children>
+                        </AnchorPane>
+                    </content>
+                  </ScrollPane>
+          </children>
+        </AnchorPane>
+      </content></Tab>
+  </tabs>
+</TabPane>
+</VBox>
