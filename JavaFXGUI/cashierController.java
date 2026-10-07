@@ -193,7 +193,8 @@ public class cashierController {
 
       Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
 
-      stage.setScene(new Scene(root, 600, 400));
+      stage.setTitle("Manager View");
+      stage.setScene(new Scene(root, 1200, 800));
       stage.show();
   }
 }
