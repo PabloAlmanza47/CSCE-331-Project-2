@@ -6,8 +6,8 @@ import javafx.stage.Stage;
 public class DatabaseApp extends Application {
   @Override
   public void start(Stage stage) throws Exception {
-    FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("database-view.fxml"));
-    Scene scene = new Scene(fxmlLoader.load(), 600, 400);
+    FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("cashierGUI.fxml"));
+    Scene scene = new Scene(fxmlLoader.load(), 1200, 800);
     stage.setTitle("AWS PostgreSQL Query Example");
     stage.setScene(scene);
     stage.show();

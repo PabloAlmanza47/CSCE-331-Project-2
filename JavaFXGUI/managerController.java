@@ -152,7 +152,7 @@ public class managerController{
 
     //change view to cashier
     @FXML public void changeView(ActionEvent event) throws Exception {
-        Parent root = FXMLLoader.load(getClass().getResource("/database-view.fxml"));
+        Parent root = FXMLLoader.load(getClass().getResource("/cashierGUI.fxml"));
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
 
