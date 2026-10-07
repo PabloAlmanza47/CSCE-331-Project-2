@@ -1,3 +1,4 @@
-dbSetup.java
 *.class
 javafx-sdk-25.0.4/
+JavaFXGUI/dbSetup.java
+.vscode/settings.json
