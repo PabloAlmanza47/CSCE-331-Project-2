@@ -34,7 +34,7 @@ public class DatabaseController {
     // queryButton.setOnAction(event -> runQuery());
     runQuery();
     closeButton.setOnAction(event -> closeWindow());
-    //checkout.setOnAction(event -> confirmCheckout());
+    checkout.setOnAction(event -> confirmCheckout());
   }
   
   // Your method to run the database query
@@ -108,7 +108,54 @@ public class DatabaseController {
     stage.close();
   }
 
-  private void confirmCheckout(){
+  private void confirmCheckout() {
+    //update inventory
+    dbSetup my = new dbSetup();
+    try {
+      //create statements for updating db
+      Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
+      Statement stmt = conn.createStatement();
+      PreparedStatement ingredients = conn.prepareStatement("SELECT inventory_id FROM ingredient_list WHERE item_id = ?");
+      PreparedStatement update = conn.prepareStatement("UPDATE inventory SET stock = stock - ? WHERE inventory_id = ?");
 
+      //create new receipt with proper ID, and then grab it, 
+      //currently assumes location of 1, and userid of 3, fix if needed
+      ResultSet receiptResults = stmt.executeQuery(
+      "INSERT INTO receipt (receipt_id, location_id, user_id, receipt_timestamp) " +
+      "SELECT COALESCE(MAX(receipt_id), 0) + 1, 1, 3, CURRENT_TIMESTAMP " +
+      "FROM receipt RETURNING receipt_id");
+      receiptResults.next();
+      int receiptID = receiptResults.getInt("receipt_id");
+      receiptResults.close();
+      
+      //for each cart item, find ingredients, remove ordered amount
+      for (Map.Entry<Integer, Integer> entry : cart.entrySet()) {
+        int itemID = entry.getKey();
+        int quantity = entry.getValue();
+        ingredients.setInt(1, itemID);
+        ResultSet ingredientResults = ingredients.executeQuery();
+        while (ingredientResults.next()) {
+          update.setInt(1, entry.getValue());
+          update.setInt(2, ingredientResults.getInt("inventory_id"));
+          update.executeUpdate();
+        }
+        ingredientResults.close();
+        //adds item, quantity, sale price to receipt, requires grabbing last receiptitemid
+        stmt.executeUpdate(
+          "INSERT INTO receipt_item (receipt_item_id, receipt_id, item_id, quantity, price_at_sale) " +
+          "SELECT (SELECT COALESCE(MAX(receipt_item_id), 0) + 1 FROM receipt_item), " +
+          receiptID + ", item_id, " + quantity + ", price * " + quantity +
+          " FROM item WHERE item_id = " + itemID
+        );
+      }
+      ingredients.close();
+      update.close();
+      stmt.close();
+      conn.close();
+      //catch any SQL related errors
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
   }
+  //clear cart
 }
