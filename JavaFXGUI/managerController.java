@@ -53,7 +53,7 @@ public class managerController{
         createSalesBarGraph(items);
 
         //Stock query and call
-        ResultSet stocklist = stmt.executeQuery("SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life FROM inventory");
+        ResultSet stocklist = stmt.executeQuery("SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life FROM inventory ORDER BY inventory_id");
         createStockList(stocklist);
 
         //Receipt list query and call
@@ -172,7 +172,11 @@ public class managerController{
                     "#%d \n%s: %d - %s\t$%d",
                     receiptID, receiptItemID, itemID, itemQuantity, price
                 ));
+
+                //sizing to fit tab, and adding to the accordion
+                label.setMaxWidth(Double.MAX_VALUE);
                 TitledPane receiptPane = new TitledPane("Receipt " + receiptID, label);
+                receiptPane.setMaxWidth(Double.MAX_VALUE);
                 receiptAccordion.getPanes().add(receiptPane);
             }
         } catch (SQLException e) {
@@ -195,7 +199,7 @@ public class managerController{
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
 
-        stage.setScene(new Scene(root, 600, 400));
+        stage.setScene(new Scene(root, 1200, 800));
         stage.show();
     }
 }

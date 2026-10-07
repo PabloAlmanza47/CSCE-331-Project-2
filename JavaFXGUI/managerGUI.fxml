@@ -12,15 +12,17 @@
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
 
-<VBox alignment="CENTER" prefHeight="520.0" prefWidth="695.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="managerController">
-<TabPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+<VBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="managerController">
+<HBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" VBox.vgrow="ALWAYS">
+<TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
   <tabs>
     <!-- Item Sold Tab (Bar Graph) -->
     <Tab text="Items Sold"><content>
-      <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" styleClass="genericStyle">
+      <AnchorPane styleClass="genericStyle" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
         <children>
-          <Button fx:id="changeViewButton" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+          <Button fx:id="changeViewButton1" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
           <BarChart fx:id="salesGraph" layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Items Sold">
             <xAxis>
               <NumberAxis label="Number Sold" tickLabelRotation="0.01" />
@@ -28,6 +30,10 @@
             <yAxis>
               <CategoryAxis label="Item Name" side="LEFT" />
             </yAxis>
+            <AnchorPane.topAnchor>57.0</AnchorPane.topAnchor>
+            <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
+            <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
+            <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
           </BarChart>
         </children>
       </AnchorPane>
@@ -35,29 +41,35 @@
 
     <!-- Stock Tab -->
     <Tab text="Stock"><content>
-      <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" styleClass="genericStyle">
+      <AnchorPane styleClass="genericStyle" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
         <children>
-          <Button fx:id="changeViewButton" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-            <ListView fx:id="stockListView" layoutX="14.0" layoutY="49.0" prefHeight="312.0" prefWidth="575.0" />
+          <Button fx:id="changeViewButton2" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+            <ListView fx:id="stockListView" layoutX="14.0" layoutY="49.0" prefHeight="312.0" prefWidth="575.0" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
+              <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
+              <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
+              <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
+              <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
+            </ListView>
         </children>
       </AnchorPane> 
     </content></Tab>
 
       <!-- Order History (Receipts) Tab -->
       <Tab text="Order History"><content>
-        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0" styleClass="genericStyle">
+        <AnchorPane styleClass="genericStyle" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
           <children>
-            <Button fx:id="changeViewButton" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-                  <ScrollPane layoutX="14.0" layoutY="46.0" prefHeight="316.0" prefWidth="572.0">
+            <Button fx:id="changeViewButton3" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+                  <ScrollPane fitToWidth="true" fitToHeight="true"
+                    AnchorPane.topAnchor="60.0"
+                    AnchorPane.leftAnchor="14.0"
+                    AnchorPane.rightAnchor="14.0"
+                    AnchorPane.bottomAnchor="14.0">
                     <content>
-                      <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="315.0" prefWidth="571.0">
-                           <children>
-                              <Accordion fx:id="receiptAccordion" prefHeight="302.0" prefWidth="556.0">
-                                <panes>
-                                </panes>
-                              </Accordion>
-                           </children>
-                        </AnchorPane>
+                      <VBox fillWidth="true">
+                        <children>
+                          <Accordion fx:id="receiptAccordion" VBox.vgrow="ALWAYS" />
+                        </children>
+                      </VBox>
                     </content>
                   </ScrollPane>
           </children>
@@ -65,4 +77,5 @@
       </content></Tab>
   </tabs>
 </TabPane>
+</HBox>
 </VBox>
