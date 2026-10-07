@@ -2,6 +2,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+
+import java.io.IOException;
 import java.sql.*;
 import javafx.scene.chart.XYChart;
 import javafx.scene.chart.BarChart;
@@ -75,6 +77,14 @@ public class managerController{
 
     //Sales Graph creation
     @FXML BarChart<Number, String> salesGraph;
+
+    /**
+     * Creates a bar graph of the number of items sold from the provided ResultSet.
+     * @author Ashley Hoang
+     * @param items - the result set from the database query containing item names and number sold
+     * @throws SQLException - if there is an error with the database query
+     * @throws IllegalArgumentException - if there is an error with the list creation
+    */
     @FXML public void createSalesBarGraph(ResultSet items){
         try {
             //add items
@@ -88,7 +98,10 @@ public class managerController{
             }
             salesGraph.getData().add(soldSeries);
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.exit(0);
+        } catch (IllegalArgumentException e) {
             e.printStackTrace();
             System.exit(0);
         }
@@ -96,6 +109,14 @@ public class managerController{
 
     //Stock list creation
     @FXML public ListView<String> stockListView;
+
+    /**
+     * Creates a list of stock information from the provided ResultSet.
+     * @author Ashley Hoang
+     * @param stockList - the result set from the database query containing stock information
+     * @throws SQLException - if there is an error with the database query
+     * @throws IllegalArgumentException - if there is an error with the list creation
+    */
     @FXML public void createStockList(ResultSet stockList){
         try {
             ObservableList<String> names = FXCollections.observableArrayList();
@@ -114,7 +135,10 @@ public class managerController{
                 names.add(display);
             }
             stockListView.setItems(names);
-        } catch (Exception e) {
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.exit(0);
+        } catch (IllegalArgumentException e) {
             e.printStackTrace();
             System.exit(0);
         }
@@ -122,6 +146,13 @@ public class managerController{
 
     //Receipt list creation
     @FXML Accordion receiptAccordion;
+    /**
+     * Creates a list of receipts from the provided ResultSet.
+     * @author Ashley Hoang
+     * @param receipts - the result set from the database query containing receipt information
+     * @throws SQLException - if there is an error with the database query
+     * @throws IllegalArgumentException - if there is an error with the list creation
+    */
     @FXML public void createReceiptList(ResultSet receipts){
         try {
             int counter = 0;
@@ -144,14 +175,22 @@ public class managerController{
                 TitledPane receiptPane = new TitledPane("Receipt " + receiptID, label);
                 receiptAccordion.getPanes().add(receiptPane);
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.exit(0);
+        } catch (IllegalArgumentException e) {
             e.printStackTrace();
             System.exit(0);
         }
     }
 
-    //change view to cashier
-    @FXML public void changeView(ActionEvent event) throws Exception {
+    /**
+     * Changes the view to the cashier view when the corresponding button is clicked.
+     * @author Ashley Hoang
+     * @param event - the action event triggering the view change
+     * @throws IOException if the FXML resource cannot be loaded
+    */
+    @FXML public void changeView(ActionEvent event) throws IOException {
         Parent root = FXMLLoader.load(getClass().getResource("/database-view.fxml"));
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
