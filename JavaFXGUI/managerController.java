@@ -383,11 +383,11 @@ public class managerController {
             BigDecimal receiptTotal = BigDecimal.ZERO;
             TitledPane receiptPane = null;
             while (receipts.next()) {
+                String timestamp = receipts.getString("receipt_timestamp");
                 int receiptID = receipts.getInt("receipt_id");
                 if (receiptID != currentReceiptID) {
                     if (receiptPane != null)
-                        itemList.getChildren().add(new Label(
-                                String.format("Total: $%.2f", receiptTotal)));
+                        itemList.getChildren().add(new Label(String.format("Total: $%.2f\n\n%s", receiptTotal, timestamp)));
                     currentReceiptID = receiptID;
                     receiptTotal = BigDecimal.ZERO;
                     itemList = new VBox(5);
@@ -396,6 +396,7 @@ public class managerController {
                     receiptPane.setMaxWidth(Double.MAX_VALUE);
                     receiptAccordion.getPanes().add(receiptPane);
                 }
+                int itemID = receipts.getInt("item_id");
                 String itemName = receipts.getString("item_name");
                 int quantity = receipts.getInt("quantity");
                 // Checkout stores price_at_sale as the complete line total.
@@ -403,12 +404,10 @@ public class managerController {
                 if (lineTotal == null)
                     lineTotal = BigDecimal.ZERO;
                 receiptTotal = receiptTotal.add(lineTotal);
-                itemList.getChildren().add(new Label(String.format(
-                        "%s    x%d    $%.2f", itemName, quantity, lineTotal)));
+                itemList.getChildren().add(new Label(String.format("#%d %s    x%d    $%.2f", itemID, itemName, quantity, lineTotal)));
             }
             if (receiptPane != null)
-                itemList.getChildren().add(new Label(
-                        String.format("Total: $%.2f", receiptTotal)));
+                itemList.getChildren().add(new Label(String.format("Total: $%.2f", receiptTotal)));
         } catch (SQLException | IllegalArgumentException e) {
             e.printStackTrace();
         }

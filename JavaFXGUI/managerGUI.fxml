@@ -18,30 +18,26 @@
 <HBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" VBox.vgrow="ALWAYS">
 <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
   <tabs>
-    <!-- Item Sold Tab (Bar Graph) -->
-    <Tab text="Items Sold"><content>
+      <!-- Menu Tab -->
+    <Tab text="Menu Items"><content>
       <AnchorPane styleClass="genericStyle" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
         <children>
-          <Button fx:id="changeViewButton1" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton1" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-          <BarChart fx:id="salesGraph" layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Items Sold">
-            <xAxis>
-              <NumberAxis label="Number Sold" tickLabelRotation="0.01" />
-            </xAxis>
-            <yAxis>
-              <CategoryAxis label="Item Name" side="LEFT" />
-            </yAxis>
-            <AnchorPane.topAnchor>57.0</AnchorPane.topAnchor>
-            <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
-            <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
-            <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
-          </BarChart>
+          <Button fx:id="changeViewButton4" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+          <Button fx:id="closeButton4" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="addItem" layoutX="206.0" layoutY="14.0" mnemonicParsing="false" onAction="#addMenuItem" styleClass="genericStyle" text="Add Menu Item" />
+            <ListView fx:id="menuListView" layoutX="14.0" layoutY="49.0" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
+              <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
+              <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
+              <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
+              <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
+            </ListView>
         </children>
-      </AnchorPane>
+      </AnchorPane> 
     </content></Tab>
 
+
     <!-- Stock Tab -->
-    <Tab text="Stock"><content>
+    <Tab text="Ingredient Stock"><content>
       <AnchorPane styleClass="genericStyle" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
         <children>
           <Button fx:id="changeViewButton2" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
@@ -56,7 +52,7 @@
       </AnchorPane> 
     </content></Tab>
 
-      <!-- Order History (Receipts) Tab -->
+    <!-- Order History (Receipts) Tab -->
       <Tab text="Order History"><content>
         <AnchorPane styleClass="genericStyle" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
           <children>
@@ -79,21 +75,26 @@
         </AnchorPane>
       </content></Tab>
 
-      <!-- Menu Tab -->
-    <Tab text="Menu"><content>
+    <!-- Item Sold Tab (Bar Graph) -->
+    <Tab text="Items Sold"><content>
       <AnchorPane styleClass="genericStyle" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
         <children>
-          <Button fx:id="changeViewButton4" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton4" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-          <Button fx:id="addItem" layoutX="206.0" layoutY="14.0" mnemonicParsing="false" onAction="#addMenuItem" styleClass="genericStyle" text="Add Menu Item" />
-            <ListView fx:id="menuListView" layoutX="14.0" layoutY="49.0" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
-              <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
-              <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
-              <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
-              <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
-            </ListView>
+          <Button fx:id="changeViewButton1" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+          <Button fx:id="closeButton1" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <BarChart fx:id="salesGraph" layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Items Sold">
+            <xAxis>
+              <NumberAxis label="Number Sold" tickLabelRotation="0.01" />
+            </xAxis>
+            <yAxis>
+              <CategoryAxis label="Item Name" side="LEFT" />
+            </yAxis>
+            <AnchorPane.topAnchor>57.0</AnchorPane.topAnchor>
+            <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
+            <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
+            <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
+          </BarChart>
         </children>
-      </AnchorPane> 
+      </AnchorPane>
     </content></Tab>
 
   </tabs>
