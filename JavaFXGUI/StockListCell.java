@@ -26,19 +26,31 @@ public class StockListCell extends ListCell<StockItem> {
         addBtn.setOnAction(e -> {
             StockItem item = getItem();
             if (item != null) {
-                int newStock = item.getStock() + 1;
-                item.setStock(newStock);
-                updateDisplay();
-                controller.updateStockInDatabase(item.getInventoryID(), newStock);
+                managerController.StockUpdateResult result = controller.updateStockInDatabase(item.getInventoryID(), 1);
+                if (result.getStock() != null) {
+                    int confirmedStock = result.getStock();
+                    item.setStock(confirmedStock);
+                    updateDisplay();
+                    if (!result.isUpdated()) controller.showStockUpdateFailure(confirmedStock);
+                } else if (result.isMissing()) {
+                    getListView().getItems().remove(item);
+                    controller.showMissingInventoryError();
+                }
             }
         });
         removeBtn.setOnAction(e -> {
             StockItem item = getItem();
-            if (item != null) {
-                int newStock = Math.max(0, item.getStock() - 1);
-                item.setStock(newStock);
-                updateDisplay();
-                controller.updateStockInDatabase(item.getInventoryID(), newStock);
+            if (item != null && item.getStock() > 0) {
+                managerController.StockUpdateResult result = controller.updateStockInDatabase(item.getInventoryID(), -1);
+                if (result.getStock() != null) {
+                    int confirmedStock = result.getStock();
+                    item.setStock(confirmedStock);
+                    updateDisplay();
+                    if (!result.isUpdated()) controller.showStockUpdateFailure(confirmedStock);
+                } else if (result.isMissing()) {
+                    getListView().getItems().remove(item);
+                    controller.showMissingInventoryError();
+                }
             }
         });
 

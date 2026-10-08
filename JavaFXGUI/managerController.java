@@ -29,6 +29,31 @@ import javafx.scene.control.ButtonBar;
 
 public class managerController {
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; // database location
+    private static final BigDecimal MAX_ITEM_PRICE = new BigDecimal("99999999.99");
+
+    public static final class StockUpdateResult {
+        private final Integer stock;
+        private final boolean updated;
+        private final boolean missing;
+
+        private StockUpdateResult(Integer stock, boolean updated, boolean missing) {
+            this.stock = stock;
+            this.updated = updated;
+            this.missing = missing;
+        }
+
+        public Integer getStock() {
+            return stock;
+        }
+
+        public boolean isUpdated() {
+            return updated;
+        }
+
+        public boolean isMissing() {
+            return missing;
+        }
+    }
 
     // This method runs automatically when the FXML loads
     @FXML
@@ -124,31 +149,38 @@ public class managerController {
      *
      * @author Ashley Hoang
      * @param inventoryID The ID of the inventory item to update.
-     * @param newStock    The new stock quantity.
+     * @param stockDelta  The change in stock quantity.
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public void updateStockInDatabase(int inventoryID, int newStock) {
-        try {
-            dbSetup my = new dbSetup();
-            Class.forName("org.postgresql.Driver");
-            Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-            String updateQuery = "UPDATE inventory SET stock = ? WHERE inventory_id = ?";
-            PreparedStatement pstmt = conn.prepareStatement(updateQuery);
-            pstmt.setInt(1, newStock);
+    public StockUpdateResult updateStockInDatabase(int inventoryID, int stockDelta) {
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(
+                        "UPDATE inventory SET stock = stock + ? "
+                                + "WHERE inventory_id = ? AND stock + ? >= 0 RETURNING stock")) {
+            pstmt.setInt(1, stockDelta);
             pstmt.setInt(2, inventoryID);
-            pstmt.executeUpdate();
-            pstmt.close();
-            conn.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.exit(0);
+            pstmt.setInt(3, stockDelta);
+            try (ResultSet resultSet = pstmt.executeQuery()) {
+                if (resultSet.next()) return new StockUpdateResult(resultSet.getInt("stock"), true, false);
+            }
+            try (PreparedStatement currentStock = conn.prepareStatement(
+                    "SELECT stock FROM inventory WHERE inventory_id = ?")) {
+                currentStock.setInt(1, inventoryID);
+                try (ResultSet resultSet = currentStock.executeQuery()) {
+                    if (resultSet.next()) {
+                        int stock = resultSet.getInt("stock");
+                        return new StockUpdateResult(stock, false, false);
+                    }
+                }
+            }
+            return new StockUpdateResult(null, false, true);
+        } catch (SQLException | ClassNotFoundException e) {
+            showDatabaseError("update stock", "The database update failed.");
         } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-            System.exit(0);
-        } catch (Exception e) {
-            e.printStackTrace();
+            showDatabaseError("update stock", "The stock value is invalid.");
         }
+        return new StockUpdateResult(null, false, false);
     }
 
     @FXML
@@ -223,29 +255,55 @@ public class managerController {
      *
      * @author Ashley Hoang
      * @param itemID   The ID of the item to update.
-     * @param newPrice The new price.
+     * @param priceDelta The change in price.
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public void updatePriceInDatabase(int itemID, double newPrice) {
-        try {
-            dbSetup my = new dbSetup();
-            Class.forName("org.postgresql.Driver");
-            Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-            String updateQuery = "UPDATE item SET price = ? WHERE item_id = ?";
-            PreparedStatement pstmt = conn.prepareStatement(updateQuery);
-            pstmt.setDouble(1, newPrice);
+    public Double updatePriceInDatabase(int itemID, double priceDelta) {
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(
+                        "UPDATE item SET price = price + ? "
+                                + "WHERE item_id = ? AND price + ? >= 0 RETURNING price")) {
+            BigDecimal delta = BigDecimal.valueOf(priceDelta);
+            pstmt.setBigDecimal(1, delta);
             pstmt.setInt(2, itemID);
-            pstmt.executeUpdate();
-            pstmt.close();
-            conn.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
+            pstmt.setBigDecimal(3, delta);
+            try (ResultSet resultSet = pstmt.executeQuery()) {
+                if (resultSet.next()) return resultSet.getBigDecimal("price").doubleValue();
+            }
+            showDatabaseError("update price", "The price value could not be updated.");
+        } catch (SQLException | ClassNotFoundException e) {
+            showDatabaseError("update price", "The database update failed.");
         } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
+            showDatabaseError("update price", "The price value is invalid.");
         }
+        return null;
+    }
+
+    private Connection getConnection() throws SQLException, ClassNotFoundException {
+        dbSetup my = new dbSetup();
+        Class.forName("org.postgresql.Driver");
+        return DriverManager.getConnection(DB_URL, my.user, my.pswd);
+    }
+
+    private void showDatabaseError(String operation, String details) {
+        showError("Database Error", "Unable to " + operation, details);
+    }
+
+    public void showStockUpdateFailure(int currentStock) {
+        showDatabaseError("update stock", "The stock value changed. Current stock: " + currentStock);
+    }
+
+    public void showMissingInventoryError() {
+        showDatabaseError("update stock", "The inventory record no longer exists.");
+    }
+
+    private void showError(String title, String header, String details) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(details);
+        alert.showAndWait();
     }
 
     /*
@@ -346,36 +404,36 @@ public class managerController {
                 int itemID = Integer.parseInt(itemIDField.getText());
                 int categoryID = Integer.parseInt(categoryIDField.getText());
                 String nutritionInfo = nutritionInfoField.getText();
-                Double itemPrice = Double.parseDouble(itemPriceField.getText());
+                BigDecimal itemPrice = new BigDecimal(itemPriceField.getText().trim());
+                if (itemPrice.scale() > 2 || itemPrice.signum() < 0
+                        || itemPrice.compareTo(MAX_ITEM_PRICE) > 0)
+                    throw new IllegalArgumentException("Invalid price");
                 String size = sizeField.getText();
                 String itemName = itemNameField.getText();
 
-                dbSetup my = new dbSetup();
-                Class.forName("org.postgresql.Driver");
-                Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-
-                String insertQuery = "INSERT INTO item (item_id, category_id, nutrition, price, unit_size, name) VALUES (?, ?, ?, ?, ?, ?)";
-                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
-
-                pstmt.setInt(1, itemID);
-                pstmt.setInt(2, categoryID);
-                pstmt.setString(3, nutritionInfo);
-                pstmt.setDouble(4, itemPrice);
-                pstmt.setString(5, size);
-                pstmt.setString(6, itemName);
-
-                pstmt.executeUpdate();
-                pstmt.close();
-                conn.close();
+                try (Connection conn = getConnection();
+                        PreparedStatement pstmt = conn.prepareStatement(
+                                "INSERT INTO item (item_id, category_id, nutrition, price, unit_size, name, active) "
+                                        + "VALUES (?, ?, ?, ?, ?, ?, FALSE)")) {
+                    pstmt.setInt(1, itemID);
+                    pstmt.setInt(2, categoryID);
+                    pstmt.setString(3, nutritionInfo);
+                    pstmt.setBigDecimal(4, itemPrice);
+                    pstmt.setString(5, size);
+                    pstmt.setString(6, itemName);
+                    pstmt.executeUpdate();
+                }
                 reloadApplication();
             } catch (NumberFormatException e) {
                 Alert alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("Input Error");
                 alert.setHeaderText("Invalid Input");
-                alert.setContentText("Please ensure that Item ID, Category ID, and Item Price are valid integers.");
+                alert.setContentText("Please provide valid item, category, and price values.");
                 alert.showAndWait();
+            } catch (IllegalArgumentException e) {
+                showDatabaseError("add menu item", "Please provide a price from 0.00 to 99999999.99 with at most two decimal places.");
             } catch (Exception e) {
-                e.printStackTrace();
+                showDatabaseError("add menu item", "The menu item was not added.");
             }
         }
     }
@@ -388,27 +446,22 @@ public class managerController {
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public void removeMenuItemFromDatabase(MenuItem item) {
-        try {
-            dbSetup my = new dbSetup();
-            Class.forName("org.postgresql.Driver");
-            Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-            String updateQuery = "UPDATE item SET active = FALSE WHERE item_id = ?";
-            PreparedStatement pstmt = conn.prepareStatement(updateQuery);
+    public boolean removeMenuItemFromDatabase(MenuItem item) {
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(
+                        "UPDATE item SET active = FALSE WHERE item_id = ? AND active = TRUE")) {
             pstmt.setInt(1, item.getItemID());
-            int updatedRows = pstmt.executeUpdate();
-            pstmt.close();
-            conn.close();
-            if (updatedRows > 0) {
+            if (pstmt.executeUpdate() > 0) {
                 menuListView.getItems().remove(item);
+                return true;
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
+            showDatabaseError("remove menu item", "The menu item was not active.");
+        } catch (SQLException | ClassNotFoundException e) {
+            showDatabaseError("remove menu item", "The database update failed.");
         } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
+            showDatabaseError("remove menu item", "The menu item is invalid.");
         }
+        return false;
     }
 
     /**
@@ -445,7 +498,8 @@ public class managerController {
             stage.setScene(scene);
             stage.show();
         } catch (Exception e) {
-            e.printStackTrace();
+            showError("Reload Failed", "The manager view could not be refreshed.",
+                    "Please try again or reopen the manager view.");
         }
 
     }

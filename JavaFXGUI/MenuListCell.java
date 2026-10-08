@@ -27,26 +27,27 @@ public class MenuListCell extends ListCell<MenuItem> {
         increaseBtn.setOnAction(e -> {
             MenuItem item = getItem();
             if (item != null) {
-                double newPrice = item.getItemPrice() + 1.00;
-                item.setPrice(newPrice);
-                updateDisplay();
-                controller.updatePriceInDatabase(item.getItemID(), newPrice);
+                Double confirmedPrice = controller.updatePriceInDatabase(item.getItemID(), 1.00);
+                if (confirmedPrice != null) {
+                    item.setPrice(confirmedPrice);
+                    updateDisplay();
+                }
             }
         });
         decreaseBtn.setOnAction(e -> {
             MenuItem item = getItem();
             if (item != null) {
-                double newPrice = Math.max(0.0, item.getItemPrice() - 1.00);
-                item.setPrice(newPrice);
-                updateDisplay();
-                controller.updatePriceInDatabase(item.getItemID(), newPrice);
+                Double confirmedPrice = controller.updatePriceInDatabase(item.getItemID(), -1.00);
+                if (confirmedPrice != null) {
+                    item.setPrice(confirmedPrice);
+                    updateDisplay();
+                }
             }
         });
         removeBtn.setOnAction(e -> {
             MenuItem item = getItem();
             if (item != null) {
                 controller.removeMenuItemFromDatabase(item);
-                updateDisplay();
             }
         });
 
