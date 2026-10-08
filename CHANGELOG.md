@@ -13,3 +13,13 @@
 - Added ingredient_list to associate menu items with their inventory ingredients.
 
 - Restored item.unit_size in the SQL schema so it matches the updated ERD’s menu item fields.
+
+### 10/7/2026 — Phase 3 GUI changes
+
+- Added "Change View" buttons to easily switch in between cashier and manager view.
+
+- Added "Close" buttons to allow users to close out of the application.
+
+- Formatted Manager GUI to be tabs to easily switch views for different purposes.
+
+- Added a new tab to Manager GUI called "Menu" to allow the manager to increase/decrease prices and add/remove menu items.
