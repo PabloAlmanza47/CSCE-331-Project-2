@@ -35,7 +35,7 @@ javac \
   --add-modules javafx.controls,javafx.fxml \
   -cp "postgresql-42.2.8.jar" \
   -d "$OUT_DIR" \
-  DatabaseApp.java cashierController.java managerController.java ../GUI/dbSetup.java
+  DatabaseApp.java cashierController.java managerController.java StockItem.java StockListCell.java ../GUI/dbSetup.java
 
 exec java \
   --enable-native-access=javafx.graphics \

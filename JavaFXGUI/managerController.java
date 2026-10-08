@@ -44,138 +44,70 @@ public class managerController{
     // Your method to run the database query
     private void runQuery() {
         try {
-        // Get database creditials
-        dbSetup my = new dbSetup();
-    
-        // Build the connection
-        Class.forName("org.postgresql.Driver");
-        Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-
-        // Create statement
-        Statement stmt = conn.createStatement();
-
-        // Run sql query
-        // Bar Graph query and call
-        ResultSet items = stmt.executeQuery("SELECT i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri JOIN item i ON i.item_id = ri.item_id GROUP BY i.name ORDER BY numSold");
-        createSalesBarGraph(items);
-
-        // Stock query and call
-        ResultSet stocklist = stmt.executeQuery("SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life FROM inventory ORDER BY inventory_id");
-        createStockList(stocklist);
-
-        // Receipt list query and call
-        ResultSet receipts = stmt.executeQuery(
-            "SELECT " +
-            "    r.receipt_id, " +
-            "    r.receipt_timestamp, " +
-            "    ri.receipt_item_id, " +
-            "    i.item_id, " +
-            "    i.name AS item_name, " +
-            "    ri.quantity, " +
-            "    ri.price_at_sale " +
-            "FROM receipt AS r " +
-            "JOIN receipt_item AS ri ON r.receipt_id = ri.receipt_id " +
-            "JOIN item AS i ON ri.item_id = i.item_id " +
-            "WHERE r.receipt_id IN (" +
-            "    SELECT receipt_id " +
-            "    FROM receipt " +
-            "    ORDER BY receipt_timestamp DESC, receipt_id DESC " +
-            "    LIMIT 20" +
-            ") " +
-            "ORDER BY r.receipt_timestamp DESC, r.receipt_id DESC, ri.receipt_item_id"
-        );
-        createReceiptList(receipts);
-
-        // Menu list query and call
-        ResultSet menuList = stmt.executeQuery("SELECT item_id, name, price FROM item ORDER BY item_id");
-        createMenuList(menuList);
-
-        // Close connection
-        stmt.close();
-        conn.close();
-
+            dbSetup my = new dbSetup();
+            Class.forName("org.postgresql.Driver");
+            try (Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
+                    Statement stmt = conn.createStatement()) {
+                try (ResultSet items = stmt.executeQuery(
+                        "SELECT i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri "
+                                + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name ORDER BY numSold")) {
+                    createSalesBarGraph(items);
+                }
+                try (ResultSet stocklist = stmt.executeQuery(
+                        "SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life "
+                                + "FROM inventory ORDER BY inventory_id")) {
+                    createStockList(stocklist);
+                }
+                try (ResultSet receipts = stmt.executeQuery(
+                        "SELECT r.receipt_id, r.receipt_timestamp, ri.receipt_item_id, i.item_id, "
+                                + "i.name AS item_name, ri.quantity, ri.price_at_sale FROM receipt r "
+                                + "JOIN receipt_item ri ON r.receipt_id = ri.receipt_id "
+                                + "JOIN item i ON ri.item_id = i.item_id WHERE r.receipt_id IN "
+                                + "(SELECT receipt_id FROM receipt ORDER BY receipt_timestamp DESC, receipt_id DESC LIMIT 10) "
+                                + "ORDER BY r.receipt_timestamp DESC, r.receipt_id DESC, ri.receipt_item_id")) {
+                    createReceiptList(receipts);
+                }
+                try (ResultSet menuList = stmt.executeQuery(
+                        "SELECT item_id, name, price FROM item ORDER BY item_id")) {
+                    createMenuList(menuList);
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
-            System.exit(0);
         }
     }
 
-    /**
-     * Closes the current window when the close button is clicked.
-     * @author Ashley Hoang
-     * @param event - the action event triggered by clicking the close button
-    */
     @FXML public void closeWindow(ActionEvent event) {
-        Button closeButton = (Button) event.getSource();
-        Stage stage = (Stage) closeButton.getScene().getWindow();
+        Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
         stage.close();
     }
 
-
-    //Sales Graph creation
     @FXML BarChart<Number, String> salesGraph;
 
-    /**
-     * Creates a bar graph of the number of items sold from the provided ResultSet.
-     * @author Ashley Hoang
-     * @param items - the result set from the database query containing item names and number sold
-     * @throws SQLException - if there is an error with the database query
-     * @throws IllegalArgumentException - if there is an error with the list creation
-    */
-    @FXML public void createSalesBarGraph(ResultSet items){
+    @FXML public void createSalesBarGraph(ResultSet items) {
         try {
-            //add items
-            XYChart.Series<Number, String> soldSeries = new XYChart.Series<>(); 
-            while(items.next()){
-                String name = items.getString("itemNames");
-                int sold = items.getInt("numSold");
-
-                soldSeries.getData().add(new XYChart.Data<>(sold, name));
-
+            XYChart.Series<Number, String> soldSeries = new XYChart.Series<>();
+            while (items.next()) {
+                soldSeries.getData().add(new XYChart.Data<>(items.getInt("numSold"), items.getString("itemNames")));
             }
             salesGraph.getData().add(soldSeries);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.exit(0);
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-            System.exit(0);
-        }
+        } catch (SQLException | IllegalArgumentException e) { e.printStackTrace(); }
     }
 
-    //Stock list creation
+    // Preserve remote stock editing through StockItem and StockListCell.
     @FXML public ListView<StockItem> stockListView;
-    /**
-     * Creates a list of stock information from the provided ResultSet.
-     * @author Ashley Hoang
-     * @param stockList - the result set from the database query containing stock information
-     * @throws SQLException - if there is an error with the database query
-     * @throws IllegalArgumentException - if there is an error with the list creation
-    */
-    @FXML public void createStockList(ResultSet stockList){
+
+    @FXML public void createStockList(ResultSet stockList) {
         try {
             ObservableList<StockItem> stockItems = FXCollections.observableArrayList();
-            while(stockList.next()){
-                int inventoryID = stockList.getInt("inventory_id");
-                String itemName = stockList.getString("name");
-                int itemStock = stockList.getInt("stock");
-                int minStock = stockList.getInt("min_stock");
-                String nextShipment = stockList.getString("next_shipment");
-                String shelfLife = stockList.getString("shelf_life");
-
-                StockItem stockItem = new StockItem(inventoryID, itemName, itemStock, minStock, nextShipment, shelfLife);
-                stockItems.add(stockItem);
+            while (stockList.next()) {
+                stockItems.add(new StockItem(stockList.getInt("inventory_id"), stockList.getString("name"),
+                        stockList.getInt("stock"), stockList.getInt("min_stock"),
+                        stockList.getString("next_shipment"), stockList.getString("shelf_life")));
             }
             stockListView.setItems(stockItems);
             stockListView.setCellFactory(lv -> new StockListCell(this));
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.exit(0);
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-            System.exit(0);
-        }
+        } catch (SQLException | IllegalArgumentException e) { e.printStackTrace(); }
     }
 
     /**
@@ -209,90 +141,45 @@ public class managerController{
         }
     }
 
-    // Receipt list creation
     @FXML Accordion receiptAccordion;
-    /**
-     * Creates a list of receipts from the provided ResultSet.
-     * @author Ashley Hoang
-     * @param receipts - the result set from the database query containing receipt information
-     * @throws SQLException - if there is an error with the database query
-     * @throws IllegalArgumentException - if there is an error with the list creation
-    */
-    @FXML
-    public void createReceiptList(ResultSet receipts) {
+
+    @FXML public void createReceiptList(ResultSet receipts) {
         try {
-            // Initialize variables to track the current receipt and its items
             int currentReceiptID = -1;
             VBox itemList = null;
-            double receiptTotal = 0.0;
+            BigDecimal receiptTotal = BigDecimal.ZERO;
             TitledPane receiptPane = null;
-
             while (receipts.next()) {
                 int receiptID = receipts.getInt("receipt_id");
-                // New receipt
                 if (receiptID != currentReceiptID) {
-                    // If this isn't the first receipt, add the total
-                    if (receiptPane != null) {
-                        Label totalLabel = new Label(String.format("Total: $%.2f", receiptTotal));
-                        itemList.getChildren().add(totalLabel);
-                    }
-
-                    // Start the new receipt
+                    if (receiptPane != null) itemList.getChildren().add(new Label(
+                            String.format("Total: $%.2f", receiptTotal)));
                     currentReceiptID = receiptID;
-                    receiptTotal = 0.0;
-
+                    receiptTotal = BigDecimal.ZERO;
                     itemList = new VBox(5);
                     itemList.setPadding(new Insets(10));
-
                     receiptPane = new TitledPane("Receipt " + receiptID, itemList);
                     receiptPane.setMaxWidth(Double.MAX_VALUE);
                     receiptAccordion.getPanes().add(receiptPane);
                 }
-
-                // Get item information
                 String itemName = receipts.getString("item_name");
                 int quantity = receipts.getInt("quantity");
-                BigDecimal price = receipts.getBigDecimal("price_at_sale");
-
-                // Calculate this item's total
-                BigDecimal itemTotal = price.multiply(BigDecimal.valueOf(quantity));
-                receiptTotal = receiptTotal + itemTotal.doubleValue();
-
-                // Display item
-                Label itemLabel = new Label(String.format("%s    x%d    $%.2f", itemName, quantity, itemTotal));
-                itemLabel.setMaxWidth(Double.MAX_VALUE);
-                itemList.getChildren().add(itemLabel);
+                // Checkout stores price_at_sale as the complete line total.
+                BigDecimal lineTotal = receipts.getBigDecimal("price_at_sale");
+                if (lineTotal == null) lineTotal = BigDecimal.ZERO;
+                receiptTotal = receiptTotal.add(lineTotal);
+                itemList.getChildren().add(new Label(String.format(
+                        "%s    x%d    $%.2f", itemName, quantity, lineTotal)));
             }
-
-            // Add total to the final receipt
-            if (receiptPane != null) {
-                Label totalLabel = new Label(
-                    String.format("Total: $%.2f", receiptTotal)
-                );
-                itemList.getChildren().add(totalLabel);
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.exit(0);
-
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-            System.exit(0);
-        }
+            if (receiptPane != null) itemList.getChildren().add(new Label(
+                    String.format("Total: $%.2f", receiptTotal)));
+        } catch (SQLException | IllegalArgumentException e) { e.printStackTrace(); }
     }
     
     // Menu list creation
     @FXML public ListView<MenuItem> menuListView;
 
-    /**
-     * Creates a list of menu information from the provided ResultSet.
-     * @author Ashley Hoang
-     * @param menuList - the result set from the database query containing menu information
-     * @throws SQLException - if there is an error with the database query
-     * @throws IllegalArgumentException - if there is an error with the list creation
-    */
-    @FXML public void createMenuList(ResultSet menuList){
+    @FXML public void createMenuList(ResultSet menuList) {
         try {
             ObservableList<MenuItem> menuItems = FXCollections.observableArrayList();
             while(menuList.next()){
@@ -511,7 +398,6 @@ public class managerController{
         Parent root = FXMLLoader.load(getClass().getResource("cashierGUI.fxml"));
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
-
         stage.setScene(new Scene(root, 1200, 800));
         stage.show();
     }
