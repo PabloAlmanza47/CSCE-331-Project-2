@@ -335,6 +335,7 @@ class Generator {
         void writeUsers(ofstream& stream) const;
         void writeTimetables(ofstream& stream) const;
         void writeTeardown(const char* filename) const;
+        void writeReset(const char* filename) const;
 
         void writeAll(const char* filename) const;
 

@@ -1,6 +1,7 @@
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Alert;
@@ -92,20 +93,38 @@ public class cashierController {
 
     private void confirmCheckout() {
         if (cart.isEmpty()) return;
+        checkout.setDisable(true);
         dbSetup my = new dbSetup();
         Connection conn = null;
+        boolean committed = false;
         try {
             conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
             conn.setAutoCommit(false);
             try (PreparedStatement receipt = conn.prepareStatement(
                     "INSERT INTO receipt (location_id, user_id, receipt_timestamp) VALUES (?, ?, CURRENT_TIMESTAMP) RETURNING receipt_id");
+                    PreparedStatement itemValidation = conn.prepareStatement(
+                            "SELECT i.active, COUNT(il.inventory_id) AS ingredient_count "
+                                    + "FROM item i LEFT JOIN ingredient_list il ON il.item_id = i.item_id "
+                                    + "WHERE i.item_id = ? GROUP BY i.active");
                     PreparedStatement ingredients = conn.prepareStatement(
-                            "SELECT inventory_id FROM ingredient_list WHERE item_id = ?");
+                            "SELECT inventory_id FROM ingredient_list WHERE item_id = ? ORDER BY inventory_id FOR SHARE");
                     PreparedStatement update = conn.prepareStatement(
                             "UPDATE inventory SET stock = stock - ? WHERE inventory_id = ? AND stock >= ?");
                     PreparedStatement receiptItem = conn.prepareStatement(
                             "INSERT INTO receipt_item (receipt_id, item_id, quantity, price_at_sale) "
-                                    + "SELECT ?, item_id, ?, price * ? FROM item WHERE item_id = ?")) {
+                                    + "SELECT ?, item_id, ?, price * ? FROM item "
+                                    + "WHERE item_id = ? AND active = TRUE")) {
+                TreeMap<Integer, Integer> checkoutCart = new TreeMap<>(cart);
+                for (Integer itemID : checkoutCart.keySet()) {
+                    itemValidation.setInt(1, itemID);
+                    try (ResultSet validationResults = itemValidation.executeQuery()) {
+                        if (!validationResults.next()
+                                || !validationResults.getBoolean("active")
+                                    || validationResults.getInt("ingredient_count") == 0) {
+                            throw new SQLException("Item is unavailable or has no ingredient mapping: " + itemID);
+                        }
+                    }
+                }
                 receipt.setInt(1, currentLocationId);
                 receipt.setInt(2, currentUserId);
                 int receiptID;
@@ -113,43 +132,79 @@ public class cashierController {
                     if (!receiptResults.next()) throw new SQLException("Unable to create receipt");
                     receiptID = receiptResults.getInt("receipt_id");
                 }
-                for (Map.Entry<Integer, Integer> entry : cart.entrySet()) {
+                TreeMap<Integer, Integer> requiredInventory = new TreeMap<>();
+                for (Map.Entry<Integer, Integer> entry : checkoutCart.entrySet()) {
                     int itemID = entry.getKey();
-                    int quantity = entry.getValue();
+                    int expectedIngredientCount;
+                    itemValidation.setInt(1, itemID);
+                    try (ResultSet validationResults = itemValidation.executeQuery()) {
+                        if (!validationResults.next()
+                                || !validationResults.getBoolean("active")
+                                || validationResults.getInt("ingredient_count") == 0) {
+                            throw new SQLException("Item is no longer available: " + itemID);
+                        }
+                        expectedIngredientCount = validationResults.getInt("ingredient_count");
+                    }
+                    int mappedIngredientCount = 0;
                     ingredients.setInt(1, itemID);
                     try (ResultSet ingredientResults = ingredients.executeQuery()) {
                         while (ingredientResults.next()) {
-                            update.setInt(1, quantity);
-                            update.setInt(2, ingredientResults.getInt("inventory_id"));
-                            update.setInt(3, quantity);
-                            if (update.executeUpdate() == 0)
-                                throw new SQLException("Insufficient inventory for item " + itemID);
+                            int inventoryID = ingredientResults.getInt("inventory_id");
+                            requiredInventory.merge(inventoryID, entry.getValue(), Integer::sum);
+                            mappedIngredientCount++;
                         }
                     }
+                    if (mappedIngredientCount != expectedIngredientCount)
+                        throw new SQLException("Ingredient mapping changed for item " + itemID);
+                }
+                for (Map.Entry<Integer, Integer> entry : requiredInventory.entrySet()) {
+                    update.setInt(1, entry.getValue());
+                    update.setInt(2, entry.getKey());
+                    update.setInt(3, entry.getValue());
+                    if (update.executeUpdate() == 0)
+                        throw new SQLException("Insufficient inventory for checkout");
+                }
+                for (Map.Entry<Integer, Integer> entry : checkoutCart.entrySet()) {
+                    int itemID = entry.getKey();
                     receiptItem.setInt(1, receiptID);
                     receiptItem.setInt(2, itemID);
-                    receiptItem.setInt(3, quantity);
+                    receiptItem.setInt(3, entry.getValue());
                     receiptItem.setInt(4, itemID);
                     if (receiptItem.executeUpdate() == 0)
                         throw new SQLException("Unable to add item " + itemID + " to receipt");
                 }
                 conn.commit();
+                committed = true;
+                for (CheckBox item : cartRows.values()) cartBox.getChildren().remove(item);
+                cartRows.clear();
+                cart.clear();
+                totalPrice = 0;
+                totalPriceLabel.setText("Total Price: 0.0$");
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
                 alert.setTitle("Order Complete");
                 alert.setHeaderText(null);
                 alert.setContentText("Order recorded successfully.");
                 alert.showAndWait();
             }
-            for (CheckBox item : cartRows.values()) cartBox.getChildren().remove(item);
-            cartRows.clear();
-            cart.clear();
-            totalPrice = 0;
-            totalPriceLabel.setText("Total Price: 0.0$");
         } catch (SQLException e) {
-            if (conn != null) try { conn.rollback(); } catch (SQLException rollbackError) { rollbackError.printStackTrace(); }
-            e.printStackTrace();
+            if (conn != null && !committed) try { conn.rollback(); } catch (SQLException ignored) { }
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Checkout Failed");
+            alert.setHeaderText(null);
+            alert.setContentText("The order was not recorded. Please verify inventory and try again.");
+            alert.showAndWait();
+        } catch (RuntimeException e) {
+            if (!committed) {
+                if (conn != null) try { conn.rollback(); } catch (SQLException ignored) { }
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Checkout Failed");
+                alert.setHeaderText(null);
+                alert.setContentText("The order could not be completed. Please try again.");
+                alert.showAndWait();
+            }
         } finally {
             if (conn != null) try { conn.close(); } catch (SQLException closeError) { closeError.printStackTrace(); }
+            checkout.setDisable(false);
         }
     }
 

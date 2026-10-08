@@ -65,6 +65,7 @@ int main() {
     else
         g->writeAll(filename);
 
+    g->writeReset("../SqlCommands/Reset.sql");
     g->writeTeardown("../SqlCommands/Teardown.sql");
 
     cout << "Generation completed successfully!" << endl;
@@ -562,6 +563,65 @@ void Generator::writeFast(ofstream& stream, Scriptable** arr, int arrLen) const 
         stream << arr[i]->toVals() << (i == arrLen - 1 ? ';' : ',');
 }
 
+static void writeIdentitySequenceSync(ofstream& stream) {
+    stream << "\n"
+           << "WITH table_state AS (SELECT MAX(receipt_id) AS max_id FROM receipt), "
+           << "sequence_state AS (SELECT last_value FROM pg_sequences WHERE schemaname = current_schema() "
+           << "AND sequencename = 'receipt_receipt_id_seq') "
+           << "SELECT setval(pg_get_serial_sequence('receipt', 'receipt_id'), "
+           << "GREATEST(COALESCE(table_state.max_id, 0), COALESCE(sequence_state.last_value, 1)), "
+           << "table_state.max_id IS NOT NULL OR sequence_state.last_value IS NOT NULL) "
+           << "FROM table_state CROSS JOIN sequence_state;\n"
+           << "WITH table_state AS (SELECT MAX(receipt_item_id) AS max_id FROM receipt_item), "
+           << "sequence_state AS (SELECT last_value FROM pg_sequences WHERE schemaname = current_schema() "
+           << "AND sequencename = 'receipt_item_receipt_item_id_seq') "
+           << "SELECT setval(pg_get_serial_sequence('receipt_item', 'receipt_item_id'), "
+           << "GREATEST(COALESCE(table_state.max_id, 0), COALESCE(sequence_state.last_value, 1)), "
+           << "table_state.max_id IS NOT NULL OR sequence_state.last_value IS NOT NULL) "
+           << "FROM table_state CROSS JOIN sequence_state;\n";
+}
+
+static void writeLoaderStart(ofstream& stream) {
+    stream << "\\set ON_ERROR_STOP on\n"
+           << "BEGIN;\n"
+           << "LOCK TABLE category, item, inventory, ingredient_list, receipt, receipt_item, "
+           << "location, app_user, user_timetable, receipt_receipt_id_seq, "
+           << "receipt_item_receipt_item_id_seq IN ACCESS EXCLUSIVE MODE;\n";
+}
+
+static void writeInitialLoadGuard(ofstream& stream) {
+    stream << "DO $$\n"
+           << "BEGIN\n"
+           << "    IF EXISTS (SELECT 1 FROM category)\n"
+           << "       OR EXISTS (SELECT 1 FROM item)\n"
+           << "       OR EXISTS (SELECT 1 FROM inventory)\n"
+           << "       OR EXISTS (SELECT 1 FROM ingredient_list)\n"
+           << "       OR EXISTS (SELECT 1 FROM receipt)\n"
+           << "       OR EXISTS (SELECT 1 FROM receipt_item)\n"
+           << "       OR EXISTS (SELECT 1 FROM location)\n"
+           << "       OR EXISTS (SELECT 1 FROM app_user)\n"
+           << "       OR EXISTS (SELECT 1 FROM user_timetable) THEN\n"
+           << "        RAISE EXCEPTION 'Initial loader requires empty project tables';\n"
+           << "    END IF;\n"
+           << "END\n"
+           << "$$;\n";
+}
+
+static void writeLoaderEnd(ofstream& stream) {
+    stream << "COMMIT;\n";
+}
+
+static void writeDestructiveGuard(ofstream& stream) {
+    stream << "\\set ON_ERROR_STOP on\n"
+           << "DO $$\n"
+           << "BEGIN\n"
+           << "    IF current_setting('app.allow_destructive', true) IS DISTINCT FROM 'true' THEN\n"
+           << "        RAISE EXCEPTION 'Destructive script requires SET app.allow_destructive = true';\n"
+           << "    END IF;\n"
+           << "END\n"
+           << "$$;\n";
+}
+
 void Generator::writeTruncates(ofstream& stream) const {
     stream << "TRUNCATE TABLE category CASCADE;\n";
     stream << "TRUNCATE TABLE item CASCADE;\n";
@@ -706,7 +766,7 @@ void Generator::writeTeardown(const char* filename) const {
         return;
     }
 
-    outputFile << "-- Drop tables if they already exist\n";
+    writeDestructiveGuard(outputFile);
     outputFile << "DROP TABLE IF EXISTS receipt_item;\n";
     outputFile << "DROP TABLE IF EXISTS receipt;\n";
     outputFile << "DROP TABLE IF EXISTS ingredient_list;\n";
@@ -721,6 +781,34 @@ void Generator::writeTeardown(const char* filename) const {
     outputFile.close();
 }
 
+void Generator::writeReset(const char* filename) const {
+    ofstream outputFile = ofstream(filename);
+
+    if (!outputFile.is_open()) {
+        cerr << "Failed to write reset: The output file did not open!!" << endl;
+        return;
+    }
+
+    writeDestructiveGuard(outputFile);
+    outputFile << "BEGIN;\n"
+               << "LOCK TABLE category, item, inventory, ingredient_list, receipt, receipt_item, "
+               << "location, app_user, user_timetable, receipt_receipt_id_seq, "
+               << "receipt_item_receipt_item_id_seq IN ACCESS EXCLUSIVE MODE;\n";
+    writeTruncates(outputFile);
+    writeLocations(outputFile);
+    writeUsers(outputFile);
+    writeCategories(outputFile);
+    writeItems(outputFile);
+    writeInventory(outputFile);
+    writeInventoryRelations(outputFile);
+    writeDays(outputFile);
+    writeTimetables(outputFile);
+    writeIdentitySequenceSync(outputFile);
+    writeLoaderEnd(outputFile);
+
+    outputFile.close();
+}
+
 void Generator::writeAll(const char* filename) const {
     ofstream outputFile = ofstream(filename);
 
@@ -729,8 +817,8 @@ void Generator::writeAll(const char* filename) const {
         return;
     }
 
-    outputFile << "-- TRUNCATE STATEMENTS\n\n";
-    writeTruncates(outputFile);
+    writeLoaderStart(outputFile);
+    writeInitialLoadGuard(outputFile);
     outputFile << "\n-- LOCATION GENERATION\n\n";
     writeLocations(outputFile);
     outputFile << "\n-- USER GENERATION\n\n";
@@ -747,6 +835,8 @@ void Generator::writeAll(const char* filename) const {
     writeDays(outputFile);
     outputFile << "\n-- TIMETABLE GENERATION\n\n";
     writeTimetables(outputFile);
+    writeIdentitySequenceSync(outputFile);
+    writeLoaderEnd(outputFile);
 
     outputFile.close();
 }
@@ -758,7 +848,8 @@ void Generator::writeAllFast(const char* filename) const {
         return;
     }
 
-    writeTruncatesFast(outputFile);
+    writeLoaderStart(outputFile);
+    writeInitialLoadGuard(outputFile);
     writeLocationsFast(outputFile);
     writeUsersFast(outputFile);
     writeCategoriesFast(outputFile);
@@ -767,6 +858,8 @@ void Generator::writeAllFast(const char* filename) const {
     writeInventoryRelationsFast(outputFile);
     writeDaysFast(outputFile);
     writeTimetablesFast(outputFile);
+    writeIdentitySequenceSync(outputFile);
+    writeLoaderEnd(outputFile);
 
     outputFile.close();
 }
