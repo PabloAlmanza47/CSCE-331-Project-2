@@ -71,6 +71,7 @@ CREATE TABLE item (
     price NUMERIC(10, 2) NOT NULL,
     unit_size VARCHAR(50),
     name VARCHAR(100) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
 
     CONSTRAINT fk_item_category
         FOREIGN KEY (category_id)

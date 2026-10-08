@@ -27,7 +27,7 @@ public class MenuListCell extends ListCell<MenuItem> {
         increaseBtn.setOnAction(e -> {
             MenuItem item = getItem();
             if (item != null) {
-                int newPrice = item.getItemPrice() + 1;
+                double newPrice = item.getItemPrice() + 1.00;
                 item.setPrice(newPrice);
                 updateDisplay();
                 controller.updatePriceInDatabase(item.getItemID(), newPrice);
@@ -36,7 +36,7 @@ public class MenuListCell extends ListCell<MenuItem> {
         decreaseBtn.setOnAction(e -> {
             MenuItem item = getItem();
             if (item != null) {
-                int newPrice = Math.max(0, item.getItemPrice() - 1);
+                double newPrice = Math.max(0.0, item.getItemPrice() - 1.00);
                 item.setPrice(newPrice);
                 updateDisplay();
                 controller.updatePriceInDatabase(item.getItemID(), newPrice);
@@ -63,21 +63,23 @@ public class MenuListCell extends ListCell<MenuItem> {
 
     /**
      * Updates the display of the ListCell based on the current MenuItem.
+     *
      * @author Ashley Hoang
      */
     private void updateDisplay() {
         MenuItem item = getItem();
         if (item != null) {
             infoLabel.setText(String.format(
-                "#%d %s:\n- Price: $%.2f",
-                item.getItemID(), item.getItemName(), (float) item.getItemPrice()
-            ));
+                    "#%d %s:\n- Price: $%.2f",
+                    item.getItemID(), item.getItemName(), item.getItemPrice()));
         }
     }
 
     /**
-     * Overrides the updateItem method to update the ListCell's content when the item changes.
-     * @param item The new MenuItem to display.
+     * Overrides the updateItem method to update the ListCell's content when the
+     * item changes.
+     *
+     * @param item  The new MenuItem to display.
      * @param empty Whether the cell is empty.
      * @author Ashley Hoang
      */

@@ -1,5 +1,7 @@
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
@@ -7,19 +9,32 @@ import javafx.beans.property.StringProperty;
 public class MenuItem {
     private final IntegerProperty itemID = new SimpleIntegerProperty();
     private final StringProperty itemName = new SimpleStringProperty();
-    private final IntegerProperty itemPrice = new SimpleIntegerProperty();
+    private final DoubleProperty itemPrice = new SimpleDoubleProperty();
 
-    public MenuItem(int itemID, String itemName, int itemPrice) {
+    public MenuItem(int itemID, String itemName, double itemPrice) {
         this.itemID.set(itemID);
         this.itemName.set(itemName);
         this.itemPrice.set(itemPrice);
     }
 
     // Getters and setters for each field
-    public int getItemID() { return itemID.get(); }
-    public String getItemName() { return itemName.get(); }
-    public int getItemPrice() { return itemPrice.get(); }
+    public int getItemID() {
+        return itemID.get();
+    }
 
-    public void setPrice(int value) { itemPrice.set(value); }
-    public IntegerProperty itemPriceProperty() { return itemPrice; }
+    public String getItemName() {
+        return itemName.get();
+    }
+
+    public double getItemPrice() {
+        return itemPrice.get();
+    }
+
+    public void setPrice(double value) {
+        itemPrice.set(value);
+    }
+
+    public DoubleProperty itemPriceProperty() {
+        return itemPrice;
+    }
 }

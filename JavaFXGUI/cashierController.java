@@ -3,6 +3,7 @@ import java.util.HashMap;
 import java.util.Map;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
@@ -42,7 +43,8 @@ public class cashierController {
                 for (int i = 0; i < areas.length; i++) {
                     VBox currentBox = areas[i];
                     try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT name, price, item_id FROM item WHERE category_id = " + (i + 1))) {
+                            "SELECT name, price, item_id FROM item WHERE category_id = " + (i + 1)
+                                    + " AND active = TRUE")) {
                         while (resultSet.next()) {
                             String name = resultSet.getString("name");
                             double price = resultSet.getDouble("price");
@@ -132,6 +134,11 @@ public class cashierController {
                         throw new SQLException("Unable to add item " + itemID + " to receipt");
                 }
                 conn.commit();
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Order Complete");
+                alert.setHeaderText(null);
+                alert.setContentText("Order recorded successfully.");
+                alert.showAndWait();
             }
             for (CheckBox item : cartRows.values()) cartBox.getChildren().remove(item);
             cartRows.clear();

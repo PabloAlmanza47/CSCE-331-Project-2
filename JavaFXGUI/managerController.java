@@ -27,20 +27,20 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.control.ButtonBar;
 
+public class managerController {
+    private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; // database location
 
-
-public class managerController{
-    private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; //database location
-    
     // This method runs automatically when the FXML loads
     @FXML
     public void initialize() {
-        /*// Set up what happens when button is clicked
-        queryButton.setOnAction(event -> runQuery());
-        closeButton.setOnAction(event -> closeWindow());*/
+        /*
+         * // Set up what happens when button is clicked
+         * queryButton.setOnAction(event -> runQuery());
+         * closeButton.setOnAction(event -> closeWindow());
+         */
         runQuery();
     }
-    
+
     // Your method to run the database query
     private void runQuery() {
         try {
@@ -68,7 +68,7 @@ public class managerController{
                     createReceiptList(receipts);
                 }
                 try (ResultSet menuList = stmt.executeQuery(
-                        "SELECT item_id, name, price FROM item ORDER BY item_id")) {
+                        "SELECT item_id, name, price FROM item WHERE active = TRUE ORDER BY item_id")) {
                     createMenuList(menuList);
                 }
             }
@@ -77,27 +77,34 @@ public class managerController{
         }
     }
 
-    @FXML public void closeWindow(ActionEvent event) {
+    @FXML
+    public void closeWindow(ActionEvent event) {
         Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
         stage.close();
     }
 
-    @FXML BarChart<Number, String> salesGraph;
+    @FXML
+    BarChart<Number, String> salesGraph;
 
-    @FXML public void createSalesBarGraph(ResultSet items) {
+    @FXML
+    public void createSalesBarGraph(ResultSet items) {
         try {
             XYChart.Series<Number, String> soldSeries = new XYChart.Series<>();
             while (items.next()) {
                 soldSeries.getData().add(new XYChart.Data<>(items.getInt("numSold"), items.getString("itemNames")));
             }
             salesGraph.getData().add(soldSeries);
-        } catch (SQLException | IllegalArgumentException e) { e.printStackTrace(); }
+        } catch (SQLException | IllegalArgumentException e) {
+            e.printStackTrace();
+        }
     }
 
     // Preserve remote stock editing through StockItem and StockListCell.
-    @FXML public ListView<StockItem> stockListView;
+    @FXML
+    public ListView<StockItem> stockListView;
 
-    @FXML public void createStockList(ResultSet stockList) {
+    @FXML
+    public void createStockList(ResultSet stockList) {
         try {
             ObservableList<StockItem> stockItems = FXCollections.observableArrayList();
             while (stockList.next()) {
@@ -107,15 +114,18 @@ public class managerController{
             }
             stockListView.setItems(stockItems);
             stockListView.setCellFactory(lv -> new StockListCell(this));
-        } catch (SQLException | IllegalArgumentException e) { e.printStackTrace(); }
+        } catch (SQLException | IllegalArgumentException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
      * Updates the stock quantity of an item in the database.
+     *
      * @author Ashley Hoang
      * @param inventoryID The ID of the inventory item to update.
-     * @param newStock The new stock quantity.
-     * @throws SQLException if there is an error with the database query
+     * @param newStock    The new stock quantity.
+     * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
     public void updateStockInDatabase(int inventoryID, int newStock) {
@@ -141,9 +151,11 @@ public class managerController{
         }
     }
 
-    @FXML Accordion receiptAccordion;
+    @FXML
+    Accordion receiptAccordion;
 
-    @FXML public void createReceiptList(ResultSet receipts) {
+    @FXML
+    public void createReceiptList(ResultSet receipts) {
         try {
             int currentReceiptID = -1;
             VBox itemList = null;
@@ -152,8 +164,9 @@ public class managerController{
             while (receipts.next()) {
                 int receiptID = receipts.getInt("receipt_id");
                 if (receiptID != currentReceiptID) {
-                    if (receiptPane != null) itemList.getChildren().add(new Label(
-                            String.format("Total: $%.2f", receiptTotal)));
+                    if (receiptPane != null)
+                        itemList.getChildren().add(new Label(
+                                String.format("Total: $%.2f", receiptTotal)));
                     currentReceiptID = receiptID;
                     receiptTotal = BigDecimal.ZERO;
                     itemList = new VBox(5);
@@ -166,26 +179,32 @@ public class managerController{
                 int quantity = receipts.getInt("quantity");
                 // Checkout stores price_at_sale as the complete line total.
                 BigDecimal lineTotal = receipts.getBigDecimal("price_at_sale");
-                if (lineTotal == null) lineTotal = BigDecimal.ZERO;
+                if (lineTotal == null)
+                    lineTotal = BigDecimal.ZERO;
                 receiptTotal = receiptTotal.add(lineTotal);
                 itemList.getChildren().add(new Label(String.format(
                         "%s    x%d    $%.2f", itemName, quantity, lineTotal)));
             }
-            if (receiptPane != null) itemList.getChildren().add(new Label(
-                    String.format("Total: $%.2f", receiptTotal)));
-        } catch (SQLException | IllegalArgumentException e) { e.printStackTrace(); }
+            if (receiptPane != null)
+                itemList.getChildren().add(new Label(
+                        String.format("Total: $%.2f", receiptTotal)));
+        } catch (SQLException | IllegalArgumentException e) {
+            e.printStackTrace();
+        }
     }
-    
-    // Menu list creation
-    @FXML public ListView<MenuItem> menuListView;
 
-    @FXML public void createMenuList(ResultSet menuList) {
+    // Menu list creation
+    @FXML
+    public ListView<MenuItem> menuListView;
+
+    @FXML
+    public void createMenuList(ResultSet menuList) {
         try {
             ObservableList<MenuItem> menuItems = FXCollections.observableArrayList();
-            while(menuList.next()){
+            while (menuList.next()) {
                 int itemID = menuList.getInt("item_id");
                 String itemName = menuList.getString("name");
-                int itemPrice = menuList.getInt("price");
+                double itemPrice = menuList.getDouble("price");
 
                 MenuItem menuItem = new MenuItem(itemID, itemName, itemPrice);
                 menuItems.add(menuItem);
@@ -194,81 +213,84 @@ public class managerController{
             menuListView.setCellFactory(lv -> new MenuListCell(this));
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
-            System.exit(0);
         }
     }
 
-    
     /**
      * Updates the price of an item in the database.
+     *
      * @author Ashley Hoang
-     * @param itemID The ID of the item to update.
+     * @param itemID   The ID of the item to update.
      * @param newPrice The new price.
-     * @throws SQLException if there is an error with the database query
+     * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public void updatePriceInDatabase(int itemID, int newPrice) {
+    public void updatePriceInDatabase(int itemID, double newPrice) {
         try {
             dbSetup my = new dbSetup();
             Class.forName("org.postgresql.Driver");
             Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
             String updateQuery = "UPDATE item SET price = ? WHERE item_id = ?";
             PreparedStatement pstmt = conn.prepareStatement(updateQuery);
-            pstmt.setInt(1, newPrice);
+            pstmt.setDouble(1, newPrice);
             pstmt.setInt(2, itemID);
             pstmt.executeUpdate();
             pstmt.close();
             conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
-            System.exit(0);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    /* It is slow; do not use
-    /**
+    /*
+     * It is slow; do not use
+     * /**
      * Checks if a menu item is in the database.
+     *
      * @param itemID The ID of the item to check.
+     *
      * @return true if the item is in the database, false otherwise.
+     *
      * @author Ashley Hoang
      */
     /*
-    public boolean isMenuItemInDatabase(int itemID) {
-        try {
-            dbSetup my = new dbSetup();
-            Class.forName("org.postgresql.Driver");
-            Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-            String query = "SELECT * FROM item WHERE item_id = ?";
-            PreparedStatement pstmt = conn.prepareStatement(query);
-            pstmt.setInt(1, itemID);
-            ResultSet rs = pstmt.executeQuery();
-            boolean isInDatabase = rs.next();
-            rs.close();
-            pstmt.close();
-            conn.close();
-            return isInDatabase;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }*/
+     * public boolean isMenuItemInDatabase(int itemID) {
+     * try {
+     * dbSetup my = new dbSetup();
+     * Class.forName("org.postgresql.Driver");
+     * Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
+     * String query = "SELECT * FROM item WHERE item_id = ?";
+     * PreparedStatement pstmt = conn.prepareStatement(query);
+     * pstmt.setInt(1, itemID);
+     * ResultSet rs = pstmt.executeQuery();
+     * boolean isInDatabase = rs.next();
+     * rs.close();
+     * pstmt.close();
+     * conn.close();
+     * return isInDatabase;
+     * } catch (Exception e) {
+     * e.printStackTrace();
+     * return false;
+     * }
+     * }
+     */
 
     /**
      * Adds a new menu item to the database based on user input from a dialog.
+     *
      * @author Ashley Hoang
      * @param event
-     * @throws SQLException if there is an error with the database query
+     * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    @FXML public void addMenuItem(ActionEvent event) {
+    @FXML
+    public void addMenuItem(ActionEvent event) {
         // Get the input values from the user
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Add Menu Item");
@@ -360,9 +382,10 @@ public class managerController{
 
     /**
      * Removes a menu item from the database.
+     *
      * @param item The menu item to remove.
      * @author Ashley Hoang
-     * @throws SQLException if there is an error with the database query
+     * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
     public void removeMenuItemFromDatabase(MenuItem item) {
@@ -370,31 +393,34 @@ public class managerController{
             dbSetup my = new dbSetup();
             Class.forName("org.postgresql.Driver");
             Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-            String deleteQuery = "DELETE FROM item WHERE item_id = ?";
-            PreparedStatement pstmt = conn.prepareStatement(deleteQuery);
+            String updateQuery = "UPDATE item SET active = FALSE WHERE item_id = ?";
+            PreparedStatement pstmt = conn.prepareStatement(updateQuery);
             pstmt.setInt(1, item.getItemID());
-            pstmt.executeUpdate();
+            int updatedRows = pstmt.executeUpdate();
             pstmt.close();
             conn.close();
-            reloadApplication();
+            if (updatedRows > 0) {
+                menuListView.getItems().remove(item);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
-            System.exit(0);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     /**
-     * Changes the view to the cashier view when the corresponding button is clicked.
+     * Changes the view to the cashier view when the corresponding button is
+     * clicked.
+     *
      * @author Ashley Hoang
      * @param event - the action event triggering the view change
      * @throws IOException if the FXML resource cannot be loaded
-    */
-    @FXML public void changeView(ActionEvent event) throws IOException {
+     */
+    @FXML
+    public void changeView(ActionEvent event) throws IOException {
         Parent root = FXMLLoader.load(getClass().getResource("cashierGUI.fxml"));
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
@@ -403,12 +429,15 @@ public class managerController{
     }
 
     /**
-     * Reloads the current application view to reflect any changes made to the menu items.
+     * Reloads the current application view to reflect any changes made to the menu
+     * items.
+     *
      * @author Ashley Hoang
      * @throws IOException if the FXML resource cannot be loaded
-    */
-    @FXML public void reloadApplication() {
-        try{
+     */
+    @FXML
+    public void reloadApplication() {
+        try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("managerGUI.fxml"));
             Parent root = loader.load();
             Stage stage = (Stage) menuListView.getScene().getWindow();
@@ -418,7 +447,6 @@ public class managerController{
         } catch (Exception e) {
             e.printStackTrace();
         }
-        
+
     }
 }
-
