@@ -10,8 +10,7 @@ import javafx.scene.layout.Priority;
 public class MenuListCell extends ListCell<MenuItem> {
     private final HBox content;
     private final Label infoLabel;
-    private final Button increaseBtn;
-    private final Button decreaseBtn;
+    private final Button changePriceBtn;
     private final Button removeBtn;
 
     private final managerController controller;
@@ -19,25 +18,14 @@ public class MenuListCell extends ListCell<MenuItem> {
     public MenuListCell(managerController controller) {
         this.controller = controller;
         infoLabel = new Label();
-        increaseBtn = new Button("Increase Price");
-        decreaseBtn = new Button("Decrease Price");
+        changePriceBtn = new Button("Change Price");
         removeBtn = new Button("Remove Item");
 
         // Set up button actions to modify price and update the display
-        increaseBtn.setOnAction(e -> {
+        changePriceBtn.setOnAction(e -> {
             MenuItem item = getItem();
             if (item != null) {
-                Double confirmedPrice = controller.updatePriceInDatabase(item.getItemID(), 1.00);
-                if (confirmedPrice != null) {
-                    item.setPrice(confirmedPrice);
-                    updateDisplay();
-                }
-            }
-        });
-        decreaseBtn.setOnAction(e -> {
-            MenuItem item = getItem();
-            if (item != null) {
-                Double confirmedPrice = controller.updatePriceInDatabase(item.getItemID(), -1.00);
+                Double confirmedPrice = controller.updatePriceInDatabase(item.getItemID());
                 if (confirmedPrice != null) {
                     item.setPrice(confirmedPrice);
                     updateDisplay();
@@ -52,12 +40,11 @@ public class MenuListCell extends ListCell<MenuItem> {
         });
 
         // Set HBox grow priorities to ensure proper layout
-        HBox.setHgrow(increaseBtn, Priority.NEVER);
-        HBox.setHgrow(decreaseBtn, Priority.NEVER);
+        HBox.setHgrow(changePriceBtn, Priority.NEVER);
         HBox.setHgrow(removeBtn, Priority.NEVER);
         HBox.setHgrow(infoLabel, Priority.ALWAYS);
 
-        content = new HBox(10, infoLabel, increaseBtn, decreaseBtn, removeBtn);
+        content = new HBox(10, infoLabel, changePriceBtn, removeBtn);
         content.setAlignment(Pos.CENTER_LEFT);
         content.setPadding(new Insets(5));
     }

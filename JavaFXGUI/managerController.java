@@ -26,6 +26,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.control.ButtonBar;
+import javafx.scene.control.TextInputDialog;
 
 public class managerController {
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; // database location
@@ -255,19 +256,19 @@ public class managerController {
      *
      * @author Ashley Hoang
      * @param itemID   The ID of the item to update.
-     * @param priceDelta The change in price.
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public Double updatePriceInDatabase(int itemID, double priceDelta) {
+    public Double updatePriceInDatabase(int itemID) {
+        double newPrice = inputNewPrice();
         try (Connection conn = getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(
-                        "UPDATE item SET price = price + ? "
-                                + "WHERE item_id = ? AND price + ? >= 0 RETURNING price")) {
-            BigDecimal delta = BigDecimal.valueOf(priceDelta);
-            pstmt.setBigDecimal(1, delta);
+                        "UPDATE item SET price = ? "
+                                + "WHERE item_id = ? AND ? >= 0 RETURNING price")) {
+            BigDecimal price = BigDecimal.valueOf(newPrice);
+            pstmt.setBigDecimal(1, price);
             pstmt.setInt(2, itemID);
-            pstmt.setBigDecimal(3, delta);
+            pstmt.setBigDecimal(3, price);
             try (ResultSet resultSet = pstmt.executeQuery()) {
                 if (resultSet.next()) return resultSet.getBigDecimal("price").doubleValue();
             }
@@ -278,6 +279,23 @@ public class managerController {
             showDatabaseError("update price", "The price value is invalid.");
         }
         return null;
+    }
+
+    public double inputNewPrice() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Change Price");
+        dialog.setHeaderText("Enter the new price: ");
+        dialog.setContentText("Price: ");
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            try {
+                return Double.parseDouble(result.get());
+            } catch (NumberFormatException e) {
+                showDatabaseError("update price", "Invalid input. Please enter a valid number.");
+            }
+        }
+        return 0.0; // Default to no change if input is invalid or canceled
     }
 
     private Connection getConnection() throws SQLException, ClassNotFoundException {
@@ -305,39 +323,6 @@ public class managerController {
         alert.setContentText(details);
         alert.showAndWait();
     }
-
-    /*
-     * It is slow; do not use
-     * /**
-     * Checks if a menu item is in the database.
-     *
-     * @param itemID The ID of the item to check.
-     *
-     * @return true if the item is in the database, false otherwise.
-     *
-     * @author Ashley Hoang
-     */
-    /*
-     * public boolean isMenuItemInDatabase(int itemID) {
-     * try {
-     * dbSetup my = new dbSetup();
-     * Class.forName("org.postgresql.Driver");
-     * Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-     * String query = "SELECT * FROM item WHERE item_id = ?";
-     * PreparedStatement pstmt = conn.prepareStatement(query);
-     * pstmt.setInt(1, itemID);
-     * ResultSet rs = pstmt.executeQuery();
-     * boolean isInDatabase = rs.next();
-     * rs.close();
-     * pstmt.close();
-     * conn.close();
-     * return isInDatabase;
-     * } catch (Exception e) {
-     * e.printStackTrace();
-     * return false;
-     * }
-     * }
-     */
 
     /**
      * Adds a new menu item to the database based on user input from a dialog.
