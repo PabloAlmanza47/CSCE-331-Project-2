@@ -540,38 +540,6 @@ public class managerController {
         return controllerActive;
     }
 
-    /*
-     * It is slow; do not use
-     * /**
-     * Checks if a menu item is in the database.
-     *
-     * @param itemID The ID of the item to check.
-     *
-     * @return true if the item is in the database, false otherwise.
-     *
-     * @author Ashley Hoang
-     */
-    /*
-     * public boolean isMenuItemInDatabase(int itemID) {
-     * try {
-     * dbSetup my = new dbSetup();
-     * Class.forName("org.postgresql.Driver");
-     * Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-     * String query = "SELECT * FROM item WHERE item_id = ?";
-     * PreparedStatement pstmt = conn.prepareStatement(query);
-     * pstmt.setInt(1, itemID);
-     * ResultSet rs = pstmt.executeQuery();
-     * boolean isInDatabase = rs.next();
-     * rs.close();
-     * pstmt.close();
-     * conn.close();
-     * return isInDatabase;
-     * } catch (Exception e) {
-     * e.printStackTrace();
-     * return false;
-     * }
-     * }
-     */
     /**
      * Adds a new menu item to the database based on user input from a dialog.
      *
@@ -674,7 +642,7 @@ public class managerController {
                 try (Connection conn = getConnection();
                         PreparedStatement pstmt = conn.prepareStatement(
                                 "INSERT INTO item (item_id, category_id, nutrition, price, unit_size, name, active) "
-                                        + "VALUES (?, ?, ?, ?, ?, ?, FALSE)")) {
+                                        + "VALUES (?, ?, ?, ?, ?, ?, TRUE)")) {
                     pstmt.setInt(1, itemID);
                     pstmt.setInt(2, categoryID);
                     pstmt.setString(3, nutritionInfo);
