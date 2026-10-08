@@ -85,6 +85,7 @@
         <children>
           <Button fx:id="changeViewButton4" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
           <Button fx:id="closeButton4" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="addItem" layoutX="206.0" layoutY="14.0" mnemonicParsing="false" onAction="#addMenuItem" styleClass="genericStyle" text="Add Menu Item" />
             <ListView fx:id="menuListView" layoutX="14.0" layoutY="49.0" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
               <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
               <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
