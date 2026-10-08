@@ -13,11 +13,15 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.Accordion;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
+import javafx.scene.control.ListCell;
+import javafx.scene.layout.HBox;
 
 
 public class managerController{
@@ -57,6 +61,10 @@ public class managerController{
         //Receipt list query and call
         ResultSet receipts = stmt.executeQuery("SELECT receipt_item_id, receipt_id, item_id, quantity, price_at_sale FROM receipt_item");
         createReceiptList(receipts);
+
+        //Menu list query and call
+        ResultSet menuList = stmt.executeQuery("SELECT item_id, name, price FROM item ORDER BY item_id");
+        createMenuList(menuList);
 
         // Close connection
         stmt.close();
@@ -113,8 +121,7 @@ public class managerController{
     }
 
     //Stock list creation
-    @FXML public ListView<String> stockListView;
-
+    @FXML public ListView<StockItem> stockListView;
     /**
      * Creates a list of stock information from the provided ResultSet.
      * @author Ashley Hoang
@@ -124,7 +131,7 @@ public class managerController{
     */
     @FXML public void createStockList(ResultSet stockList){
         try {
-            ObservableList<String> names = FXCollections.observableArrayList();
+            ObservableList<StockItem> stockItems = FXCollections.observableArrayList();
             while(stockList.next()){
                 int inventoryID = stockList.getInt("inventory_id");
                 String itemName = stockList.getString("name");
@@ -133,19 +140,34 @@ public class managerController{
                 String nextShipment = stockList.getString("next_shipment");
                 String shelfLife = stockList.getString("shelf_life");
 
-                String display = String.format(
-                    "#%d %s:\n- Stock: %d\n- Minimum Stock: %d\n- Next Shipment: %s\n- Shelf Life: %s",
-                    inventoryID, itemName, itemStock, minStock, nextShipment, shelfLife
-                );
-                names.add(display);
+                StockItem stockItem = new StockItem(inventoryID, itemName, itemStock, minStock, nextShipment, shelfLife);
+                stockItems.add(stockItem);
             }
-            stockListView.setItems(names);
+            stockListView.setItems(stockItems);
+            stockListView.setCellFactory(lv -> new StockListCell(this));
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(0);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
             System.exit(0);
+        }
+    }
+
+    public void updateStockInDatabase(int inventoryID, int newStock) {
+        try {
+            dbSetup my = new dbSetup();
+            Class.forName("org.postgresql.Driver");
+            Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
+            String updateQuery = "UPDATE inventory SET stock = ? WHERE inventory_id = ?";
+            PreparedStatement pstmt = conn.prepareStatement(updateQuery);
+            pstmt.setInt(1, newStock);
+            pstmt.setInt(2, inventoryID);
+            pstmt.executeUpdate();
+            pstmt.close();
+            conn.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -193,6 +215,41 @@ public class managerController{
         }
     }
 
+    
+    //Menu list creation
+    @FXML public ListView<String> menuListView;
+
+    /**
+     * Creates a list of menu information from the provided ResultSet.
+     * @author Ashley Hoang
+     * @param menuList - the result set from the database query containing menu information
+     * @throws SQLException - if there is an error with the database query
+     * @throws IllegalArgumentException - if there is an error with the list creation
+    */
+    @FXML public void createMenuList(ResultSet menuList){
+        try {
+            ObservableList<String> names = FXCollections.observableArrayList();
+            while(menuList.next()){
+                int itemID = menuList.getInt("item_id");
+                String itemName = menuList.getString("name");
+                int itemPrice = menuList.getInt("price");
+
+                String display = String.format(
+                    "#%d %s:\n- Price: $%d",
+                    itemID, itemName, itemPrice
+                );
+                names.add(display);
+            }
+            menuListView.setItems(names);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.exit(0);
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace();
+            System.exit(0);
+        }
+    }
+
     /**
      * Changes the view to the cashier view when the corresponding button is clicked.
      * @author Ashley Hoang
@@ -208,3 +265,4 @@ public class managerController{
         stage.show();
     }
 }
+

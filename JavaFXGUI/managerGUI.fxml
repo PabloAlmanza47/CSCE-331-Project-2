@@ -46,7 +46,7 @@
         <children>
           <Button fx:id="changeViewButton2" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
           <Button fx:id="closeButton2" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-            <ListView fx:id="stockListView" layoutX="14.0" layoutY="49.0" prefHeight="312.0" prefWidth="575.0" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
+            <ListView fx:id="stockListView" layoutX="14.0" layoutY="49.0" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
               <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
               <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
               <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
@@ -78,6 +78,23 @@
           </children>
         </AnchorPane>
       </content></Tab>
+
+      <!-- Menu Tab -->
+    <Tab text="Menu"><content>
+      <AnchorPane styleClass="genericStyle" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
+        <children>
+          <Button fx:id="changeViewButton4" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+          <Button fx:id="closeButton4" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+            <ListView fx:id="menuListView" layoutX="14.0" layoutY="49.0" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS">
+              <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
+              <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
+              <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
+              <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
+            </ListView>
+        </children>
+      </AnchorPane> 
+    </content></Tab>
+
   </tabs>
 </TabPane>
 </HBox>

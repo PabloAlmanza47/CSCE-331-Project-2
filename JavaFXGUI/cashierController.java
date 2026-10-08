@@ -190,8 +190,8 @@ public class cashierController {
     totalPriceLabel.setText("Total Price: 0.0$");
   }
   //clear cart
+  
   //change view to manager
-  //TODO: add onAction="#changeView" to the desired button in database-view.fxml
   @FXML public void changeView(ActionEvent event) throws Exception {
       Parent root = FXMLLoader.load(getClass().getResource("/managerGUI.fxml"));
 
