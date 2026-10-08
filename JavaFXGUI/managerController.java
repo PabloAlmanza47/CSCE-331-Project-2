@@ -4,6 +4,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.*;
 import javafx.scene.chart.XYChart;
 import javafx.scene.chart.BarChart;
@@ -22,6 +23,7 @@ import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListCell;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 
 
 public class managerController{
@@ -50,19 +52,38 @@ public class managerController{
         Statement stmt = conn.createStatement();
 
         // Run sql query
-        //Bar Graph query and call
+        // Bar Graph query and call
         ResultSet items = stmt.executeQuery("SELECT i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri JOIN item i ON i.item_id = ri.item_id GROUP BY i.name ORDER BY numSold");
         createSalesBarGraph(items);
 
-        //Stock query and call
+        // Stock query and call
         ResultSet stocklist = stmt.executeQuery("SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life FROM inventory ORDER BY inventory_id");
         createStockList(stocklist);
 
-        //Receipt list query and call
-        ResultSet receipts = stmt.executeQuery("SELECT receipt_item_id, receipt_id, item_id, quantity, price_at_sale FROM receipt_item");
+        // Receipt list query and call
+        ResultSet receipts = stmt.executeQuery(
+            "SELECT " +
+            "    r.receipt_id, " +
+            "    r.receipt_timestamp, " +
+            "    ri.receipt_item_id, " +
+            "    i.item_id, " +
+            "    i.name AS item_name, " +
+            "    ri.quantity, " +
+            "    ri.price_at_sale " +
+            "FROM receipt AS r " +
+            "JOIN receipt_item AS ri ON r.receipt_id = ri.receipt_id " +
+            "JOIN item AS i ON ri.item_id = i.item_id " +
+            "WHERE r.receipt_id IN (" +
+            "    SELECT receipt_id " +
+            "    FROM receipt " +
+            "    ORDER BY receipt_timestamp DESC, receipt_id DESC " +
+            "    LIMIT 20" +
+            ") " +
+            "ORDER BY r.receipt_timestamp DESC, r.receipt_id DESC, ri.receipt_item_id"
+        );
         createReceiptList(receipts);
 
-        //Menu list query and call
+        // Menu list query and call
         ResultSet menuList = stmt.executeQuery("SELECT item_id, name, price FROM item ORDER BY item_id");
         createMenuList(menuList);
 
@@ -154,6 +175,12 @@ public class managerController{
         }
     }
 
+    /**
+     * Updates the stock quantity of an item in the database.
+     * @author Ashley Hoang
+     * @param inventoryID The ID of the inventory item to update.
+     * @param newStock The new stock quantity.
+     */
     public void updateStockInDatabase(int inventoryID, int newStock) {
         try {
             dbSetup my = new dbSetup();
@@ -171,7 +198,7 @@ public class managerController{
         }
     }
 
-    //Receipt list creation
+    // Receipt list creation
     @FXML Accordion receiptAccordion;
     /**
      * Creates a list of receipts from the provided ResultSet.
@@ -180,43 +207,71 @@ public class managerController{
      * @throws SQLException - if there is an error with the database query
      * @throws IllegalArgumentException - if there is an error with the list creation
     */
-    @FXML public void createReceiptList(ResultSet receipts){
+    @FXML
+    public void createReceiptList(ResultSet receipts) {
         try {
-            int counter = 0;
-            while(receipts.next()){
-                //TODO: only ten receipts because it will break otherwise; probably should change it to last ten receipts
-                if(counter >= 10) break;
-                counter++;
+            // Initialize variables to track the current receipt and its items
+            int currentReceiptID = -1;
+            VBox itemList = null;
+            double receiptTotal = 0.0;
+            TitledPane receiptPane = null;
 
-                int receiptItemID = receipts.getInt("receipt_item_id");
+            while (receipts.next()) {
                 int receiptID = receipts.getInt("receipt_id");
-                int itemID = receipts.getInt("item_id");
-                int itemQuantity = receipts.getInt("quantity");
-                int price = receipts.getInt("price_at_sale");
+                // New receipt
+                if (receiptID != currentReceiptID) {
+                    // If this isn't the first receipt, add the total
+                    if (receiptPane != null) {
+                        Label totalLabel = new Label(String.format("Total: $%.2f", receiptTotal));
+                        itemList.getChildren().add(totalLabel);
+                    }
 
-                //TODO: change the label to look like an actual receipt.
-                Label label = new Label(String.format(
-                    "#%d \n%s: %d - %s\t$%d",
-                    receiptID, receiptItemID, itemID, itemQuantity, price
-                ));
+                    // Start the new receipt
+                    currentReceiptID = receiptID;
+                    receiptTotal = 0.0;
 
-                //sizing to fit tab, and adding to the accordion
-                label.setMaxWidth(Double.MAX_VALUE);
-                TitledPane receiptPane = new TitledPane("Receipt " + receiptID, label);
-                receiptPane.setMaxWidth(Double.MAX_VALUE);
-                receiptAccordion.getPanes().add(receiptPane);
+                    itemList = new VBox(5);
+                    itemList.setPadding(new Insets(10));
+
+                    receiptPane = new TitledPane("Receipt " + receiptID, itemList);
+                    receiptPane.setMaxWidth(Double.MAX_VALUE);
+                    receiptAccordion.getPanes().add(receiptPane);
+                }
+
+                // Get item information
+                String itemName = receipts.getString("item_name");
+                int quantity = receipts.getInt("quantity");
+                BigDecimal price = receipts.getBigDecimal("price_at_sale");
+
+                // Calculate this item's total
+                BigDecimal itemTotal = price.multiply(BigDecimal.valueOf(quantity));
+                receiptTotal = receiptTotal + itemTotal.doubleValue();
+
+                // Display item
+                Label itemLabel = new Label(String.format("%s    x%d    $%.2f", itemName, quantity, itemTotal));
+                itemLabel.setMaxWidth(Double.MAX_VALUE);
+                itemList.getChildren().add(itemLabel);
             }
+
+            // Add total to the final receipt
+            if (receiptPane != null) {
+                Label totalLabel = new Label(
+                    String.format("Total: $%.2f", receiptTotal)
+                );
+                itemList.getChildren().add(totalLabel);
+            }
+
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(0);
+
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
             System.exit(0);
         }
     }
-
     
-    //Menu list creation
+    // Menu list creation
     @FXML public ListView<String> menuListView;
 
     /**
