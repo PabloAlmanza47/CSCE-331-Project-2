@@ -1,4 +1,6 @@
 *.class
+.nvimlog
+JavaFXGUI/out/
 JavaFXGUI/dbSetup.java
 javafx-sdk-25.0.4/
 .vscode/

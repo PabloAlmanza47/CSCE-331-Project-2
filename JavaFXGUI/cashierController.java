@@ -3,202 +3,154 @@ import java.util.HashMap;
 import java.util.Map;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.Spinner;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javax.print.attribute.standard.Sides;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.stage.Stage;
 import javafx.event.ActionEvent;
 
 public class cashierController {
-    
-  @FXML
-  private Button changeView, checkout; //match the fx:id value from Scene Builder
-  
-  @FXML
-  private VBox mainBox, sideBox, drinkBox, cartBox; //match the fx:id value from Scene Builder
+    @FXML private Button changeView, checkout;
+    @FXML private VBox mainBox, sideBox, drinkBox, cartBox;
+    private Label totalPriceLabel;
+    @FXML private Button closeButton;
+    private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db";
+    private final HashMap<Integer, Integer> cart = new HashMap<>();
+    private final HashMap<Integer, CheckBox> cartRows = new HashMap<>();
+    private double totalPrice;
+    private int currentLocationId = 1;
+    private int currentUserId = 3;
 
-  @FXML 
-  private Label totalPriceLabel;
-  
-  @FXML
-  private Button closeButton; //match the fx:id value from Scene Builder
-  
-  private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; //database location
+    @FXML public void initialize() {
+        runQuery();
+        closeButton.setOnAction(event -> closeWindow());
+        checkout.setOnAction(event -> confirmCheckout());
+    }
 
-  private HashMap<Integer, Integer> cart = new HashMap<Integer, Integer>();
-  private HashMap<Integer, CheckBox> cartRows = new HashMap<>();
-  private double totalPrice;
+    private void runQuery() {
+        try {
+            dbSetup my = new dbSetup();
+            Class.forName("org.postgresql.Driver");
+            try (Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
+                    Statement stmt = conn.createStatement()) {
+                VBox[] areas = { mainBox, sideBox, drinkBox };
+                totalPriceLabel = new Label("Total Price: 0.0$");
+                cartBox.getChildren().add(totalPriceLabel);
+                for (int i = 0; i < areas.length; i++) {
+                    VBox currentBox = areas[i];
+                    try (ResultSet resultSet = stmt.executeQuery(
+                            "SELECT name, price, item_id FROM item WHERE category_id = " + (i + 1))) {
+                        while (resultSet.next()) {
+                            String name = resultSet.getString("name");
+                            double price = resultSet.getDouble("price");
+                            int itemID = resultSet.getInt("item_id");
+                            Button button = new Button(name);
+                            button.setPrefSize(currentBox.getPrefWidth(), 30);
+                            currentBox.getChildren().add(button);
+                            button.setOnAction(event -> onButtonPressed(itemID, price, name));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
 
-  // This method runs automatically when the FXML loads
-  @FXML
-  public void initialize() {
-    // Set up what happens when button is clicked
-    // queryButton.setOnAction(event -> runQuery());
-    runQuery();
-    closeButton.setOnAction(event -> closeWindow());
-    checkout.setOnAction(event -> confirmCheckout());
-    //changeView.setOnAction(event -> changeView());
-  }
-  
-  // Your method to run the database query
-  private void runQuery() {
+    private void onButtonPressed(int itemID, double price, String name) {
+        if (!cart.containsKey(itemID)) {
+            CheckBox checkBox = new CheckBox();
+            checkBox.setSelected(true);
+            checkBox.setOnAction(e -> onCheckboxSelected(itemID, price, checkBox));
+            cartBox.getChildren().add(checkBox);
+            cartRows.put(itemID, checkBox);
+            cart.put(itemID, 1);
+        } else cart.merge(itemID, 1, Integer::sum);
+        totalPrice += price;
+        int quantity = cart.get(itemID);
+        cartRows.get(itemID).setText(quantity + "x" + name + " $%.2f".formatted(price * quantity));
+        totalPriceLabel.setText("Total Price: $%.2f".formatted(totalPrice));
+    }
 
-    try {
-      // Get database creditials
-      dbSetup my = new dbSetup();
- 
-      // Build the connection
-      Class.forName("org.postgresql.Driver");
-      Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-
-      // Create statement
-      Statement stmt = conn.createStatement();
-
-      VBox[] areas = { mainBox, sideBox, drinkBox };
-
-      totalPriceLabel = new Label("Total Price: 0.0$");
-      cartBox.getChildren().add(totalPriceLabel);
-
-      for (int i = 0; i < areas.length; i++) {
-        VBox currentBox = areas[i];
-
-        ResultSet resultSet = stmt.executeQuery("SELECT name, price, item_id FROM item WHERE category_id = " + (i + 1));
-
-        while (resultSet.next()) {
-          
-          String name = resultSet.getString("name");
-          double price = resultSet.getDouble("price");
-          int itemID = resultSet.getInt("item_id");
-
-          Button button = new Button(name);
-          button.setPrefSize(currentBox.getPrefWidth(), 30);
-
-          //Label cartItem = new Label(name + " $" + price);
-
-          currentBox.getChildren().add(button);
-
-          button.setOnAction(event -> onButtonPressed(itemID, price, name));
+    private void onCheckboxSelected(int itemID, double price, CheckBox parent) {
+        if (!parent.isSelected()) {
+            totalPrice -= price * cart.get(itemID);
+            cartBox.getChildren().remove(parent);
+            cart.remove(itemID);
+            cartRows.remove(itemID);
+            totalPriceLabel.setText("Total Price: $%.2f".formatted(totalPrice));
         }
-
-      }
-
-      // Close connection
-      stmt.close();
-      conn.close();
-
-    } catch (Exception e) {
-      e.printStackTrace();
-      System.exit(0);
     }
-  }
 
-  private void onButtonPressed(int itemID, double price, String name) {
-    if (!cart.containsKey(itemID)) {            
-      CheckBox checkBox = new CheckBox();
-      checkBox.setSelected(true);
-      checkBox.setOnAction(e -> onCheckboxSelected(itemID, price, checkBox));
-      cartBox.getChildren().add(checkBox);
-      cartRows.put(itemID, checkBox);
-      cart.put(itemID, 1);
-    } 
-    else {                                  
-      cart.merge(itemID, 1, Integer::sum);
+    private void closeWindow() {
+        Stage stage = (Stage) closeButton.getScene().getWindow();
+        stage.close();
     }
-    totalPrice += price;
-    int quantity = cart.get(itemID);
-    cartRows.get(itemID).setText(quantity + "x" + name + " $%.2f".formatted(price * quantity));
-    totalPriceLabel.setText("Total Price: $%.2f".formatted(totalPrice));
-  }
 
-  private void onCheckboxSelected(int itemID, double price, CheckBox parent) {
-    if (!parent.isSelected()) {
-      totalPrice -= price * cart.get(itemID);
-      cartBox.getChildren().remove(parent);
-      cart.remove(itemID);               
-      cartRows.remove(itemID);
-      totalPriceLabel.setText("Total Price: $%.2f".formatted(totalPrice));
-    }
-  }
-
-  private void closeWindow() { 
-    Stage stage = (Stage) closeButton.getScene().getWindow();
-    stage.close();
-  }
-
-  private void confirmCheckout() {
-    //update inventory
-    dbSetup my = new dbSetup();
-    try {
-      //create statements for updating db
-      Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-      Statement stmt = conn.createStatement();
-      PreparedStatement ingredients = conn.prepareStatement("SELECT inventory_id FROM ingredient_list WHERE item_id = ?");
-      PreparedStatement update = conn.prepareStatement("UPDATE inventory SET stock = stock - ? WHERE inventory_id = ?");
-
-      //create new receipt with proper ID, and then grab it, 
-      //currently assumes location of 1, and userid of 3, fix if needed
-      ResultSet receiptResults = stmt.executeQuery(
-      "INSERT INTO receipt (receipt_id, location_id, user_id, receipt_timestamp) " +
-      "SELECT COALESCE(MAX(receipt_id), 0) + 1, 1, 3, CURRENT_TIMESTAMP " +
-      "FROM receipt RETURNING receipt_id");
-      receiptResults.next();
-      int receiptID = receiptResults.getInt("receipt_id");
-      receiptResults.close();
-      
-      //for each cart item, find ingredients, remove ordered amount
-      for (Map.Entry<Integer, Integer> entry : cart.entrySet()) {
-        int itemID = entry.getKey();
-        int quantity = entry.getValue();
-        ingredients.setInt(1, itemID);
-        ResultSet ingredientResults = ingredients.executeQuery();
-        while (ingredientResults.next()) {
-          update.setInt(1, entry.getValue());
-          update.setInt(2, ingredientResults.getInt("inventory_id"));
-          update.executeUpdate();
+    private void confirmCheckout() {
+        if (cart.isEmpty()) return;
+        dbSetup my = new dbSetup();
+        Connection conn = null;
+        try {
+            conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
+            conn.setAutoCommit(false);
+            try (PreparedStatement receipt = conn.prepareStatement(
+                    "INSERT INTO receipt (location_id, user_id, receipt_timestamp) VALUES (?, ?, CURRENT_TIMESTAMP) RETURNING receipt_id");
+                    PreparedStatement ingredients = conn.prepareStatement(
+                            "SELECT inventory_id FROM ingredient_list WHERE item_id = ?");
+                    PreparedStatement update = conn.prepareStatement(
+                            "UPDATE inventory SET stock = stock - ? WHERE inventory_id = ? AND stock >= ?");
+                    PreparedStatement receiptItem = conn.prepareStatement(
+                            "INSERT INTO receipt_item (receipt_id, item_id, quantity, price_at_sale) "
+                                    + "SELECT ?, item_id, ?, price * ? FROM item WHERE item_id = ?")) {
+                receipt.setInt(1, currentLocationId);
+                receipt.setInt(2, currentUserId);
+                int receiptID;
+                try (ResultSet receiptResults = receipt.executeQuery()) {
+                    if (!receiptResults.next()) throw new SQLException("Unable to create receipt");
+                    receiptID = receiptResults.getInt("receipt_id");
+                }
+                for (Map.Entry<Integer, Integer> entry : cart.entrySet()) {
+                    int itemID = entry.getKey();
+                    int quantity = entry.getValue();
+                    ingredients.setInt(1, itemID);
+                    try (ResultSet ingredientResults = ingredients.executeQuery()) {
+                        while (ingredientResults.next()) {
+                            update.setInt(1, quantity);
+                            update.setInt(2, ingredientResults.getInt("inventory_id"));
+                            update.setInt(3, quantity);
+                            if (update.executeUpdate() == 0)
+                                throw new SQLException("Insufficient inventory for item " + itemID);
+                        }
+                    }
+                    receiptItem.setInt(1, receiptID);
+                    receiptItem.setInt(2, itemID);
+                    receiptItem.setInt(3, quantity);
+                    receiptItem.setInt(4, itemID);
+                    if (receiptItem.executeUpdate() == 0)
+                        throw new SQLException("Unable to add item " + itemID + " to receipt");
+                }
+                conn.commit();
+            }
+            for (CheckBox item : cartRows.values()) cartBox.getChildren().remove(item);
+            cartRows.clear();
+            cart.clear();
+            totalPrice = 0;
+            totalPriceLabel.setText("Total Price: 0.0$");
+        } catch (SQLException e) {
+            if (conn != null) try { conn.rollback(); } catch (SQLException rollbackError) { rollbackError.printStackTrace(); }
+            e.printStackTrace();
+        } finally {
+            if (conn != null) try { conn.close(); } catch (SQLException closeError) { closeError.printStackTrace(); }
         }
-        ingredientResults.close();
-        //adds item, quantity, sale price to receipt, requires grabbing last receiptitemid
-        stmt.executeUpdate(
-          "INSERT INTO receipt_item (receipt_item_id, receipt_id, item_id, quantity, price_at_sale) " +
-          "SELECT (SELECT COALESCE(MAX(receipt_item_id), 0) + 1 FROM receipt_item), " +
-          receiptID + ", item_id, " + quantity + ", price * " + quantity +
-          " FROM item WHERE item_id = " + itemID
-        );
-      }
-      ingredients.close();
-      update.close();
-      stmt.close();
-      conn.close();
-      //catch any SQL related errors
-    } catch (SQLException e) {
-      e.printStackTrace();
     }
-    for (Map.Entry<Integer, CheckBox> entry : cartRows.entrySet()){
-      CheckBox item = entry.getValue();
-      cartBox.getChildren().remove(item);
+
+    @FXML public void changeView(ActionEvent event) throws Exception {
+        Parent root = FXMLLoader.load(getClass().getResource("/managerGUI.fxml"));
+        Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
+        stage.setTitle("Manager View");
+        stage.setScene(new Scene(root, 1200, 800));
+        stage.show();
     }
-    cartRows.clear();
-    cart.clear();
-    totalPrice = 0;
-    totalPriceLabel.setText("Total Price: 0.0$");
-  }
-  //clear cart
-  
-  //change view to manager
-  @FXML public void changeView(ActionEvent event) throws Exception {
-      Parent root = FXMLLoader.load(getClass().getResource("/managerGUI.fxml"));
-
-      Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
-
-      stage.setTitle("Manager View");
-      stage.setScene(new Scene(root, 1200, 800));
-      stage.show();
-  }
 }
