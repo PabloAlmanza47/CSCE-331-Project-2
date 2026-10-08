@@ -5,6 +5,8 @@ import javafx.collections.ObservableList;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import javafx.scene.chart.XYChart;
 import javafx.scene.chart.BarChart;
 import javafx.scene.control.ListView;
@@ -27,10 +29,27 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.TextInputDialog;
+import javafx.concurrent.Task;
+import java.util.function.Consumer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.RejectedExecutionException;
 
 public class managerController {
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; // database location
+    private static final int LOGIN_TIMEOUT_SECONDS = 15;
+    private static final int NETWORK_TIMEOUT_MILLISECONDS = 30000;
+    private static final ExecutorService DATABASE_EXECUTOR = new ThreadPoolExecutor(
+            4, 4, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(16),
+            runnable -> {
+                Thread thread = new Thread(runnable, "manager-database-worker");
+                thread.setDaemon(true);
+                return thread;
+            }, new ThreadPoolExecutor.AbortPolicy());
     private static final BigDecimal MAX_ITEM_PRICE = new BigDecimal("99999999.99");
+    private boolean controllerActive = true;
 
     public static final class StockUpdateResult {
         private final Integer stock;
@@ -56,6 +75,76 @@ public class managerController {
         }
     }
 
+    private static final class ManagerData {
+        private final List<SalesRecord> sales;
+        private final List<StockRecord> stock;
+        private final List<ReceiptRecord> receipts;
+        private final List<MenuRecord> menu;
+
+        private ManagerData(List<SalesRecord> sales, List<StockRecord> stock,
+                List<ReceiptRecord> receipts, List<MenuRecord> menu) {
+            this.sales = sales;
+            this.stock = stock;
+            this.receipts = receipts;
+            this.menu = menu;
+        }
+    }
+
+    private static final class SalesRecord {
+        private final String name;
+        private final long quantity;
+
+        private SalesRecord(String name, long quantity) {
+            this.name = name;
+            this.quantity = quantity;
+        }
+    }
+
+    private static final class StockRecord {
+        private final int inventoryID;
+        private final String name;
+        private final int stock;
+        private final int minStock;
+        private final String nextShipment;
+        private final String shelfLife;
+
+        private StockRecord(int inventoryID, String name, int stock, int minStock,
+                String nextShipment, String shelfLife) {
+            this.inventoryID = inventoryID;
+            this.name = name;
+            this.stock = stock;
+            this.minStock = minStock;
+            this.nextShipment = nextShipment;
+            this.shelfLife = shelfLife;
+        }
+    }
+
+    private static final class ReceiptRecord {
+        private final int receiptID;
+        private final String itemName;
+        private final int quantity;
+        private final BigDecimal lineTotal;
+
+        private ReceiptRecord(int receiptID, String itemName, int quantity, BigDecimal lineTotal) {
+            this.receiptID = receiptID;
+            this.itemName = itemName;
+            this.quantity = quantity;
+            this.lineTotal = lineTotal;
+        }
+    }
+
+    private static final class MenuRecord {
+        private final int itemID;
+        private final String name;
+        private final double price;
+
+        private MenuRecord(int itemID, String name, double price) {
+            this.itemID = itemID;
+            this.name = name;
+            this.price = price;
+        }
+    }
+
     // This method runs automatically when the FXML loads
     @FXML
     public void initialize() {
@@ -69,42 +158,132 @@ public class managerController {
 
     // Your method to run the database query
     private void runQuery() {
-        try {
-            dbSetup my = new dbSetup();
-            Class.forName("org.postgresql.Driver");
-            try (Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
-                    Statement stmt = conn.createStatement()) {
-                try (ResultSet items = stmt.executeQuery(
-                        "SELECT i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri "
-                                + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name ORDER BY numSold")) {
-                    createSalesBarGraph(items);
+        stockListView.setDisable(true);
+        menuListView.setDisable(true);
+        Task<ManagerData> task = new Task<>() {
+            @Override
+            protected ManagerData call() throws Exception {
+                List<SalesRecord> sales = new ArrayList<>();
+                List<StockRecord> stock = new ArrayList<>();
+                List<ReceiptRecord> receipts = new ArrayList<>();
+                List<MenuRecord> menu = new ArrayList<>();
+                try (Connection conn = getConnection();
+                        Statement stmt = conn.createStatement()) {
+                    try (ResultSet resultSet = stmt.executeQuery(
+                            "SELECT i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri "
+                                    + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name ORDER BY numSold")) {
+                        while (resultSet.next()) {
+                            sales.add(new SalesRecord(resultSet.getString("itemNames"),
+                                    resultSet.getLong("numSold")));
+                        }
+                    }
+                    try (ResultSet resultSet = stmt.executeQuery(
+                            "SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life "
+                                    + "FROM inventory ORDER BY inventory_id")) {
+                        while (resultSet.next()) {
+                            stock.add(new StockRecord(resultSet.getInt("inventory_id"),
+                                    resultSet.getString("name"), resultSet.getInt("stock"),
+                                    resultSet.getInt("min_stock"), resultSet.getString("next_shipment"),
+                                    resultSet.getString("shelf_life")));
+                        }
+                    }
+                    try (ResultSet resultSet = stmt.executeQuery(
+                            "SELECT r.receipt_id, i.name AS item_name, ri.quantity, ri.price_at_sale "
+                                    + "FROM receipt r JOIN receipt_item ri ON r.receipt_id = ri.receipt_id "
+                                    + "JOIN item i ON ri.item_id = i.item_id WHERE r.receipt_id IN "
+                                    + "(SELECT receipt_id FROM receipt ORDER BY receipt_timestamp DESC, receipt_id DESC LIMIT 10) "
+                                    + "ORDER BY r.receipt_timestamp DESC, r.receipt_id DESC, ri.receipt_item_id")) {
+                        while (resultSet.next()) {
+                            receipts.add(new ReceiptRecord(resultSet.getInt("receipt_id"),
+                                    resultSet.getString("item_name"), resultSet.getInt("quantity"),
+                                    resultSet.getBigDecimal("price_at_sale")));
+                        }
+                    }
+                    try (ResultSet resultSet = stmt.executeQuery(
+                            "SELECT item_id, name, price FROM item WHERE active = TRUE ORDER BY item_id")) {
+                        while (resultSet.next()) {
+                            menu.add(new MenuRecord(resultSet.getInt("item_id"),
+                                    resultSet.getString("name"), resultSet.getDouble("price")));
+                        }
+                    }
                 }
-                try (ResultSet stocklist = stmt.executeQuery(
-                        "SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life "
-                                + "FROM inventory ORDER BY inventory_id")) {
-                    createStockList(stocklist);
-                }
-                try (ResultSet receipts = stmt.executeQuery(
-                        "SELECT r.receipt_id, r.receipt_timestamp, ri.receipt_item_id, i.item_id, "
-                                + "i.name AS item_name, ri.quantity, ri.price_at_sale FROM receipt r "
-                                + "JOIN receipt_item ri ON r.receipt_id = ri.receipt_id "
-                                + "JOIN item i ON ri.item_id = i.item_id WHERE r.receipt_id IN "
-                                + "(SELECT receipt_id FROM receipt ORDER BY receipt_timestamp DESC, receipt_id DESC LIMIT 10) "
-                                + "ORDER BY r.receipt_timestamp DESC, r.receipt_id DESC, ri.receipt_item_id")) {
-                    createReceiptList(receipts);
-                }
-                try (ResultSet menuList = stmt.executeQuery(
-                        "SELECT item_id, name, price FROM item WHERE active = TRUE ORDER BY item_id")) {
-                    createMenuList(menuList);
-                }
+                return new ManagerData(sales, stock, receipts, menu);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        };
+        task.setOnSucceeded(event -> {
+            if (controllerActive) {
+                applyManagerData(task.getValue());
+                stockListView.setDisable(false);
+                menuListView.setDisable(false);
+            }
+        });
+        task.setOnFailed(event -> {
+            if (controllerActive) {
+                stockListView.setDisable(false);
+                menuListView.setDisable(false);
+                showError("Manager Load Failed", "The manager data could not be loaded.",
+                        "Please check the database connection and try again.");
+            }
+        });
+        if (!startTask(task)) {
+            stockListView.setDisable(false);
+            menuListView.setDisable(false);
+            showError("Manager Load Failed", "The database is busy.", "Please try again.");
         }
+    }
+
+    private void applyManagerData(ManagerData data) {
+        salesGraph.getData().clear();
+        XYChart.Series<Number, String> salesSeries = new XYChart.Series<>();
+        for (SalesRecord sale : data.sales) {
+            salesSeries.getData().add(new XYChart.Data<>(sale.quantity, sale.name));
+        }
+        salesGraph.getData().add(salesSeries);
+
+        ObservableList<StockItem> stockItems = FXCollections.observableArrayList();
+        for (StockRecord item : data.stock) {
+            stockItems.add(new StockItem(item.inventoryID, item.name, item.stock, item.minStock,
+                    item.nextShipment, item.shelfLife));
+        }
+        stockListView.setItems(stockItems);
+        stockListView.setCellFactory(lv -> new StockListCell(this));
+
+        receiptAccordion.getPanes().clear();
+        int currentReceiptID = -1;
+        VBox itemList = null;
+        BigDecimal receiptTotal = BigDecimal.ZERO;
+        TitledPane receiptPane = null;
+        for (ReceiptRecord receipt : data.receipts) {
+            if (receipt.receiptID != currentReceiptID) {
+                if (receiptPane != null) itemList.getChildren().add(new Label(
+                        String.format("Total: $%.2f", receiptTotal)));
+                currentReceiptID = receipt.receiptID;
+                receiptTotal = BigDecimal.ZERO;
+                itemList = new VBox(5);
+                itemList.setPadding(new Insets(10));
+                receiptPane = new TitledPane("Receipt " + receipt.receiptID, itemList);
+                receiptPane.setMaxWidth(Double.MAX_VALUE);
+                receiptAccordion.getPanes().add(receiptPane);
+            }
+            BigDecimal lineTotal = receipt.lineTotal == null ? BigDecimal.ZERO : receipt.lineTotal;
+            receiptTotal = receiptTotal.add(lineTotal);
+            itemList.getChildren().add(new Label(String.format(
+                    "%s    x%d    $%.2f", receipt.itemName, receipt.quantity, lineTotal)));
+        }
+        if (receiptPane != null) itemList.getChildren().add(new Label(
+                String.format("Total: $%.2f", receiptTotal)));
+
+        ObservableList<MenuItem> menuItems = FXCollections.observableArrayList();
+        for (MenuRecord item : data.menu) {
+            menuItems.add(new MenuItem(item.itemID, item.name, item.price));
+        }
+        menuListView.setItems(menuItems);
+        menuListView.setCellFactory(lv -> new MenuListCell(this));
     }
 
     @FXML
     public void closeWindow(ActionEvent event) {
+        controllerActive = false;
         Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
         stage.close();
     }
@@ -154,34 +333,43 @@ public class managerController {
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public StockUpdateResult updateStockInDatabase(int inventoryID, int stockDelta) {
-        try (Connection conn = getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(
-                        "UPDATE inventory SET stock = stock + ? "
-                                + "WHERE inventory_id = ? AND stock + ? >= 0 RETURNING stock")) {
-            pstmt.setInt(1, stockDelta);
-            pstmt.setInt(2, inventoryID);
-            pstmt.setInt(3, stockDelta);
-            try (ResultSet resultSet = pstmt.executeQuery()) {
-                if (resultSet.next()) return new StockUpdateResult(resultSet.getInt("stock"), true, false);
-            }
-            try (PreparedStatement currentStock = conn.prepareStatement(
-                    "SELECT stock FROM inventory WHERE inventory_id = ?")) {
-                currentStock.setInt(1, inventoryID);
-                try (ResultSet resultSet = currentStock.executeQuery()) {
-                    if (resultSet.next()) {
-                        int stock = resultSet.getInt("stock");
-                        return new StockUpdateResult(stock, false, false);
+    public void updateStockInDatabase(int inventoryID, int stockDelta,
+            Consumer<StockUpdateResult> callback) {
+        Task<StockUpdateResult> task = new Task<>() {
+            @Override
+            protected StockUpdateResult call() throws Exception {
+                try (Connection conn = getConnection();
+                        PreparedStatement pstmt = conn.prepareStatement(
+                                "UPDATE inventory SET stock = stock + ? "
+                                        + "WHERE inventory_id = ? AND stock + ? >= 0 RETURNING stock")) {
+                    pstmt.setInt(1, stockDelta);
+                    pstmt.setInt(2, inventoryID);
+                    pstmt.setInt(3, stockDelta);
+                    try (ResultSet resultSet = pstmt.executeQuery()) {
+                        if (resultSet.next()) return new StockUpdateResult(resultSet.getInt("stock"), true, false);
                     }
+                    try (PreparedStatement currentStock = conn.prepareStatement(
+                            "SELECT stock FROM inventory WHERE inventory_id = ?")) {
+                        currentStock.setInt(1, inventoryID);
+                        try (ResultSet resultSet = currentStock.executeQuery()) {
+                            if (resultSet.next()) {
+                                return new StockUpdateResult(resultSet.getInt("stock"), false, false);
+                            }
+                        }
+                    }
+                    return new StockUpdateResult(null, false, true);
                 }
             }
-            return new StockUpdateResult(null, false, true);
-        } catch (SQLException | ClassNotFoundException e) {
-            showDatabaseError("update stock", "The database update failed.");
-        } catch (IllegalArgumentException e) {
-            showDatabaseError("update stock", "The stock value is invalid.");
+        };
+        task.setOnSucceeded(event -> callback.accept(task.getValue()));
+        task.setOnFailed(event -> {
+            if (controllerActive) showDatabaseError("update stock", "The database update failed.");
+            callback.accept(new StockUpdateResult(null, false, false));
+        });
+        if (!startTask(task)) {
+            if (controllerActive) showDatabaseError("update stock", "The database is busy.");
+            callback.accept(new StockUpdateResult(null, false, false));
         }
-        return new StockUpdateResult(null, false, false);
     }
 
     @FXML
@@ -259,49 +447,74 @@ public class managerController {
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public Double updatePriceInDatabase(int itemID) {
-        double newPrice = inputNewPrice();
-        try (Connection conn = getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(
-                        "UPDATE item SET price = ? "
-                                + "WHERE item_id = ? AND ? >= 0 RETURNING price")) {
-            BigDecimal price = BigDecimal.valueOf(newPrice);
-            pstmt.setBigDecimal(1, price);
-            pstmt.setInt(2, itemID);
-            pstmt.setBigDecimal(3, price);
-            try (ResultSet resultSet = pstmt.executeQuery()) {
-                if (resultSet.next()) return resultSet.getBigDecimal("price").doubleValue();
-            }
-            showDatabaseError("update price", "The price value could not be updated.");
-        } catch (SQLException | ClassNotFoundException e) {
-            showDatabaseError("update price", "The database update failed.");
-        } catch (IllegalArgumentException e) {
-            showDatabaseError("update price", "The price value is invalid.");
-        }
-        return null;
-    }
-
-    public double inputNewPrice() {
+    public BigDecimal inputNewPrice() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Change Price");
         dialog.setHeaderText("Enter the new price: ");
         dialog.setContentText("Price: ");
 
         Optional<String> result = dialog.showAndWait();
-        if (result.isPresent()) {
-            try {
-                return Double.parseDouble(result.get());
-            } catch (NumberFormatException e) {
-                showDatabaseError("update price", "Invalid input. Please enter a valid number.");
-            }
+        if (result.isEmpty()) return null;
+        try {
+            BigDecimal price = new BigDecimal(result.get().trim());
+            if (price.scale() > 2 || price.signum() < 0 || price.compareTo(MAX_ITEM_PRICE) > 0)
+                throw new IllegalArgumentException();
+            return price;
+        } catch (IllegalArgumentException e) {
+            showDatabaseError("update price", "Enter a price from 0.00 to 99999999.99 with at most two decimal places.");
+            return null;
         }
-        return 0.0; // Default to no change if input is invalid or canceled
+    }
+
+    public void updatePriceInDatabase(int itemID, BigDecimal newPrice, Consumer<Double> callback) {
+        Task<Double> task = new Task<>() {
+            @Override
+            protected Double call() throws Exception {
+                try (Connection conn = getConnection();
+                        PreparedStatement pstmt = conn.prepareStatement(
+                                "UPDATE item SET price = ? "
+                                        + "WHERE item_id = ? AND ? >= 0 RETURNING price")) {
+                    pstmt.setBigDecimal(1, newPrice);
+                    pstmt.setInt(2, itemID);
+                    pstmt.setBigDecimal(3, newPrice);
+                    try (ResultSet resultSet = pstmt.executeQuery()) {
+                        if (resultSet.next()) return resultSet.getBigDecimal("price").doubleValue();
+                    }
+                    return null;
+                }
+            }
+        };
+        task.setOnSucceeded(event -> {
+            if (controllerActive && task.getValue() == null)
+                showDatabaseError("update price", "The price value could not be updated.");
+            callback.accept(task.getValue());
+        });
+        task.setOnFailed(event -> {
+            if (controllerActive) showDatabaseError("update price", "The database update failed.");
+            callback.accept(null);
+        });
+        if (!startTask(task)) {
+            if (controllerActive) showDatabaseError("update price", "The database is busy.");
+            callback.accept(null);
+        }
+    }
+
+    private boolean startTask(Task<?> task) {
+        try {
+            DATABASE_EXECUTOR.submit(task);
+            return true;
+        } catch (RejectedExecutionException e) {
+            return false;
+        }
     }
 
     private Connection getConnection() throws SQLException, ClassNotFoundException {
         dbSetup my = new dbSetup();
         Class.forName("org.postgresql.Driver");
-        return DriverManager.getConnection(DB_URL, my.user, my.pswd);
+        DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
+        Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
+        conn.setNetworkTimeout(Runnable::run, NETWORK_TIMEOUT_MILLISECONDS);
+        return conn;
     }
 
     private void showDatabaseError(String operation, String details) {
@@ -324,6 +537,42 @@ public class managerController {
         alert.showAndWait();
     }
 
+    public boolean isActive() {
+        return controllerActive;
+    }
+
+    /*
+     * It is slow; do not use
+     * /**
+     * Checks if a menu item is in the database.
+     *
+     * @param itemID The ID of the item to check.
+     *
+     * @return true if the item is in the database, false otherwise.
+     *
+     * @author Ashley Hoang
+     */
+    /*
+     * public boolean isMenuItemInDatabase(int itemID) {
+     * try {
+     * dbSetup my = new dbSetup();
+     * Class.forName("org.postgresql.Driver");
+     * Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
+     * String query = "SELECT * FROM item WHERE item_id = ?";
+     * PreparedStatement pstmt = conn.prepareStatement(query);
+     * pstmt.setInt(1, itemID);
+     * ResultSet rs = pstmt.executeQuery();
+     * boolean isInDatabase = rs.next();
+     * rs.close();
+     * pstmt.close();
+     * conn.close();
+     * return isInDatabase;
+     * } catch (Exception e) {
+     * e.printStackTrace();
+     * return false;
+     * }
+     * }
+     */
     /**
      * Adds a new menu item to the database based on user input from a dialog.
      *
@@ -395,20 +644,15 @@ public class managerController {
                     throw new IllegalArgumentException("Invalid price");
                 String size = sizeField.getText();
                 String itemName = itemNameField.getText();
-
-                try (Connection conn = getConnection();
-                        PreparedStatement pstmt = conn.prepareStatement(
-                                "INSERT INTO item (item_id, category_id, nutrition, price, unit_size, name, active) "
-                                        + "VALUES (?, ?, ?, ?, ?, ?, FALSE)")) {
-                    pstmt.setInt(1, itemID);
-                    pstmt.setInt(2, categoryID);
-                    pstmt.setString(3, nutritionInfo);
-                    pstmt.setBigDecimal(4, itemPrice);
-                    pstmt.setString(5, size);
-                    pstmt.setString(6, itemName);
-                    pstmt.executeUpdate();
-                }
-                reloadApplication();
+                Button addItemButton = (Button) event.getSource();
+                addItemButton.setDisable(true);
+                addMenuItemToDatabase(itemID, categoryID, nutritionInfo, itemPrice, size, itemName,
+                        added -> {
+                            if (controllerActive) {
+                                addItemButton.setDisable(false);
+                                if (added) reloadApplication();
+                            }
+                        });
             } catch (NumberFormatException e) {
                 Alert alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("Input Error");
@@ -423,6 +667,36 @@ public class managerController {
         }
     }
 
+    private void addMenuItemToDatabase(int itemID, int categoryID, String nutritionInfo,
+            BigDecimal itemPrice, String size, String itemName, Consumer<Boolean> callback) {
+        Task<Boolean> task = new Task<>() {
+            @Override
+            protected Boolean call() throws Exception {
+                try (Connection conn = getConnection();
+                        PreparedStatement pstmt = conn.prepareStatement(
+                                "INSERT INTO item (item_id, category_id, nutrition, price, unit_size, name, active) "
+                                        + "VALUES (?, ?, ?, ?, ?, ?, FALSE)")) {
+                    pstmt.setInt(1, itemID);
+                    pstmt.setInt(2, categoryID);
+                    pstmt.setString(3, nutritionInfo);
+                    pstmt.setBigDecimal(4, itemPrice);
+                    pstmt.setString(5, size);
+                    pstmt.setString(6, itemName);
+                    return pstmt.executeUpdate() == 1;
+                }
+            }
+        };
+        task.setOnSucceeded(event -> callback.accept(task.getValue()));
+        task.setOnFailed(event -> {
+            if (controllerActive) showDatabaseError("add menu item", "The menu item was not added.");
+            callback.accept(false);
+        });
+        if (!startTask(task)) {
+            if (controllerActive) showDatabaseError("add menu item", "The database is busy.");
+            callback.accept(false);
+        }
+    }
+
     /**
      * Removes a menu item from the database.
      *
@@ -431,22 +705,35 @@ public class managerController {
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public boolean removeMenuItemFromDatabase(MenuItem item) {
-        try (Connection conn = getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(
-                        "UPDATE item SET active = FALSE WHERE item_id = ? AND active = TRUE")) {
-            pstmt.setInt(1, item.getItemID());
-            if (pstmt.executeUpdate() > 0) {
-                menuListView.getItems().remove(item);
-                return true;
+    public void removeMenuItemFromDatabase(MenuItem item, Consumer<Boolean> callback) {
+        Task<Boolean> task = new Task<>() {
+            @Override
+            protected Boolean call() throws Exception {
+                try (Connection conn = getConnection();
+                        PreparedStatement pstmt = conn.prepareStatement(
+                                "UPDATE item SET active = FALSE WHERE item_id = ? AND active = TRUE")) {
+                    pstmt.setInt(1, item.getItemID());
+                    return pstmt.executeUpdate() > 0;
+                }
             }
-            showDatabaseError("remove menu item", "The menu item was not active.");
-        } catch (SQLException | ClassNotFoundException e) {
-            showDatabaseError("remove menu item", "The database update failed.");
-        } catch (IllegalArgumentException e) {
-            showDatabaseError("remove menu item", "The menu item is invalid.");
+        };
+        task.setOnSucceeded(event -> {
+            if (controllerActive && !task.getValue())
+                showDatabaseError("remove menu item", "The menu item was not active.");
+            callback.accept(task.getValue());
+        });
+        task.setOnFailed(event -> {
+            if (controllerActive) showDatabaseError("remove menu item", "The database update failed.");
+            callback.accept(false);
+        });
+        if (!startTask(task)) {
+            if (controllerActive) showDatabaseError("remove menu item", "The database is busy.");
+            callback.accept(false);
         }
-        return false;
+    }
+
+    public void removeMenuItemFromList(MenuItem item) {
+        if (menuListView != null) menuListView.getItems().remove(item);
     }
 
     /**
@@ -460,6 +747,7 @@ public class managerController {
     @FXML
     public void changeView(ActionEvent event) throws IOException {
         Parent root = FXMLLoader.load(getClass().getResource("cashierGUI.fxml"));
+        controllerActive = false;
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
         stage.setScene(new Scene(root, 1200, 800));
@@ -478,6 +766,7 @@ public class managerController {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("managerGUI.fxml"));
             Parent root = loader.load();
+            controllerActive = false;
             Stage stage = (Stage) menuListView.getScene().getWindow();
             Scene scene = new Scene(root, 1200, 800);
             stage.setScene(scene);

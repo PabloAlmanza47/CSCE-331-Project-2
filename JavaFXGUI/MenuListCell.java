@@ -21,25 +21,9 @@ public class MenuListCell extends ListCell<MenuItem> {
         changePriceBtn = new Button("Change Price");
         removeBtn = new Button("Remove Item");
 
-        // Set up button actions to modify price and update the display
-        changePriceBtn.setOnAction(e -> {
-            MenuItem item = getItem();
-            if (item != null) {
-                Double confirmedPrice = controller.updatePriceInDatabase(item.getItemID());
-                if (confirmedPrice != null) {
-                    item.setPrice(confirmedPrice);
-                    updateDisplay();
-                }
-            }
-        });
-        removeBtn.setOnAction(e -> {
-            MenuItem item = getItem();
-            if (item != null) {
-                controller.removeMenuItemFromDatabase(item);
-            }
-        });
+        changePriceBtn.setOnAction(e -> onChangePriceButtonPressed());
+        removeBtn.setOnAction(e -> onRemoveButtonPressed());
 
-        // Set HBox grow priorities to ensure proper layout
         HBox.setHgrow(changePriceBtn, Priority.NEVER);
         HBox.setHgrow(removeBtn, Priority.NEVER);
         HBox.setHgrow(infoLabel, Priority.ALWAYS);
@@ -47,6 +31,38 @@ public class MenuListCell extends ListCell<MenuItem> {
         content = new HBox(10, infoLabel, changePriceBtn, removeBtn);
         content.setAlignment(Pos.CENTER_LEFT);
         content.setPadding(new Insets(5));
+    }
+
+    private void onChangePriceButtonPressed() {
+        MenuItem item = getItem();
+        if (item == null) return;
+        java.math.BigDecimal newPrice = controller.inputNewPrice();
+        if (newPrice == null) return;
+        setControlsDisabled(true);
+        controller.updatePriceInDatabase(item.getItemID(), newPrice, confirmedPrice -> {
+            if (controller.isActive() && getItem() == item && confirmedPrice != null) {
+                item.setPrice(confirmedPrice);
+                updateDisplay();
+            }
+            if (controller.isActive()) setControlsDisabled(false);
+        });
+    }
+
+    private void onRemoveButtonPressed() {
+        MenuItem item = getItem();
+        if (item == null) return;
+        setControlsDisabled(true);
+        controller.removeMenuItemFromDatabase(item, removed -> {
+            if (controller.isActive()) {
+                if (getItem() == item && removed) controller.removeMenuItemFromList(item);
+                setControlsDisabled(false);
+            }
+        });
+    }
+
+    private void setControlsDisabled(boolean disabled) {
+        changePriceBtn.setDisable(disabled);
+        removeBtn.setDisable(disabled);
     }
 
     /**

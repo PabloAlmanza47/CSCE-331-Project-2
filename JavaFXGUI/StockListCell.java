@@ -22,11 +22,9 @@ public class StockListCell extends ListCell<StockItem> {
         addBtn = new Button("Add Stock");
         removeBtn = new Button("Remove Stock");
 
-        // Set up button actions to modify stock and update the display
         addBtn.setOnAction(_ -> onAddButtonPressed());
         removeBtn.setOnAction(_ -> onRemoveButtonPressed());
 
-        // Set HBox grow priorities to ensure proper layout
         HBox.setHgrow(addBtn, Priority.NEVER);
         HBox.setHgrow(removeBtn, Priority.NEVER);
         HBox.setHgrow(infoLabel, Priority.ALWAYS);
@@ -38,57 +36,35 @@ public class StockListCell extends ListCell<StockItem> {
 
     private void onAddButtonPressed() {
         StockItem item = getItem();
-
-        if (item == null)
-            return;
-        
-        managerController.StockUpdateResult result = controller.updateStockInDatabase(item.getInventoryID(), 1);
-        Integer confirmedStock = result.getStock();
-        boolean isStockNull = confirmedStock == null;
-        boolean isResultMissing = result.isMissing();
-
-        if (isStockNull && !isResultMissing)
-            return;
-
-        if (!isStockNull) {
-            item.setStock(confirmedStock);
-            updateDisplay();
-
-            if (!result.isUpdated())
-                controller.showStockUpdateFailure(confirmedStock);
-        }
-        else {
-            getListView().getItems().remove(item);
-            controller.showMissingInventoryError();
-        }
+        if (item == null) return;
+        updateStock(item, 1);
     }
 
     private void onRemoveButtonPressed() {
         StockItem item = getItem();
+        if (item == null || item.getStock() <= 0) return;
+        updateStock(item, -1);
+    }
 
-        if (item == null)
-            return;
-        
-        managerController.StockUpdateResult result = controller.updateStockInDatabase(item.getInventoryID(), -1);
-        Integer confirmedStock = result.getStock();
-        boolean isStockNull = confirmedStock == null;
-        boolean isResultMissing = result.isMissing();
-
-        if (isStockNull && !isResultMissing)
-            return;
-
-        if (!isStockNull && confirmedStock > 0) {
-            item.setStock(confirmedStock);
-            updateDisplay();
-
-            if (!result.isUpdated()) 
-                controller.showStockUpdateFailure(confirmedStock);
-        }
-
-        else if (isResultMissing) {
-            getListView().getItems().remove(item);
-            controller.showMissingInventoryError();
-        }
+    private void updateStock(StockItem item, int delta) {
+        addBtn.setDisable(true);
+        removeBtn.setDisable(true);
+        controller.updateStockInDatabase(item.getInventoryID(), delta, result -> {
+            if (controller.isActive() && getItem() == item) {
+                if (result.getStock() != null) {
+                    item.setStock(result.getStock());
+                    updateDisplay();
+                    if (!result.isUpdated()) controller.showStockUpdateFailure(result.getStock());
+                } else if (result.isMissing()) {
+                    getListView().getItems().remove(item);
+                    controller.showMissingInventoryError();
+                }
+            }
+            if (controller.isActive()) {
+                addBtn.setDisable(false);
+                removeBtn.setDisable(false);
+            }
+        });
     }
 
     /**
