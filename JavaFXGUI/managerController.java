@@ -170,8 +170,8 @@ public class managerController {
                 try (Connection conn = getConnection();
                         Statement stmt = conn.createStatement()) {
                     try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri "
-                                    + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name ORDER BY numSold")) {
+                            "SELECT i.item_id, i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri "
+                                    + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name, i.item_id ORDER BY i.item_id DESC")) {
                         while (resultSet.next()) {
                             sales.add(new SalesRecord(resultSet.getString("itemNames"),
                                     resultSet.getLong("numSold")));
@@ -301,6 +301,69 @@ public class managerController {
             salesGraph.getData().add(soldSeries);
         } catch (SQLException | IllegalArgumentException e) {
             e.printStackTrace();
+        }
+    }
+
+    @FXML
+    public void changeTimePeriod(ActionEvent event) {
+        // Create a dialog to get the new time period from the user
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Change Time Period");
+        dialog.setHeaderText("Enter the new time period (in days):");
+        dialog.setContentText("Time Period:");
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            try {
+                int newTimePeriod = Integer.parseInt(result.get().trim());
+                if (newTimePeriod <= 0) throw new NumberFormatException();
+                // Update the sales graph with the new time period
+                updateSalesGraph(newTimePeriod);
+            } catch (NumberFormatException e) {
+                showError("Invalid Input", "Please enter a valid positive integer for the time period.", "");
+            }
+        }
+    }
+
+    private void updateSalesGraph(int timePeriod) {
+        Task<XYChart.Series<Number, String>> task = new Task<>() {
+            @Override
+            protected XYChart.Series<Number, String> call() throws Exception {
+                XYChart.Series<Number, String> soldSeries = new XYChart.Series<>();
+                try (Connection conn = getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(
+                             "SELECT i.item_id, i.name AS itemNames, SUM(ri.quantity) AS numSold " +
+                                     "FROM receipt_item ri " +
+                                     "JOIN item i ON i.item_id = ri.item_id " +
+                                     "JOIN receipt r ON r.receipt_id = ri.receipt_id " +
+                                     "WHERE r.receipt_timestamp >= CURRENT_TIMESTAMP - (? * INTERVAL '1 day') " +
+                                     "GROUP BY i.name, i.item_id ORDER BY i.item_id DESC")) {
+                    pstmt.setInt(1, timePeriod);
+                    try (ResultSet resultSet = pstmt.executeQuery()) {
+                        while (resultSet.next()) {
+                            soldSeries.getData().add(new XYChart.Data<>(resultSet.getInt("numSold"), resultSet.getString("itemNames")));
+                        }
+                    }
+                }
+                return soldSeries;
+            }
+        };
+        task.setOnSucceeded(event -> {
+            salesGraph.setTitle("Items Sold in " + timePeriod + " Day(s)");
+            if (controllerActive) {
+                salesGraph.getData().clear();
+                salesGraph.getData().add(task.getValue());
+            }
+        });
+        task.setOnFailed(event -> {
+            if (controllerActive) {
+                Throwable exception = task.getException();
+                exception.printStackTrace();
+                showError("Sales Graph Update Failed", "The sales graph could not be updated.", "Please check the database connection and try again.");
+            }
+        });
+        if (!startTask(task)) {
+            showError("Sales Graph Update Failed", "The database is busy.", "Please try again.");
         }
     }
 
