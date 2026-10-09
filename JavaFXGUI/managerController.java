@@ -124,12 +124,16 @@ public class managerController {
         private final String itemName;
         private final int quantity;
         private final BigDecimal lineTotal;
+        private final int itemID;
+        private final String timestamp;
 
-        private ReceiptRecord(int receiptID, String itemName, int quantity, BigDecimal lineTotal) {
+        private ReceiptRecord(int receiptID, int itemID, String itemName, int quantity, BigDecimal lineTotal, String timestamp) {
             this.receiptID = receiptID;
             this.itemName = itemName;
             this.quantity = quantity;
             this.lineTotal = lineTotal;
+            this.itemID = itemID;
+            this.timestamp = timestamp;
         }
     }
 
@@ -188,15 +192,17 @@ public class managerController {
                         }
                     }
                     try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT r.receipt_id, i.name AS item_name, ri.quantity, ri.price_at_sale "
+                            "SELECT r.receipt_id, i.item_id, i.name AS item_name, ri.quantity,  ri.price_at_sale, r.receipt_timestamp "
                                     + "FROM receipt r JOIN receipt_item ri ON r.receipt_id = ri.receipt_id "
                                     + "JOIN item i ON ri.item_id = i.item_id WHERE r.receipt_id IN "
                                     + "(SELECT receipt_id FROM receipt ORDER BY receipt_timestamp DESC, receipt_id DESC LIMIT 10) "
                                     + "ORDER BY r.receipt_timestamp DESC, r.receipt_id DESC, ri.receipt_item_id")) {
                         while (resultSet.next()) {
-                            receipts.add(new ReceiptRecord(resultSet.getInt("receipt_id"),
+                            receipts.add(new ReceiptRecord(resultSet.getInt("receipt_id"), 
+                                    resultSet.getInt("item_id"),
                                     resultSet.getString("item_name"), resultSet.getInt("quantity"),
-                                    resultSet.getBigDecimal("price_at_sale")));
+                                    resultSet.getBigDecimal("price_at_sale"),
+                                resultSet.getString("receipt_timestamp")));
                         }
                     }
                     try (ResultSet resultSet = stmt.executeQuery(
@@ -254,9 +260,10 @@ public class managerController {
         BigDecimal receiptTotal = BigDecimal.ZERO;
         TitledPane receiptPane = null;
         for (ReceiptRecord receipt : data.receipts) {
+            String timestamp = receipt.timestamp;
             if (receipt.receiptID != currentReceiptID) {
-                if (receiptPane != null) itemList.getChildren().add(new Label(
-                        String.format("Total: $%.2f", receiptTotal)));
+                if (receiptPane != null)
+                    itemList.getChildren().add(new Label(String.format("Total: $%.2f\n\n%s", receiptTotal, timestamp)));
                 currentReceiptID = receipt.receiptID;
                 receiptTotal = BigDecimal.ZERO;
                 itemList = new VBox(5);
@@ -265,10 +272,15 @@ public class managerController {
                 receiptPane.setMaxWidth(Double.MAX_VALUE);
                 receiptAccordion.getPanes().add(receiptPane);
             }
-            BigDecimal lineTotal = receipt.lineTotal == null ? BigDecimal.ZERO : receipt.lineTotal;
+            int itemID = receipt.itemID;
+            String itemName = receipt.itemName;
+            int quantity = receipt.quantity;
+            // Checkout stores price_at_sale as the complete line total.
+            BigDecimal lineTotal = receipt.lineTotal;
+            if (lineTotal == null)
+                lineTotal = BigDecimal.ZERO;
             receiptTotal = receiptTotal.add(lineTotal);
-            itemList.getChildren().add(new Label(String.format(
-                    "%s    x%d    $%.2f", receipt.itemName, receipt.quantity, lineTotal)));
+            itemList.getChildren().add(new Label(String.format("#%d %s    x%d    $%.2f", itemID, itemName, quantity, lineTotal)));
         }
         if (receiptPane != null) itemList.getChildren().add(new Label(
                 String.format("Total: $%.2f", receiptTotal)));
@@ -780,6 +792,7 @@ public class managerController {
         controllerActive = false;
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
+        stage.setTitle("Cashier View");
         stage.setScene(new Scene(root, 1200, 800));
         stage.show();
     }
