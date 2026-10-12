@@ -5,12 +5,22 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
-// This class represents a menu item with its properties and provides getters and setters for each property.
+/**
+ * This class represents a menu item with its properties and provides getters and setters for each property.
+ * @author // TODO
+ */
 public class MenuItem {
     private final IntegerProperty itemID = new SimpleIntegerProperty();
     private final StringProperty itemName = new SimpleStringProperty();
     private final DoubleProperty itemPrice = new SimpleDoubleProperty();
 
+    /**
+     * DESCRIPTION // TODO
+     * @param itemID // TODO
+     * @param itemName // TODO
+     * @param itemPrice // TODO
+     * @author // TODO
+     */
     public MenuItem(int itemID, String itemName, double itemPrice) {
         this.itemID.set(itemID);
         this.itemName.set(itemName);
@@ -32,9 +42,5 @@ public class MenuItem {
 
     public void setPrice(double value) {
         itemPrice.set(value);
-    }
-
-    public DoubleProperty itemPriceProperty() {
-        return itemPrice;
     }
 }

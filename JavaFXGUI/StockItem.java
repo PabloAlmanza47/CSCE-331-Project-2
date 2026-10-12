@@ -3,7 +3,10 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
-// This class represents a stock item with its properties and provides getters and setters for each property.
+/**
+ * This class represents a stock item with its properties and provides getters and setters for each property.
+ * @author // TODO
+ */
 public class StockItem {
     private final IntegerProperty inventoryID = new SimpleIntegerProperty();
     private final StringProperty name = new SimpleStringProperty();
@@ -30,5 +33,4 @@ public class StockItem {
     public String getShelfLife() { return shelfLife.get(); }
 
     public void setStock(int value) { stock.set(value); }
-    public IntegerProperty stockProperty() { return stock; }
 }

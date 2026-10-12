@@ -18,6 +18,11 @@ public class MenuListCell extends ListCell<MenuItem> {
 
     private final ManagerController controller;
 
+    /**
+     * DESCRIPTION (what does this do besides "constructs stuff"?) // TODO
+     * @param controller // TODO
+     * @author // TODO
+     */
     public MenuListCell(ManagerController controller) {
         this.controller = controller;
         infoLabel = new Label();
@@ -36,6 +41,10 @@ public class MenuListCell extends ListCell<MenuItem> {
         content.setPadding(new Insets(5));
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private void onChangePriceButtonPressed() {
         MenuItem item = getItem();
         if (item == null) return;
@@ -51,6 +60,10 @@ public class MenuListCell extends ListCell<MenuItem> {
         });
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author  // TODO
+     */
     private void onRemoveButtonPressed() {
         MenuItem item = getItem();
         if (item == null) return;
@@ -63,6 +76,11 @@ public class MenuListCell extends ListCell<MenuItem> {
         });
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param disabled // TODO
+     * @author // TODO
+     */
     private void setControlsDisabled(boolean disabled) {
         changePriceBtn.setDisable(disabled);
         removeBtn.setDisable(disabled);

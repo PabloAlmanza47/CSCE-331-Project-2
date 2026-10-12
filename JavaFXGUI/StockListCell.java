@@ -19,6 +19,11 @@ public class StockListCell extends ListCell<StockItem> {
 
     private final ManagerController controller;
 
+    /**
+     * DESCRIPTION // TODO
+     * @param controller // TODO
+     * @author // TODO
+     */
     public StockListCell(ManagerController controller) {
         this.controller = controller;
         infoLabel = new Label();
@@ -37,18 +42,32 @@ public class StockListCell extends ListCell<StockItem> {
         content.setPadding(new Insets(5));
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private void onAddButtonPressed() {
         StockItem item = getItem();
         if (item == null) return;
         updateStock(item, 1);
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private void onRemoveButtonPressed() {
         StockItem item = getItem();
         if (item == null || item.getStock() <= 0) return;
         updateStock(item, -1);
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param item // TODO
+     * @param delta // TODO
+     * @author // TODO
+     */
     private void updateStock(StockItem item, int delta) {
         addBtn.setDisable(true);
         removeBtn.setDisable(true);
