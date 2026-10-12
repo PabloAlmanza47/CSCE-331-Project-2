@@ -22,6 +22,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.event.ActionEvent;
+import javafx.scene.text.*;
 
 /**
  * DESCRIPTION // TODO
@@ -111,6 +112,7 @@ public class CashierController {
             for (MenuRecord record : task.getValue()) {
                 VBox area = areas[record.categoryID - 1];
                 Button button = new Button(record.name);
+                button.setFont(new Font(20));
                 button.setPrefSize(area.getPrefWidth(), 30);
                 area.getChildren().add(button);
                 button.setOnAction(action -> onButtonPressed(record.itemID, record.price, record.name));
@@ -140,6 +142,7 @@ public class CashierController {
         if (!cart.containsKey(itemID)) {
             CheckBox checkBox = new CheckBox();
             checkBox.setSelected(true);
+            checkBox.setWrapText(true);
             checkBox.setOnAction(e -> onCheckboxSelected(itemID, checkBox));
             cartBox.getChildren().add(checkBox);
             cartRows.put(itemID, checkBox);

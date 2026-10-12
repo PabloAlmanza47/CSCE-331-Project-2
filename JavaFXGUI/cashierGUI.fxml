@@ -5,10 +5,10 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox alignment="CENTER" prefHeight="520.0" prefWidth="695.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="CashierController">
+<VBox alignment="CENTER" prefHeight="520.0" prefWidth="695.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="CashierController" stylesheets="cashierStyle.css">
    <children>
-      <Button fx:id="changeView" mnemonicParsing="false" onAction="#changeView" text="Change View" />
-      <HBox alignment="CENTER" prefHeight="461.0" prefWidth="803.0" VBox.vgrow="ALWAYS">
+      <Button fx:id="changeView" mnemonicParsing="false" onAction="#changeView" text="Change View" styleClass="font"/>
+      <HBox alignment="CENTER" prefHeight="461.0" prefWidth="803.0" VBox.vgrow="ALWAYS" styleClass="font">
          <children>
             <ScrollPane prefHeight="200.0" prefWidth="200.0" HBox.hgrow="ALWAYS">
                <content>
