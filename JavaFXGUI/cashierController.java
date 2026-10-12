@@ -23,7 +23,11 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.event.ActionEvent;
 
-public class cashierController {
+/**
+ * DESCRIPTION // TODO
+ * @author // TODO
+ */
+public class CashierController {
     @FXML private Button changeView, checkout;
     @FXML private VBox mainBox, sideBox, drinkBox, cartBox;
     private Label totalPriceLabel;
@@ -31,7 +35,7 @@ public class cashierController {
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db";
     private static final int LOGIN_TIMEOUT_SECONDS = 15;
     private static final int NETWORK_TIMEOUT_MILLISECONDS = 30000;
-    private static final ExecutorService DATABASE_EXECUTOR = new ThreadPoolExecutor(
+    private static final ExecutorService DATABASE_EXECUTOR = new ThreadPoolExecutor( //TODO: Put this in the constructor with a short explanation for why this is needed.
             4, 4, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(16),
             runnable -> {
                 Thread thread = new Thread(runnable, "cashier-database-worker");
@@ -48,6 +52,10 @@ public class cashierController {
     private boolean checkoutOutcomeUncertain;
     private boolean controllerActive = true;
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private static final class MenuRecord {
         private final int itemID;
         private final BigDecimal price;
@@ -62,21 +70,22 @@ public class cashierController {
         }
     }
 
-    @FXML public void initialize() {
+    @FXML 
+    public void initialize() {
         runQuery();
         closeButton.setOnAction(event -> closeWindow());
         checkout.setOnAction(event -> confirmCheckout());
     }
 
+    //TODO: Please refactor this, the function is very unclear on what it does and very ugly.
     private void runQuery() {
         checkout.setDisable(true);
         Task<List<MenuRecord>> task = new Task<>() {
             @Override
             protected List<MenuRecord> call() throws Exception {
                 List<MenuRecord> menu = new ArrayList<>();
-                dbSetup my = new dbSetup();
                 Class.forName("org.postgresql.Driver");
-                try (Connection conn = openConnection(my.user, my.pswd);
+                try (Connection conn = openConnection(DbSetup.user, DbSetup.pswd);
                         PreparedStatement statement = conn.prepareStatement(
                                 "SELECT name, price, item_id, category_id FROM item "
                                         + "WHERE category_id BETWEEN 1 AND 3 AND active = TRUE "
@@ -120,6 +129,13 @@ public class cashierController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param itemID // TODO
+     * @param price // TODO
+     * @param name // TODO
+     * @author // TODO
+     */
     private void onButtonPressed(int itemID, BigDecimal price, String name) {
         if (!cart.containsKey(itemID)) {
             CheckBox checkBox = new CheckBox();
@@ -137,6 +153,12 @@ public class cashierController {
         totalPriceLabel.setText("Total Price: $%.2f".formatted(totalPrice));
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param itemID // TODO
+     * @param parent // TODO
+     * @author // TODO
+     */
     private void onCheckboxSelected(int itemID, CheckBox parent) {
         if (!parent.isSelected()) {
             totalPrice = totalPrice.subtract(cartPrices.get(itemID).multiply(BigDecimal.valueOf(cart.get(itemID))));
@@ -148,12 +170,20 @@ public class cashierController {
         }
     }
 
+    /**
+     * DESCRIPTION (what window does this close?) // TODO
+     * @author // TODO
+     */
     private void closeWindow() {
         controllerActive = false;
         Stage stage = (Stage) closeButton.getScene().getWindow();
         stage.close();
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private void confirmCheckout() {
         if (cart.isEmpty() || checkoutInProgress || checkoutOutcomeUncertain) return;
         checkoutInProgress = true;
@@ -170,7 +200,7 @@ public class cashierController {
                 return executeCheckout(checkoutCart, checkoutPrices);
             }
         };
-        task.setOnSucceeded(event -> {
+        task.setOnSucceeded(event -> { // TODO: Make this its own function.
             CheckoutOutcome outcome = task.getValue();
             if (outcome == CheckoutOutcome.SUCCESS && controllerActive) {
                 for (CheckBox item : cartRows.values()) cartBox.getChildren().remove(item);
@@ -190,7 +220,7 @@ public class cashierController {
             }
             if (outcome != CheckoutOutcome.UNCERTAIN) finishCheckout();
         });
-        task.setOnFailed(event -> {
+        task.setOnFailed(event -> { // TODO: Make this its own function.
             if (controllerActive) showError("Checkout Failed", "The order was not recorded.",
                     "Please verify inventory and try again.");
             finishCheckout();
@@ -202,6 +232,12 @@ public class cashierController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param task // TODO
+     * @return // TODO
+     * @author // TODO
+     */
     private boolean startTask(Task<?> task) {
         try {
             DATABASE_EXECUTOR.submit(task);
@@ -211,6 +247,15 @@ public class cashierController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param user // TODO
+     * @param password // TODO
+     * @return // TODO
+     * @throws SQLException // TODO
+     * @throws ClassNotFoundException // TODO
+     * @author  // TODO
+     */
     private Connection openConnection(String user, String password) throws SQLException, ClassNotFoundException {
         Class.forName("org.postgresql.Driver");
         DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
@@ -219,16 +264,27 @@ public class cashierController {
         return conn;
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private enum CheckoutOutcome {
         SUCCESS, FAILURE, UNCERTAIN
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param checkoutCart // TODO
+     * @param checkoutPrices // TODO
+     * @return // TODO
+     * @author // TODO
+     * Note - Please add helper functions for this, the function is very long and hard to read.
+     */
     private CheckoutOutcome executeCheckout(TreeMap<Integer, Integer> checkoutCart,
             TreeMap<Integer, BigDecimal> checkoutPrices) {
         Connection conn = null;
         try {
-            dbSetup my = new dbSetup();
-            conn = openConnection(my.user, my.pswd);
+            conn = openConnection(DbSetup.user, DbSetup.pswd);
             conn.setAutoCommit(false);
             try {
                 try (PreparedStatement receipt = conn.prepareStatement(
@@ -333,6 +389,10 @@ public class cashierController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private void finishCheckout() {
         if (!controllerActive) return;
         checkoutInProgress = false;
@@ -343,6 +403,12 @@ public class cashierController {
         cartBox.setDisable(false);
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param title // TODO
+     * @param details // TODO
+     * @author // TODO
+     */
     private void showInformation(String title, String details) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
@@ -351,6 +417,13 @@ public class cashierController {
         alert.showAndWait();
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param title // TODO
+     * @param header // TODO
+     * @param details // TODO
+     * @author // TODO
+     */
     private void showError(String title, String header, String details) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
@@ -359,6 +432,12 @@ public class cashierController {
         alert.showAndWait();
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param event // TODO
+     * @throws Exception // TODO
+     * @author // TODO
+     */
     @FXML public void changeView(ActionEvent event) throws Exception {
         Parent root = FXMLLoader.load(getClass().getResource("/managerGUI.fxml"));
         controllerActive = false;

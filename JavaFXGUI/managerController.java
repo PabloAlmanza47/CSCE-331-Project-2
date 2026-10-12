@@ -1,5 +1,4 @@
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import java.io.IOException;
@@ -37,7 +36,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.RejectedExecutionException;
 
-public class managerController {
+public class ManagerController {
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; // database location
     private static final int LOGIN_TIMEOUT_SECONDS = 15;
     private static final int NETWORK_TIMEOUT_MILLISECONDS = 30000;
@@ -51,6 +50,10 @@ public class managerController {
     private static final BigDecimal MAX_ITEM_PRICE = new BigDecimal("99999999.99");
     private boolean controllerActive = true;
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     public static final class StockUpdateResult {
         private final Integer stock;
         private final boolean updated;
@@ -75,6 +78,10 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private static final class ManagerData {
         private final List<SalesRecord> sales;
         private final List<StockRecord> stock;
@@ -90,6 +97,10 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private static final class SalesRecord {
         private final String name;
         private final long quantity;
@@ -100,6 +111,10 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private static final class StockRecord {
         private final int inventoryID;
         private final String name;
@@ -119,6 +134,10 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     private static final class ReceiptRecord {
         private final int receiptID;
         private final String itemName;
@@ -149,7 +168,10 @@ public class managerController {
         }
     }
 
-    // This method runs automatically when the FXML loads
+    /**
+     * This method runs automatically when the FXML loads
+     * @author // TODO
+     */
     @FXML
     public void initialize() {
         /*
@@ -160,7 +182,10 @@ public class managerController {
         runQuery();
     }
 
-    // Your method to run the database query
+    /**
+     * Your method to run the database query
+     * @author // TODO
+     */
     private void runQuery() {
         stockListView.setDisable(true);
         menuListView.setDisable(true);
@@ -238,6 +263,11 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param data // TODO
+     * @author // TODO
+    */
     private void applyManagerData(ManagerData data) {
         salesGraph.getData().clear();
         XYChart.Series<Number, String> salesSeries = new XYChart.Series<>();
@@ -293,6 +323,11 @@ public class managerController {
         menuListView.setCellFactory(lv -> new MenuListCell(this));
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param event // TODO
+     * @author // TODO
+     */
     @FXML
     public void closeWindow(ActionEvent event) {
         controllerActive = false;
@@ -300,9 +335,15 @@ public class managerController {
         stage.close();
     }
 
+    // TODO: Move this with all other variable initializations.
     @FXML
     BarChart<Number, String> salesGraph;
 
+    /**
+     * DESCRIPTION // TODO
+     * @param items // TODO
+     * @author // TODO
+     */
     @FXML
     public void createSalesBarGraph(ResultSet items) {
         try {
@@ -316,6 +357,11 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param event // TODO
+     * @author // TODO
+     */
     @FXML
     public void changeTimePeriod(ActionEvent event) {
         // Create a dialog to get the new time period from the user
@@ -337,6 +383,11 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param timePeriod // TODO
+     * @author // TODO
+     */
     private void updateSalesGraph(int timePeriod) {
         Task<XYChart.Series<Number, String>> task = new Task<>() {
             @Override
@@ -379,10 +430,18 @@ public class managerController {
         }
     }
 
-    // Preserve remote stock editing through StockItem and StockListCell.
+    /** 
+     * Preserve remote stock editing through StockItem and StockListCell.
+     * TODO: Move with other variables
+    */
     @FXML
     public ListView<StockItem> stockListView;
 
+    /**
+     * DESCRIPTION // TODO
+     * @param stockList // TODO
+     * @author // TODO
+     */
     @FXML
     public void createStockList(ResultSet stockList) {
         try {
@@ -447,9 +506,15 @@ public class managerController {
         }
     }
 
+    // TODO: Move with other variables
     @FXML
     Accordion receiptAccordion;
 
+    /**
+     * DESCRIPTION // TODO
+     * @param receipts // TODO
+     * @author // TODO
+     */
     @FXML
     public void createReceiptList(ResultSet receipts) {
         try {
@@ -488,10 +553,18 @@ public class managerController {
         }
     }
 
-    // Menu list creation
+    /**
+     * Menu list creation
+     * TODO: Move with other variables
+     */
     @FXML
     public ListView<MenuItem> menuListView;
 
+    /**
+     * DESCRIPTION // TODO
+     * @param menuList // TODO
+     * @author // TODO
+     */
     @FXML
     public void createMenuList(ResultSet menuList) {
         try {
@@ -540,6 +613,13 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param itemID // TODO
+     * @param newPrice // TODO
+     * @param callback // TODO
+     * @author // TODO
+     */
     public void updatePriceInDatabase(int itemID, BigDecimal newPrice, Consumer<Double> callback) {
         Task<Double> task = new Task<>() {
             @Override
@@ -573,6 +653,12 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param task // TODO
+     * @return // TODO
+     * @author // TODO
+     */
     private boolean startTask(Task<?> task) {
         try {
             DATABASE_EXECUTOR.submit(task);
@@ -582,27 +668,55 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @return // TODO
+     * @throws SQLException // TODO
+     * @throws ClassNotFoundException // TODO
+     * @author // TODO
+     */
     private Connection getConnection() throws SQLException, ClassNotFoundException {
-        dbSetup my = new dbSetup();
         Class.forName("org.postgresql.Driver");
         DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
-        Connection conn = DriverManager.getConnection(DB_URL, my.user, my.pswd);
+        Connection conn = DriverManager.getConnection(DB_URL, DbSetup.user, DbSetup.pswd);
         conn.setNetworkTimeout(Runnable::run, NETWORK_TIMEOUT_MILLISECONDS);
         return conn;
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param operation // TODO
+     * @param details // TODO
+     * @author // TODO
+     */
     private void showDatabaseError(String operation, String details) {
         showError("Database Error", "Unable to " + operation, details);
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param currentStock // TODO
+     * @author // TODO
+     */
     public void showStockUpdateFailure(int currentStock) {
         showDatabaseError("update stock", "The stock value changed. Current stock: " + currentStock);
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     public void showMissingInventoryError() {
         showDatabaseError("update stock", "The inventory record no longer exists.");
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param title // TODO
+     * @param header // TODO
+     * @param details // TODO
+     * @author // TODO
+     */
     private void showError(String title, String header, String details) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
@@ -619,7 +733,7 @@ public class managerController {
      * Adds a new menu item to the database based on user input from a dialog.
      *
      * @author Ashley Hoang
-     * @param event
+     * @param event // TODO
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
@@ -709,6 +823,17 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION  // TODO
+     * @param itemID // TODO
+     * @param categoryID // TODO
+     * @param nutritionInfo // TODO
+     * @param itemPrice // TODO
+     * @param size // TODO
+     * @param itemName // TODO
+     * @param callback // TODO
+     * @author // TODO
+     */
     private void addMenuItemToDatabase(int itemID, int categoryID, String nutritionInfo,
             BigDecimal itemPrice, String size, String itemName, Consumer<Boolean> callback) {
         Task<Boolean> task = new Task<>() {
@@ -774,6 +899,11 @@ public class managerController {
         }
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @param item // TODO
+     * @author // TODO
+     */
     public void removeMenuItemFromList(MenuItem item) {
         if (menuListView != null) menuListView.getItems().remove(item);
     }

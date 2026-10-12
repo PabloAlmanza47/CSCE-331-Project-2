@@ -9,17 +9,17 @@ CSCE 331
 2/7/2020 Update for AWS
  */
 
-public class jdbcGUI {  
+public class JdbcGUI {  
 
   // Database connection object
   static Connection conn = null;
 
-  public static void openConnection(dbSetup credentials) {
+  public static void openConnection() {
     try {
 
       conn = DriverManager.getConnection(
         "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db", 
-        credentials.user, credentials.pswd);
+        DbSetup.user, DbSetup.pswd);
     } catch (Exception e) {
       e.printStackTrace();
       System.err.println(e.getClass().getName() + ": " + e.getMessage());
@@ -40,11 +40,8 @@ public class jdbcGUI {
 
 
   public static void main(String args[]) {
-    // dbSetup hides the username and password
-    dbSetup credentials = new dbSetup();
-
     // build the connection
-    openConnection(credentials);
+    openConnection();
 
     try {
       // create an sql statement

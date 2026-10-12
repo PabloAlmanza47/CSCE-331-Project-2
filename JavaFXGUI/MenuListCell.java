@@ -6,16 +6,19 @@ import javafx.scene.control.ListCell;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 
-// This class represents a custom ListCell for displaying MenuItem objects in a ListView. 
+/**
+ * This class represents a custom ListCell for displaying MenuItem objects in a ListView. 
+ * @author AUTHOR // TODO
+ */
 public class MenuListCell extends ListCell<MenuItem> {
     private final HBox content;
     private final Label infoLabel;
     private final Button changePriceBtn;
     private final Button removeBtn;
 
-    private final managerController controller;
+    private final ManagerController controller;
 
-    public MenuListCell(managerController controller) {
+    public MenuListCell(ManagerController controller) {
         this.controller = controller;
         infoLabel = new Label();
         changePriceBtn = new Button("Change Price");
