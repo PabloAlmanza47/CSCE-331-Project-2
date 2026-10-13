@@ -8,7 +8,7 @@ import javafx.scene.layout.Priority;
 
 /**
  * This class represents a custom ListCell for displaying MenuItem objects in a ListView. 
- * @author AUTHOR // TODO
+ * @author Ashley Hoang
  */
 public class MenuListCell extends ListCell<MenuItem> {
     private final HBox content;
@@ -19,9 +19,9 @@ public class MenuListCell extends ListCell<MenuItem> {
     private final ManagerController controller;
 
     /**
-     * DESCRIPTION (what does this do besides "constructs stuff"?) // TODO
-     * @param controller // TODO
-     * @author // TODO
+     * Constructs the cell (for list view) of a Menu Item with buttons for changing the price and removing the item.
+     * @param controller The ManagerController which handles the logic for updating and removing menu items.
+     * @author Ashley Hoang
      */
     public MenuListCell(ManagerController controller) {
         this.controller = controller;
@@ -42,8 +42,8 @@ public class MenuListCell extends ListCell<MenuItem> {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @author // TODO
+     * Handles the event when the "Change Price" button is pressed.
+     * @author Ashley Hoang, Pablo Almanza
      */
     private void onChangePriceButtonPressed() {
         MenuItem item = getItem();
@@ -61,8 +61,8 @@ public class MenuListCell extends ListCell<MenuItem> {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @author  // TODO
+     * Handles the event when the "Remove Item" button is pressed.
+     * @author Ashley Hoang, Pablo Almanza
      */
     private void onRemoveButtonPressed() {
         MenuItem item = getItem();
@@ -79,7 +79,7 @@ public class MenuListCell extends ListCell<MenuItem> {
     /**
      * DESCRIPTION // TODO
      * @param disabled // TODO
-     * @author // TODO
+     * @author Pablo Almanza
      */
     private void setControlsDisabled(boolean disabled) {
         changePriceBtn.setDisable(disabled);
@@ -88,7 +88,6 @@ public class MenuListCell extends ListCell<MenuItem> {
 
     /**
      * Updates the display of the ListCell based on the current MenuItem.
-     *
      * @author Ashley Hoang
      */
     private void updateDisplay() {
