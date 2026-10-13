@@ -191,7 +191,8 @@ public class ManagerController {
 
     /**
      * Your method to run the database query
-     * @author Pablo Almanza, Ashley Hoang
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     private void runQuery() {
         stockListView.setDisable(true);
@@ -457,7 +458,8 @@ public class ManagerController {
     /**
      * Updates the stock quantity of an item in the database.
      *
-     * @author Ashley Hoang, Pablo Almanza
+     * @author Ashley Hoang
+     * @author Pablo Almanza
      * @param inventoryID The ID of the inventory item to update.
      * @param stockDelta  The change in stock quantity.
      * @throws SQLException             if there is an error with the database query
@@ -853,7 +855,8 @@ public class ManagerController {
      * Removes a menu item from the database.
      *
      * @param item The menu item to remove.
-     * @author Ashley Hoang, Pablo Almanza
+     * @author Ashley Hoang
+     * @author Pablo Almanza
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */

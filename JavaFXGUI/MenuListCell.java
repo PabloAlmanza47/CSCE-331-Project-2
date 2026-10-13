@@ -43,7 +43,8 @@ public class MenuListCell extends ListCell<MenuItem> {
 
     /**
      * Handles the event when the "Change Price" button is pressed.
-     * @author Ashley Hoang, Pablo Almanza
+     * @author Ashley Hoang
+     * @author Pablo Almanza
      */
     private void onChangePriceButtonPressed() {
         MenuItem item = getItem();
@@ -62,7 +63,8 @@ public class MenuListCell extends ListCell<MenuItem> {
 
     /**
      * Handles the event when the "Remove Item" button is pressed.
-     * @author Ashley Hoang, Pablo Almanza
+     * @author Ashley Hoang
+     * @author Pablo Almanza
      */
     private void onRemoveButtonPressed() {
         MenuItem item = getItem();
