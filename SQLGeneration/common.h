@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <ctime>
+#include <cstring>
 #include <random>
 
 // ENUM LENGTHS (no easy way to dynamically get this)
@@ -128,10 +129,14 @@ class Item : public Scriptable {
         ItemCategory category;
         float price;
         string name;
+        string startTime;
+        string endTime;
 
     public:
-        Item(int id, ItemCategory category, float price, const string& name) : id(id), category(category), price(price), name(name) {}
-        Item(ItemCategory category, float price, const string& name) : id(getId()), category(category), price(price), name(name) {}
+        Item(int id, ItemCategory category, float price, const string& name) : id(id), category(category), price(price), name(name), startTime(""), endTime("") {}
+        Item(ItemCategory category, float price, const string& name) : id(getId()), category(category), price(price), name(name), startTime(""), endTime("") {}
+        Item(int id, ItemCategory category, float price, const string& name, const string& start, const string& end) : id(id), category(category), price(price), name(name), startTime(start), endTime(end) {}
+        Item(ItemCategory category, float price, const string& name, const string& start, const string& end) : id(getId()), category(category), price(price), name(name), startTime(start), endTime(end) {}
         Item(Item& copy) {
             id = copy.id;
             category = copy.category;
@@ -151,6 +156,8 @@ class Item : public Scriptable {
         int getId() const noexcept;
         float getPrice() const noexcept;
         ItemCategory getCategory() const noexcept;
+        const string& getStartTime() const noexcept;
+        const string& getEndTime() const noexcept;
 };
 
 struct IngredientRelation : public Scriptable {
@@ -320,7 +327,11 @@ class Generator {
         void regenerateOrderObject(OrderObject* order, int count, ItemCategory category);
         Order* generateOrder(time_t timeOfOrder);
 
+        bool validOrderItem(const Item* item) const noexcept;
+
     public:
+        static char timeBuf[128];
+
         void generateNextDay();
         void generateNDays(int days);
 
@@ -352,6 +363,8 @@ class Generator {
         void writeTimetablesFast(ofstream& stream) const;
 
         void writeAllFast(const char* filename) const;
+
+        void writeOneDay(ofstream& stream, const vector<Order*>& day) const;
 
         Generator(time_t startDay, const int peakDays) : current(0), peakDaysLen(peakDays), currentDay(startDay) {
             this->peakDays = new int[peakDays];

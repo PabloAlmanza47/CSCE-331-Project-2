@@ -24,6 +24,8 @@
     price
     unit_size
     name
+    active_from
+    active_to
 
 [Inventory]
     *Inventory_id

@@ -78,6 +78,9 @@ int main() {
 //Init currentId before it is used.
     int Scriptable::currentId = 0;
 
+//Init the global time buffer.
+    char Generator::timeBuf[128];
+
 // SQL CONVERT FUNCTIONS
 
 string Location::toSql() const noexcept {
@@ -389,6 +392,24 @@ void Generator::regenerateOrderObject(OrderObject* order, int count, ItemCategor
     order->getAmount() = max <= 1 ? 1 : std::round(percentGen(rngSeed) * (max - 1)) + 1;
 }
 
+bool Generator::validOrderItem(const Item* item) const noexcept {
+    const string& start = item->getStartTime();
+    const string& end = item->getEndTime();
+
+    int startMonth = (start[0] - '0') * 10 + start[1] - '0';
+    int startDay = (start[3] - '0') * 10 + start[4] - '0';
+    int endMonth = (end[0] - '0') * 10 + end[1] - '0';
+    int endDay = (end[3] - '0') * 10 + end[4] - '0';
+    
+    tm* timepoint = std::localtime(&currentDay);
+    int month = timepoint->tm_mon + 1;
+    int day = timepoint->tm_mday + 1;
+
+    return 
+        (month > startMonth || (month == startMonth && day > startDay)) &&
+        (month < endMonth || (month == endMonth && day < endDay));
+}
+
 Order* Generator::generateOrder(time_t timeOfOrder) {
 
     int numOfItems = itemsInOrder(rngSeed);
@@ -673,7 +694,6 @@ void Generator::writeInventoryRelationsFast(ofstream& stream) const {
 }
 
 void Generator::writeDays(ofstream& stream) const {
-    char buf[40];
     size_t orderLen = orders.size(), currentOrderLen;
     for (size_t i = 0; i < orderLen; ++i) {
         vector<Order*> current = *(orders[i]);
@@ -684,25 +704,35 @@ void Generator::writeDays(ofstream& stream) const {
 
         time_t time = current[0]->getTimestamp();
         std::tm* timepoint = std::localtime(&time);
-        std::strftime(buf, sizeof(buf), "%d/%m/%Y", timepoint);
+        std::strftime(timeBuf, sizeof(timeBuf), "%d/%m/%Y", timepoint);
 
-        stream << "--Day " << std::to_string(i + 1) << " (" << buf << ") [" << std::to_string(currentOrderLen) << " orders]\n";
+        stream << "--Day " << std::to_string(i + 1) << " (" << timeBuf << ") [" << std::to_string(currentOrderLen) << " orders]\n";        
 
-        std::strftime(buf, sizeof(buf), "%I:%M %p", timepoint);
+        writeOneDay(stream, current);
+    }
+}
+void Generator::writeOneDay(ofstream& stream, const vector<Order*>& day) const {
+    size_t dayLen = day.size();
+    
+    if (dayLen == 0)
+        return;
 
-        stream << "\n--Order 1 (" << buf << ")\n";
-        for (size_t j = 0; j < currentOrderLen; ++j) {
-            stream << *(current[j]);
+    time_t time = day[0]->getTimestamp();
+    std::tm* timepoint = std::localtime(&time);
+    std::strftime(timeBuf, sizeof(timeBuf), "%I:%M %p", timepoint);
 
-            if (j < currentOrderLen - 1) {
-                time = current[j + 1]->getTimestamp();
-                timepoint = std::localtime(&time);
-                std::strftime(buf, sizeof(buf), "%I:%M %p", timepoint);
-            }
+    stream << "\n--Order 1 (" << timeBuf << ")\n";
+    for (size_t j = 0; j < dayLen; ++j) {
+        stream << *(day[j]);
 
-            if (j != currentOrderLen - 1)
-                stream << "\n--Order " << std::to_string(j + 2) << " (" << buf << ')' << '\n';
+        if (j < dayLen - 1) {
+            time = day[j + 1]->getTimestamp();
+            timepoint = std::localtime(&time);
+            std::strftime(timeBuf, sizeof(timeBuf), "%I:%M %p", timepoint);
         }
+
+        if (j != dayLen - 1)
+            stream << "\n--Order " << std::to_string(j + 2) << " (" << timeBuf << ')' << '\n';
     }
 }
 void Generator::writeDaysFast(ofstream& stream) const {
@@ -817,8 +847,9 @@ void Generator::writeAll(const char* filename) const {
         return;
     }
 
-    writeLoaderStart(outputFile);
-    writeInitialLoadGuard(outputFile);
+    // writeLoaderStart(outputFile);
+    // writeInitialLoadGuard(outputFile);
+    writeTruncates(outputFile);
     outputFile << "\n-- LOCATION GENERATION\n\n";
     writeLocations(outputFile);
     outputFile << "\n-- USER GENERATION\n\n";
@@ -835,8 +866,8 @@ void Generator::writeAll(const char* filename) const {
     writeDays(outputFile);
     outputFile << "\n-- TIMETABLE GENERATION\n\n";
     writeTimetables(outputFile);
-    writeIdentitySequenceSync(outputFile);
-    writeLoaderEnd(outputFile);
+    // writeIdentitySequenceSync(outputFile);
+    // writeLoaderEnd(outputFile);
 
     outputFile.close();
 }
@@ -848,8 +879,9 @@ void Generator::writeAllFast(const char* filename) const {
         return;
     }
 
-    writeLoaderStart(outputFile);
-    writeInitialLoadGuard(outputFile);
+    // writeLoaderStart(outputFile);
+    // writeInitialLoadGuard(outputFile);
+    writeTruncatesFast(outputFile);
     writeLocationsFast(outputFile);
     writeUsersFast(outputFile);
     writeCategoriesFast(outputFile);
@@ -858,8 +890,8 @@ void Generator::writeAllFast(const char* filename) const {
     writeInventoryRelationsFast(outputFile);
     writeDaysFast(outputFile);
     writeTimetablesFast(outputFile);
-    writeIdentitySequenceSync(outputFile);
-    writeLoaderEnd(outputFile);
+    // writeIdentitySequenceSync(outputFile);
+    // writeLoaderEnd(outputFile);
 
     outputFile.close();
 }
@@ -962,7 +994,7 @@ void Generator::generateUsers() {
 }
 
 void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-blvd-sr16/menu/a-la-carte
-    const int len = 28;
+    const int len = 29;
     allItems = new Item*[len];
 
     allItems[0] = new Item(1, ItemCategory::ENTREE, 13.80, "Cantonese BBQ Brisket");
@@ -977,22 +1009,23 @@ void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-
     allItems[9] = new Item(10, ItemCategory::ENTREE, 9.30, "Grilled Teriyaki Chicken");
     allItems[10] = new Item(11, ItemCategory::ENTREE, 9.30, "Broccoli Beef");
     allItems[11] = new Item(12, ItemCategory::ENTREE, 9.30, "Beijing Beef");
-    allItems[12] = new Item(13, ItemCategory::SIDE, 4.65, "White Steamed Rice");
-    allItems[13] = new Item(14, ItemCategory::SIDE, 4.65, "Fried Rice");
-    allItems[14] = new Item(15, ItemCategory::SIDE, 4.65, "Chow Mein");
-    allItems[15] = new Item(16, ItemCategory::SIDE, 4.65, "Super Greens");
-    allItems[16] = new Item(17, ItemCategory::SIDE, 2.10, "Veggie Spring Roll");
-    allItems[17] = new Item(18, ItemCategory::SIDE, 2.10, "Chicken Egg Roll");
-    allItems[18] = new Item(19, ItemCategory::SIDE, 2.10, "Cream Cheese Rangoon");
-    allItems[19] = new Item(20, ItemCategory::DRINK, 3.60, "Watermelon Mango Flavored Refresher");
-    allItems[20] = new Item(21, ItemCategory::DRINK, 2.70, "Fanta Orange");
-    allItems[21] = new Item(22, ItemCategory::DRINK, 2.70, "Dr Pepper");
-    allItems[22] = new Item(23, ItemCategory::DRINK, 2.70, "Dasani");
-    allItems[23] = new Item(24, ItemCategory::DRINK, 3.50, "Smartwater");
-    allItems[24] = new Item(25, ItemCategory::DRINK, 2.70, "Sprite");
-    allItems[25] = new Item(26, ItemCategory::DRINK, 2.70, "Minute Maid Lemonade");
-    allItems[26] = new Item(27, ItemCategory::DRINK, 3.60, "Pomegranate Pineapple Flavored Lemonade");
-    allItems[27] = new Item(28, ItemCategory::DRINK, 2.70, "Coca Cola Zero Sugar");
+    allItems[12] = new Item(13,ItemCategory::ENTREE, 10.00 , "Seasonal Item", "09-20", "11-15");
+    allItems[13] = new Item(14, ItemCategory::SIDE, 4.65, "White Steamed Rice");
+    allItems[14] = new Item(15, ItemCategory::SIDE, 4.65, "Fried Rice");
+    allItems[15] = new Item(16, ItemCategory::SIDE, 4.65, "Chow Mein");
+    allItems[16] = new Item(17, ItemCategory::SIDE, 4.65, "Super Greens");
+    allItems[17] = new Item(18, ItemCategory::SIDE, 2.10, "Veggie Spring Roll");
+    allItems[18] = new Item(19, ItemCategory::SIDE, 2.10, "Chicken Egg Roll");
+    allItems[19] = new Item(20, ItemCategory::SIDE, 2.10, "Cream Cheese Rangoon");
+    allItems[20] = new Item(21, ItemCategory::DRINK, 3.60, "Watermelon Mango Flavored Refresher");
+    allItems[21] = new Item(22, ItemCategory::DRINK, 2.70, "Fanta Orange");
+    allItems[22] = new Item(23, ItemCategory::DRINK, 2.70, "Dr Pepper");
+    allItems[23] = new Item(24, ItemCategory::DRINK, 2.70, "Dasani");
+    allItems[24] = new Item(25, ItemCategory::DRINK, 3.50, "Smartwater");
+    allItems[25] = new Item(26, ItemCategory::DRINK, 2.70, "Sprite");
+    allItems[26] = new Item(27, ItemCategory::DRINK, 2.70, "Minute Maid Lemonade");
+    allItems[27] = new Item(28, ItemCategory::DRINK, 3.60, "Pomegranate Pineapple Flavored Lemonade");
+    allItems[28] = new Item(29, ItemCategory::DRINK, 2.70, "Coca Cola Zero Sugar");
     //allItems[2] = new Item(2, , ""));
 
     for (int i = 0; i < CATEGORY_LENGTH; ++i)
