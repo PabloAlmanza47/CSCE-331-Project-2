@@ -585,8 +585,7 @@ static void writeLoaderStart(ofstream& stream) {
     stream << "\\set ON_ERROR_STOP on\n"
            << "BEGIN;\n"
            << "LOCK TABLE category, item, inventory, ingredient_list, receipt, receipt_item, "
-           << "location, app_user, user_timetable, receipt_receipt_id_seq, "
-           << "receipt_item_receipt_item_id_seq IN ACCESS EXCLUSIVE MODE;\n";
+           << "location, app_user, user_timetable IN ACCESS EXCLUSIVE MODE;\n";
 }
 
 static void writeInitialLoadGuard(ofstream& stream) {
@@ -792,8 +791,7 @@ void Generator::writeReset(const char* filename) const {
     writeDestructiveGuard(outputFile);
     outputFile << "BEGIN;\n"
                << "LOCK TABLE category, item, inventory, ingredient_list, receipt, receipt_item, "
-               << "location, app_user, user_timetable, receipt_receipt_id_seq, "
-               << "receipt_item_receipt_item_id_seq IN ACCESS EXCLUSIVE MODE;\n";
+               << "location, app_user, user_timetable IN ACCESS EXCLUSIVE MODE;\n";
     writeTruncates(outputFile);
     writeLocations(outputFile);
     writeUsers(outputFile);
