@@ -79,8 +79,8 @@ public class MenuListCell extends ListCell<MenuItem> {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param disabled // TODO
+     * Sets the disabled state of the buttons in the ListCell.
+     * @param disabled Whether the controls should be disabled.
      * @author Pablo Almanza
      */
     private void setControlsDisabled(boolean disabled) {

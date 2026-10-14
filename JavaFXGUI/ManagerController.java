@@ -37,6 +37,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.RejectedExecutionException;
 
+
 public class ManagerController {
     //Variables
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; // database location
@@ -56,124 +57,6 @@ public class ManagerController {
     @FXML public ListView<StockItem> stockListView; //Preserve remote stock editing through StockItem and StockListCell.
     @FXML Accordion receiptAccordion; // Receipt accordion display
 
-
-    /**
-     * DESCRIPTION // TODO
-     * @author Pablo Almanza
-     */
-    public static final class StockUpdateResult {
-        private final Integer stock;
-        private final boolean updated;
-        private final boolean missing;
-
-        private StockUpdateResult(Integer stock, boolean updated, boolean missing) {
-            this.stock = stock;
-            this.updated = updated;
-            this.missing = missing;
-        }
-
-        public Integer getStock() {
-            return stock;
-        }
-
-        public boolean isUpdated() {
-            return updated;
-        }
-
-        public boolean isMissing() {
-            return missing;
-        }
-    }
-
-    /**
-     * DESCRIPTION // TODO
-     * @author Pablo Almanza
-     */
-    private static final class ManagerData {
-        private final List<SalesRecord> sales;
-        private final List<StockRecord> stock;
-        private final List<ReceiptRecord> receipts;
-        private final List<MenuRecord> menu;
-
-        private ManagerData(List<SalesRecord> sales, List<StockRecord> stock,
-                List<ReceiptRecord> receipts, List<MenuRecord> menu) {
-            this.sales = sales;
-            this.stock = stock;
-            this.receipts = receipts;
-            this.menu = menu;
-        }
-    }
-
-    /**
-     * DESCRIPTION // TODO
-     * @author Pablo Almanza
-     */
-    private static final class SalesRecord {
-        private final String name;
-        private final long quantity;
-
-        private SalesRecord(String name, long quantity) {
-            this.name = name;
-            this.quantity = quantity;
-        }
-    }
-
-    /**
-     * DESCRIPTION // TODO
-     * @author Pablo Almanza
-     */
-    private static final class StockRecord {
-        private final int inventoryID;
-        private final String name;
-        private final int stock;
-        private final int minStock;
-        private final String nextShipment;
-        private final String shelfLife;
-
-        private StockRecord(int inventoryID, String name, int stock, int minStock,
-                String nextShipment, String shelfLife) {
-            this.inventoryID = inventoryID;
-            this.name = name;
-            this.stock = stock;
-            this.minStock = minStock;
-            this.nextShipment = nextShipment;
-            this.shelfLife = shelfLife;
-        }
-    }
-
-    /**
-     * DESCRIPTION // TODO
-     * @author Pablo Almanza
-     */
-    private static final class ReceiptRecord {
-        private final int receiptID;
-        private final String itemName;
-        private final int quantity;
-        private final BigDecimal lineTotal;
-        private final int itemID;
-        private final String timestamp;
-
-        private ReceiptRecord(int receiptID, int itemID, String itemName, int quantity, BigDecimal lineTotal, String timestamp) {
-            this.receiptID = receiptID;
-            this.itemName = itemName;
-            this.quantity = quantity;
-            this.lineTotal = lineTotal;
-            this.itemID = itemID;
-            this.timestamp = timestamp;
-        }
-    }
-
-    private static final class MenuRecord {
-        private final int itemID;
-        private final String name;
-        private final double price;
-
-        private MenuRecord(int itemID, String name, double price) {
-            this.itemID = itemID;
-            this.name = name;
-            this.price = price;
-        }
-    }
 
     /**
      * This method runs automatically when the FXML loads
@@ -272,22 +155,22 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param data // TODO
+     * Applies the manager data to the GUI components.
+     * @param data The compiled manager data containing sales, stock, receipts, and menu information.
      * @author Pablo Almanza
     */
     private void applyManagerData(ManagerData data) {
         salesGraph.getData().clear();
         XYChart.Series<Number, String> salesSeries = new XYChart.Series<>();
-        for (SalesRecord sale : data.sales) {
-            salesSeries.getData().add(new XYChart.Data<>(sale.quantity, sale.name));
+        for (SalesRecord sale : data.getSales()) {
+            salesSeries.getData().add(new XYChart.Data<>(sale.getQuantity(), sale.getName()));
         }
         salesGraph.getData().add(salesSeries);
 
         ObservableList<StockItem> stockItems = FXCollections.observableArrayList();
-        for (StockRecord item : data.stock) {
-            stockItems.add(new StockItem(item.inventoryID, item.name, item.stock, item.minStock,
-                    item.nextShipment, item.shelfLife));
+        for (StockRecord item : data.getStock()) {
+            stockItems.add(new StockItem(item.getInventoryID(), item.getName(), item.getStock(), item.getMinStock(),
+                    item.getNextShipment(), item.getShelfLife()));
         }
         stockListView.setItems(stockItems);
         stockListView.setCellFactory(lv -> new StockListCell(this));
@@ -297,24 +180,24 @@ public class ManagerController {
         VBox itemList = null;
         BigDecimal receiptTotal = BigDecimal.ZERO;
         TitledPane receiptPane = null;
-        for (ReceiptRecord receipt : data.receipts) {
-            String timestamp = receipt.timestamp;
-            if (receipt.receiptID != currentReceiptID) {
+        for (ReceiptRecord receipt : data.getReceipts()) {
+            String timestamp = receipt.getTimestamp();
+            if (receipt.getReceiptID() != currentReceiptID) {
                 if (receiptPane != null)
                     itemList.getChildren().add(new Label(String.format("Total: $%.2f\n\n%s", receiptTotal, timestamp)));
-                currentReceiptID = receipt.receiptID;
+                currentReceiptID = receipt.getReceiptID();
                 receiptTotal = BigDecimal.ZERO;
                 itemList = new VBox(5);
                 itemList.setPadding(new Insets(10));
-                receiptPane = new TitledPane("Receipt " + receipt.receiptID, itemList);
+                receiptPane = new TitledPane("Receipt " + receipt.getReceiptID(), itemList);
                 receiptPane.setMaxWidth(Double.MAX_VALUE);
                 receiptAccordion.getPanes().add(receiptPane);
             }
-            int itemID = receipt.itemID;
-            String itemName = receipt.itemName;
-            int quantity = receipt.quantity;
+            int itemID = receipt.getItemID();
+            String itemName = receipt.getItemName();
+            int quantity = receipt.getQuantity();
             // Checkout stores price_at_sale as the complete line total.
-            BigDecimal lineTotal = receipt.lineTotal;
+            BigDecimal lineTotal = receipt.getLineTotal();
             if (lineTotal == null)
                 lineTotal = BigDecimal.ZERO;
             receiptTotal = receiptTotal.add(lineTotal);
@@ -324,8 +207,8 @@ public class ManagerController {
                 String.format("Total: $%.2f", receiptTotal)));
 
         ObservableList<MenuItem> menuItems = FXCollections.observableArrayList();
-        for (MenuRecord item : data.menu) {
-            menuItems.add(new MenuItem(item.itemID, item.name, item.price));
+        for (MenuRecord item : data.getMenu()) {
+            menuItems.add(new MenuItem(item.getItemID(), item.getName(), item.getPrice()));
         }
         menuListView.setItems(menuItems);
         menuListView.setCellFactory(lv -> new MenuListCell(this));
@@ -601,10 +484,10 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param itemID // TODO
-     * @param newPrice // TODO
-     * @param callback // TODO
+     * Updates the price of an item in the database.
+     * @param itemID The ID of the item in the item database
+     * @param newPrice The new price of the item (computed by inputNewPrice)
+     * @param callback A callback function that will be called with the result of the price update operation (double on success). 
      * @author Pablo Almanza
      */
     public void updatePriceInDatabase(int itemID, BigDecimal newPrice, Consumer<Double> callback) {
@@ -641,9 +524,9 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param task // TODO
-     * @return // TODO
+     * Starts a task in the database executor.
+     * @param task The task to start.
+     * @return true if the task was started successfully, false otherwise.
      * @author Pablo Almanza
      */
     private boolean startTask(Task<?> task) {
@@ -656,10 +539,10 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @return // TODO
-     * @throws SQLException // TODO
-     * @throws ClassNotFoundException // TODO
+     * Gets a connection to the database.
+     * @return A Connection object representing the connection to the database.
+     * @throws SQLException if there is an error with the database connection
+     * @throws ClassNotFoundException if the PostgreSQL JDBC driver class is not found
      * @author Pablo Almanza
      */
     private Connection getConnection() throws SQLException, ClassNotFoundException {
@@ -671,9 +554,9 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param operation // TODO
-     * @param details // TODO
+     * Shows a database error message in an alert dialog.
+     * @param operation The operation that failed (e.g., "update stock", "add menu item").
+     * @param details Additional details about the error (e.g., "The stock value changed. Current stock: 5").
      * @author Pablo Almanza
      */
     private void showDatabaseError(String operation, String details) {
@@ -681,8 +564,8 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param currentStock // TODO
+     * Shows a database error message in an alert dialog when the stock update fails due to a stock value change.
+     * @param currentStock The current stock value in the database.
      * @author Pablo Almanza
      */
     public void showStockUpdateFailure(int currentStock) {
@@ -690,7 +573,7 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION // TODO
+     * Shows a database error message in an alert dialog when the inventory record no longer exists.
      * @author Pablo Almanza
      */
     public void showMissingInventoryError() {
@@ -698,10 +581,10 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param title // TODO
-     * @param header // TODO
-     * @param details // TODO
+     * Displays an error alert dialog with the specified title, header, and details.
+     * @param title The title of the error dialog.
+     * @param header The header of the error dialog.
+     * @param details Additional details about the error.
      * @author Pablo Almanza
      */
     private void showError(String title, String header, String details) {
@@ -811,14 +694,14 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION  // TODO
-     * @param itemID // TODO
-     * @param categoryID // TODO
-     * @param nutritionInfo // TODO
-     * @param itemPrice // TODO
-     * @param size // TODO
-     * @param itemName // TODO
-     * @param callback // TODO
+     * Adds a new menu item to the database.
+     * @param itemID The ID of the new menu item.
+     * @param categoryID The category ID of the new menu item.
+     * @param nutritionInfo The nutrition information of the new menu item.
+     * @param itemPrice The price of the new menu item.
+     * @param size The unit size of the new menu item.
+     * @param itemName The name of the new menu item.
+     * @param callback A callback function that will be called with the result of the add operation (true on success, false on failure).
      * @author Pablo Almanza
      */
     private void addMenuItemToDatabase(int itemID, int categoryID, String nutritionInfo,
@@ -888,8 +771,8 @@ public class ManagerController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param item // TODO
+     * Removes a menu item from the list view in the GUI.
+     * @param item The menu item to remove from the list view.
      * @author Pablo Almanza
      */
     public void removeMenuItemFromList(MenuItem item) {
