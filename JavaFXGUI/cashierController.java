@@ -29,12 +29,12 @@ import javafx.scene.text.*;
  * @author // TODO
  */
 public class CashierController {
-    @FXML private Button changeView, checkout;
+    @FXML private Button bowl, plate, biggerPlate, changeView, checkout, closeButton;
     @FXML private VBox mainBox, sideBox, drinkBox, cartBox;
     private Label totalPriceLabel;
-    @FXML private Button closeButton;
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db";
     private static final int LOGIN_TIMEOUT_SECONDS = 15;
+    private static final int FONT_SIZE = 20;
     private static final int NETWORK_TIMEOUT_MILLISECONDS = 30000;
     private static final ExecutorService DATABASE_EXECUTOR = new ThreadPoolExecutor( //TODO: Put this in the constructor with a short explanation for why this is needed.
             4, 4, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(16),
@@ -43,9 +43,10 @@ public class CashierController {
                 thread.setDaemon(true);
                 return thread;
             }, new ThreadPoolExecutor.AbortPolicy());
-    private final HashMap<Integer, Integer> cart = new HashMap<>();
-    private final HashMap<Integer, BigDecimal> cartPrices = new HashMap<>();
-    private final HashMap<Integer, CheckBox> cartRows = new HashMap<>();
+    private final List<CartLine> cartLines = new ArrayList<>();
+    private MealSize selectedSize;
+    private final List<MenuRecord> pendingMains = new ArrayList<>();
+    private MenuRecord pendingSide;
     private BigDecimal totalPrice = BigDecimal.ZERO;
     private int currentLocationId = 1;
     private int currentUserId = 3;
@@ -54,30 +55,23 @@ public class CashierController {
     private boolean controllerActive = true;
 
     /**
-     * DESCRIPTION // TODO
-     * @author // TODO
+     * DESCRIPTION // Initializes all the elements into the FXML
+     * @author // Sharaf Mehmood
      */
-    private static final class MenuRecord {
-        private final int itemID;
-        private final BigDecimal price;
-        private final String name;
-        private final int categoryID;
-
-        private MenuRecord(int itemID, BigDecimal price, String name, int categoryID) {
-            this.itemID = itemID;
-            this.price = price;
-            this.name = name;
-            this.categoryID = categoryID;
-        }
-    }
-
     @FXML 
     public void initialize() {
         runQuery();
         closeButton.setOnAction(event -> closeWindow());
+        bowl.setOnAction(event -> selectSize(MealSize.BOWL));
+        plate.setOnAction(event -> selectSize(MealSize.PLATE));
+        biggerPlate.setOnAction(event -> selectSize(MealSize.BIGGER_PLATE));
         checkout.setOnAction(event -> confirmCheckout());
     }
 
+    /**
+     * DESCRIPTION // TODO
+     * @author // TODO
+     */
     //TODO: Please refactor this, the function is very unclear on what it does and very ugly.
     private void runQuery() {
         checkout.setDisable(true);
@@ -101,30 +95,10 @@ public class CashierController {
                 return menu;
             }
         };
-        task.setOnSucceeded(event -> {
-            if (!controllerActive) return;
-            VBox[] areas = { mainBox, sideBox, drinkBox };
-            for (VBox area : areas) area.getChildren().clear();
-            if (totalPriceLabel == null) {
-                totalPriceLabel = new Label("Total Price: 0.0$");
-                cartBox.getChildren().add(totalPriceLabel);
-            }
-            for (MenuRecord record : task.getValue()) {
-                VBox area = areas[record.categoryID - 1];
-                Button button = new Button(record.name);
-                button.setFont(new Font(20));
-                button.setPrefSize(area.getPrefWidth(), 30);
-                area.getChildren().add(button);
-                button.setOnAction(action -> onButtonPressed(record.itemID, record.price, record.name));
-            }
-            checkout.setDisable(false);
-        });
-        task.setOnFailed(event -> {
-            if (!controllerActive) return;
-            checkout.setDisable(false);
-            showError("Menu Load Failed", "The menu could not be loaded.",
-                    "Please check the database connection and try again.");
-        });
+
+        task.setOnSucceeded(event -> loadBoxes(task));
+        task.setOnFailed(event -> loadBoxesFail());
+
         if (!startTask(task)) {
             checkout.setDisable(false);
             showError("Menu Load Failed", "The database is busy.", "Please try again.");
@@ -132,28 +106,100 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param itemID // TODO
-     * @param price // TODO
-     * @param name // TODO
+     * DESCRIPTION // Loads all of the menu items onto the screen
+     * @param task // TODO
      * @author // TODO
      */
-    private void onButtonPressed(int itemID, BigDecimal price, String name) {
-        if (!cart.containsKey(itemID)) {
-            CheckBox checkBox = new CheckBox();
-            checkBox.setSelected(true);
-            checkBox.setWrapText(true);
-            checkBox.setOnAction(e -> onCheckboxSelected(itemID, checkBox));
-            cartBox.getChildren().add(checkBox);
-            cartRows.put(itemID, checkBox);
-            cart.put(itemID, 1);
-            cartPrices.put(itemID, price);
-        } else cart.merge(itemID, 1, Integer::sum);
-        totalPrice = totalPrice.add(price);
-        int quantity = cart.get(itemID);
-        BigDecimal lineTotal = cartPrices.get(itemID).multiply(BigDecimal.valueOf(quantity));
-        cartRows.get(itemID).setText(quantity + "x" + name + " $%.2f".formatted(lineTotal));
-        totalPriceLabel.setText("Total Price: $%.2f".formatted(totalPrice));
+    private void loadBoxes(Task<List<MenuRecord>> task){
+        if (!controllerActive) return;
+        VBox[] areas = { mainBox, sideBox, drinkBox };
+        for (VBox area : areas) area.getChildren().clear();
+        if (totalPriceLabel == null) {
+            totalPriceLabel = new Label("Total Price: 0.0$");
+            cartBox.getChildren().add(totalPriceLabel);
+        }
+        for (MenuRecord record : task.getValue()) {
+            VBox area = areas[record.getCategoryID() - 1];
+            Button button = new Button(record.getName());
+            button.setFont(new Font(FONT_SIZE));
+            button.setPrefSize(area.getPrefWidth(), 30);
+            area.getChildren().add(button);
+            button.setOnAction(action -> onMenuItemPressed(record));
+        }
+        checkout.setDisable(false);
+    }
+
+    private void loadBoxesFail(){
+        if (!controllerActive) return;
+        checkout.setDisable(false);
+        showError("Menu Load Failed", "The menu could not be loaded.",
+                "Please check the database connection and try again.");
+    }
+
+    private void selectSize(MealSize size){
+        if (selectedSize == size) selectedSize = null;
+        else selectedSize = size;
+        pendingMains.clear();
+        pendingSide = null;
+
+        if (selectedSize == MealSize.BOWL) bowl.setStyle("-fx-font-weight: bold");
+        else bowl.setStyle("");
+
+        if (selectedSize == MealSize.PLATE) plate.setStyle("-fx-font-weight: bold"); 
+        else plate.setStyle("");
+    
+        if (selectedSize == MealSize.BIGGER_PLATE) biggerPlate.setStyle("-fx-font-weight: bold");
+        else biggerPlate.setStyle("");
+    }
+
+    /**
+     * DESCRIPTION // TODO
+     * @param record // TODO
+     * @author // TODO
+     */
+    private void onMenuItemPressed(MenuRecord record) { 
+        if (selectedSize == null || record.getCategoryID() == 3) {
+            addToCart(CartLine.single(record));
+            return;
+        }
+        if (record.getCategoryID() == 1 && pendingMains.size() < selectedSize.getMains()) pendingMains.add(record);
+        if (record.getCategoryID() == 2) pendingSide = record; 
+        if (pendingMains.size() == selectedSize.getMains() && pendingSide != null) {
+            addToCart(CartLine.meal(selectedSize, pendingMains, pendingSide));
+            pendingMains.clear();
+            pendingSide = null; 
+        }
+    }
+
+    /**
+     * DESCRIPTION // TODO
+     * @param line // TODO
+     * @author // TODO
+     */
+    private void addToCart(CartLine line) {
+        for (CartLine existing : cartLines) {
+            if (line.getKey() != null && line.getKey().equals(existing.getKey())) {
+                existing.setQuantity(existing.getQuantity() + 1);
+                existing.getRow().setText(existing.describe());
+                refreshTotal();
+                return;
+            }
+        }
+        CheckBox checkBox = new CheckBox();
+        checkBox.setSelected(true);
+        checkBox.setWrapText(true);
+        checkBox.setOnAction(e -> onCheckboxSelected(line, checkBox));
+        checkBox.setText(line.describe());
+        line.setRow(checkBox);
+        cartLines.add(line);
+        cartBox.getChildren().add(checkBox);
+        refreshTotal();
+    }
+
+    private void refreshTotal() {
+        BigDecimal total = BigDecimal.ZERO;
+        for (CartLine line : cartLines) total = total.add(line.lineTotal());
+        totalPriceLabel.setText("Total Price: $%.2f".formatted(total));
     }
 
     /**
@@ -162,19 +208,16 @@ public class CashierController {
      * @param parent // TODO
      * @author // TODO
      */
-    private void onCheckboxSelected(int itemID, CheckBox parent) {
+    private void onCheckboxSelected(CartLine line, CheckBox parent) {
         if (!parent.isSelected()) {
-            totalPrice = totalPrice.subtract(cartPrices.get(itemID).multiply(BigDecimal.valueOf(cart.get(itemID))));
             cartBox.getChildren().remove(parent);
-            cart.remove(itemID);
-            cartPrices.remove(itemID);
-            cartRows.remove(itemID);
-            totalPriceLabel.setText("Total Price: $%.2f".formatted(totalPrice));
+            cartLines.remove(line);
+            refreshTotal();
         }
     }
 
     /**
-     * DESCRIPTION (what window does this close?) // TODO
+     * DESCRIPTION (what window does this close?) // close current window
      * @author // TODO
      */
     private void closeWindow() {
@@ -184,51 +227,79 @@ public class CashierController {
     }
 
     /**
+     * DESCRIPTION //
+     * @param task //
+     * @author // TODO
+     */
+    private void checkoutSuccess(Task<CheckoutOutcome> task){
+        CheckoutOutcome outcome = task.getValue();
+        if (outcome == CheckoutOutcome.SUCCESS && controllerActive) {
+            for (CartLine line : cartLines) cartBox.getChildren().remove(line.getRow());
+            cartLines.clear();
+            refreshTotal();
+            showInformation("Order Complete", "Order recorded successfully.");
+        } else if (outcome == CheckoutOutcome.UNCERTAIN && controllerActive) {
+            checkoutOutcomeUncertain = true;
+            showError("Checkout Status Unknown", "The order status could not be confirmed.",
+                    "Do not retry. Verify the receipt with a manager before submitting another order.");
+        } else if (outcome == CheckoutOutcome.FAILURE && controllerActive) {
+            showError("Checkout Failed", "The order was not recorded.",
+                    "Please verify inventory and try again.");
+        }
+        if (outcome != CheckoutOutcome.UNCERTAIN) finishCheckout();
+    }
+
+    /**
+     * DESCRIPTION //
+     * @author // TODO
+     */
+    private void checkoutFail(){
+        if (controllerActive) showError("Checkout Failed", "The order was not recorded.",
+                    "Please verify inventory and try again.");
+        finishCheckout();
+    }
+
+    private void flattenCart(TreeMap<Integer, Integer> quantities, TreeMap<Integer, BigDecimal> listPrices,
+            TreeMap<Integer, BigDecimal> totals) {
+        for (CartLine line : cartLines) {
+            BigDecimal quantity = BigDecimal.valueOf(line.getQuantity());
+            for (int i = 0; i < line.getComponents().size(); i++) {
+                MenuRecord component = line.getComponents().get(i);
+                BigDecimal unitAmount = (i == 0) ? component.getPrice().add(line.discount()) : component.getPrice();
+                quantities.merge(component.getItemID(), line.getQuantity(), Integer::sum);
+                listPrices.put(component.getItemID(), component.getPrice());
+                totals.merge(component.getItemID(), unitAmount.multiply(quantity), BigDecimal::add);
+            }
+        }
+    }
+
+    /**
      * DESCRIPTION // TODO
      * @author // TODO
      */
     private void confirmCheckout() {
-        if (cart.isEmpty() || checkoutInProgress || checkoutOutcomeUncertain) return;
+        if (cartLines.isEmpty() || checkoutInProgress || checkoutOutcomeUncertain) return;
         checkoutInProgress = true;
         checkout.setDisable(true);
         mainBox.setDisable(true);
         sideBox.setDisable(true);
         drinkBox.setDisable(true);
         cartBox.setDisable(true);
-        TreeMap<Integer, Integer> checkoutCart = new TreeMap<>(cart);
-        TreeMap<Integer, BigDecimal> checkoutPrices = new TreeMap<>(cartPrices);
+        TreeMap<Integer, Integer> checkoutCart = new TreeMap<>();
+        TreeMap<Integer, BigDecimal> checkoutPrices = new TreeMap<>();
+        TreeMap<Integer, BigDecimal> checkoutTotal = new TreeMap<>();
+        flattenCart(checkoutCart, checkoutPrices, checkoutTotal);
         Task<CheckoutOutcome> task = new Task<>() {
             @Override
             protected CheckoutOutcome call() {
-                return executeCheckout(checkoutCart, checkoutPrices);
+                return executeCheckout(checkoutCart, checkoutPrices, checkoutTotal);
             }
         };
-        task.setOnSucceeded(event -> { // TODO: Make this its own function.
-            CheckoutOutcome outcome = task.getValue();
-            if (outcome == CheckoutOutcome.SUCCESS && controllerActive) {
-                for (CheckBox item : cartRows.values()) cartBox.getChildren().remove(item);
-                cartRows.clear();
-                cart.clear();
-                cartPrices.clear();
-                totalPrice = BigDecimal.ZERO;
-                totalPriceLabel.setText("Total Price: 0.0$");
-                showInformation("Order Complete", "Order recorded successfully.");
-            } else if (outcome == CheckoutOutcome.UNCERTAIN && controllerActive) {
-                checkoutOutcomeUncertain = true;
-                showError("Checkout Status Unknown", "The order status could not be confirmed.",
-                        "Do not retry. Verify the receipt with a manager before submitting another order.");
-            } else if (outcome == CheckoutOutcome.FAILURE && controllerActive) {
-                showError("Checkout Failed", "The order was not recorded.",
-                        "Please verify inventory and try again.");
-            }
-            if (outcome != CheckoutOutcome.UNCERTAIN) finishCheckout();
-        });
-        task.setOnFailed(event -> { // TODO: Make this its own function.
-            if (controllerActive) showError("Checkout Failed", "The order was not recorded.",
-                    "Please verify inventory and try again.");
-            finishCheckout();
-        });
+
+        task.setOnSucceeded(event -> checkoutSuccess(task));
+        task.setOnFailed(event -> checkoutFail());
         task.setOnCancelled(event -> finishCheckout());
+
         if (!startTask(task)) {
             finishCheckout();
             showError("Checkout Failed", "The database is busy.", "Please try again.");
@@ -284,7 +355,7 @@ public class CashierController {
      * Note - Please add helper functions for this, the function is very long and hard to read.
      */
     private CheckoutOutcome executeCheckout(TreeMap<Integer, Integer> checkoutCart,
-            TreeMap<Integer, BigDecimal> checkoutPrices) {
+            TreeMap<Integer, BigDecimal> checkoutPrices, TreeMap<Integer, BigDecimal> checkoutTotals) {
         Connection conn = null;
         try {
             conn = openConnection(DbSetup.user, DbSetup.pswd);
@@ -357,13 +428,12 @@ public class CashierController {
                     }
                     for (Map.Entry<Integer, Integer> entry : checkoutCart.entrySet()) {
                         int itemID = entry.getKey();
-                        BigDecimal lineTotal = checkoutPrices.get(itemID)
-                                .multiply(BigDecimal.valueOf(entry.getValue()));
+                        BigDecimal lineTotal = checkoutTotals.get(itemID);
                         if (lineTotal.scale() > 2 || lineTotal.signum() < 0
                                 || lineTotal.compareTo(new BigDecimal("99999999.99")) > 0)
                             throw new SQLException("Checkout total is outside the database price range");
                         receiptItem.setInt(1, receiptID);
-                        receiptItem.setInt(2, itemID);
+                        receiptItem.setInt(2, entry.getValue());
                         receiptItem.setBigDecimal(3, lineTotal);
                         receiptItem.setInt(4, itemID);
                         receiptItem.setBigDecimal(5, checkoutPrices.get(itemID));
