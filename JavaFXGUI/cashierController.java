@@ -95,7 +95,7 @@ public class CashierController {
                 return menu;
             }
         };
-
+        
         task.setOnSucceeded(event -> loadBoxes(task));
         task.setOnFailed(event -> loadBoxesFail());
 
@@ -117,11 +117,11 @@ public class CashierController {
         if (totalPriceLabel == null) {
             totalPriceLabel = new Label("Total Price: 0.0$");
             cartBox.getChildren().add(totalPriceLabel);
+            totalPriceLabel.getStyleClass().add("font");
         }
         for (MenuRecord record : task.getValue()) {
             VBox area = areas[record.getCategoryID() - 1];
             Button button = new Button(record.getName());
-            button.setFont(new Font(FONT_SIZE));
             button.setPrefSize(area.getPrefWidth(), 30);
             area.getChildren().add(button);
             button.setOnAction(action -> onMenuItemPressed(record));
@@ -130,6 +130,7 @@ public class CashierController {
     }
 
     private void loadBoxesFail(){
+        
         if (!controllerActive) return;
         checkout.setDisable(false);
         showError("Menu Load Failed", "The menu could not be loaded.",
@@ -142,13 +143,13 @@ public class CashierController {
         pendingMains.clear();
         pendingSide = null;
 
-        if (selectedSize == MealSize.BOWL) bowl.setStyle("-fx-font-weight: bold");
+        if (selectedSize == MealSize.BOWL) bowl.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
         else bowl.setStyle("");
 
-        if (selectedSize == MealSize.PLATE) plate.setStyle("-fx-font-weight: bold"); 
+        if (selectedSize == MealSize.PLATE) plate.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold"); 
         else plate.setStyle("");
     
-        if (selectedSize == MealSize.BIGGER_PLATE) biggerPlate.setStyle("-fx-font-weight: bold");
+        if (selectedSize == MealSize.BIGGER_PLATE) biggerPlate.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
         else biggerPlate.setStyle("");
     }
 
@@ -190,6 +191,7 @@ public class CashierController {
         checkBox.setWrapText(true);
         checkBox.setOnAction(e -> onCheckboxSelected(line, checkBox));
         checkBox.setText(line.describe());
+        checkBox.getStyleClass().add("font");
         line.setRow(checkBox);
         cartLines.add(line);
         cartBox.getChildren().add(checkBox);
@@ -442,6 +444,7 @@ public class CashierController {
                     }
                 }
             } catch (Exception e) {
+                e.printStackTrace();
                 try {
                     conn.rollback();
                 } catch (SQLException rollbackError) {
@@ -456,6 +459,7 @@ public class CashierController {
                 return CheckoutOutcome.UNCERTAIN;
             }
         } catch (SQLException | ClassNotFoundException e) {
+            e.printStackTrace();
             return CheckoutOutcome.FAILURE;
         } finally {
             if (conn != null) try { conn.close(); } catch (SQLException ignored) { }
