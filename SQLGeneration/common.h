@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 #include <ctime>
@@ -220,20 +221,14 @@ class Order : public Scriptable {
         int id;
         int userId;
         int locationId;
-        vector<OrderObject*> items;
+        vector<unique_ptr<OrderObject>> items;
         time_t timestamp;
 
     public:
-        Order(int id, int userId, int locationId, const vector<OrderObject*>& items, const time_t& timestamp) : id(id), userId(userId), locationId(locationId), items(items), timestamp(timestamp)  {
+        Order(int id, int userId, int locationId, vector<unique_ptr<OrderObject>>&& items, const time_t& timestamp) : id(id), userId(userId), locationId(locationId), items(std::move(items)), timestamp(timestamp) {
             setChildIds();
         }
-        Order(int id, int userId, int locationId, vector<OrderObject*>&& items, const time_t& timestamp) : id(id), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
-            setChildIds();
-        }
-        Order(int userId, int locationId, vector<OrderObject*>& items, const time_t& timestamp) : id(getId()), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
-            setChildIds();
-        }
-        Order(int userId, int locationId, vector<OrderObject*>&& items, const time_t& timestamp) : id(getId()), userId(userId), locationId(locationId), items(items), timestamp(timestamp) {
+        Order(int userId, int locationId, vector<unique_ptr<OrderObject>>&& items, const time_t& timestamp) : id(getId()), userId(userId), locationId(locationId), items(std::move(items)), timestamp(timestamp) {
             setChildIds();
         }
 
@@ -242,55 +237,52 @@ class Order : public Scriptable {
         string toFullSql() const noexcept override;
         void setChildIds();
         time_t getTimestamp() const noexcept;
-        const vector<OrderObject*>& getItems() const noexcept;
+        const vector<unique_ptr<OrderObject>>& getItems() const noexcept;
 
-        ~Order() override {
-            for (size_t i = 0; i < items.size(); ++i)
-                delete items[i];
-        }
+        ~Order() override = default;
 };
 
 class Generator {
     private:
         // all item pointers, in an array. Sorted by category.
-        Item** allItems;
-        int allItemsLen;
+        vector<unique_ptr<Item>> allItems;
+        int allItemsLen = 0;
 
         // all ingredient points, in an array.
-        Ingredient** allIngredients;
-        int allIngredientsLen;
+        vector<unique_ptr<Ingredient>> allIngredients;
+        int allIngredientsLen = 0;
 
         // all ingredient relations, in an array.
-        IngredientRelation** allRelations;
-        int allRelationsLen;
+        vector<unique_ptr<IngredientRelation>> allRelations;
+        int allRelationsLen = 0;
 
         // How many items are in each category.
         int categoryLens[CATEGORY_LENGTH];
 
         // which days are peak days.
-        int* peakDays;
+        vector<int> peakDays;
         // when the next peak day is (if this equals peakDaysLen then there are no more peak days).
         int current;
         // length of the peakDays array.
         int peakDaysLen;
 
         // all used panda express locations 
-        Location** allLocations;
-        int allLocationsLen;
+        vector<unique_ptr<Location>> allLocations;
+        int allLocationsLen = 0;
 
         // all employees
-        User** allUsers;
-        int allUsersLen;
+        vector<unique_ptr<User>> allUsers;
+        int allUsersLen = 0;
 
         // all employee time records
-        vector<Timetable*> userTimetables; 
+        vector<unique_ptr<Timetable>> userTimetables;
 
         // Every order placed
-        vector<vector<Order*>*> orders;
+        vector<vector<unique_ptr<Order>>> orders;
 
         // The current location and employee
-        Location* currentLocation;
-        User* currentUser;
+        Location* currentLocation = nullptr;
+        User* currentUser = nullptr;
 
         // The current day
         time_t currentDay;
@@ -316,9 +308,9 @@ class Generator {
         void generateIngredients(time_t startTime);
         void generateIngredientRelations();
 
-        OrderObject* generateOrderObject(int counts[]);
+        unique_ptr<OrderObject> generateOrderObject(int counts[]);
         void regenerateOrderObject(OrderObject* order, int count, ItemCategory category);
-        Order* generateOrder(time_t timeOfOrder);
+        unique_ptr<Order> generateOrder(time_t timeOfOrder);
 
     public:
         void generateNextDay();
@@ -354,7 +346,7 @@ class Generator {
         void writeAllFast(const char* filename) const;
 
         Generator(time_t startDay, const int peakDays) : current(0), peakDaysLen(peakDays), currentDay(startDay) {
-            this->peakDays = new int[peakDays];
+            this->peakDays.resize(peakDays);
 
             generateItems();
 
@@ -368,46 +360,13 @@ class Generator {
             generateIngredientRelations();
 
             // Just select a random location for now.
-            currentLocation = allLocations[(int)std::round(percentGen(rngSeed) * (allLocationsLen - 1))];
+            currentLocation = allLocations[(int)std::round(percentGen(rngSeed) * (allLocationsLen - 1))].get();
 
             // Just select a random user for now.
-            currentUser = allUsers[(int)std::round(percentGen(rngSeed) * (allUsersLen - 1))];
+            currentUser = allUsers[(int)std::round(percentGen(rngSeed) * (allUsersLen - 1))].get();
         }
         Generator() : Generator(0, 0) {}
 
         ~Generator() {
-            delete[] peakDays;
-            
-            for (int i = 0; i < allLocationsLen; ++i)
-                delete allLocations[i];
-            delete[] allLocations;
-
-            for (int i = 0; i < allUsersLen; ++i)
-                delete allUsers[i];
-            delete[] allUsers;
-
-            for (size_t i = 0, size = userTimetables.size(); i < size; ++i)
-                delete userTimetables[i];
-
-            for (int i = 0; i < allItemsLen; ++i)
-                delete allItems[i];
-            delete[] allItems;
-
-            for (int i = 0; i < allIngredientsLen; ++i)
-                delete allIngredients[i];
-            delete[] allIngredients;
-
-            for (int i = 0; i < allRelationsLen; ++i)
-                delete allRelations[i];
-            delete[] allRelations;
-
-            for (size_t i = 0; i < orders.size(); ++i) {
-                vector<Order*>* current = orders[i];
-                for (size_t j = 0; j < current->size(); ++j) {
-                    Order* o = (*current)[j];
-                    delete o;
-                }
-                delete current;
-            }
         }
 };
