@@ -1,4 +1,4 @@
-VBox{
+VBox {
     -fx-spacing: 5;
 }
 
@@ -14,6 +14,7 @@ ScrollPane {
     -fx-padding: 5;
     -fx-border-color: red;
     -fx-border-radius: 10;
+    -fx-background-radius: 10;
 }
 
 .button:hover{
@@ -23,13 +24,30 @@ ScrollPane {
     -fx-padding: 10;
     -fx-border-color: red;
     -fx-border-radius: 10;
+    -fx-background-radius: 10;
 }
 
-Label {
+CheckBox {
+    -fx-font-size: 20;
+    -fx-text-fill: red;
+}
+
+selected {
     -fx-font-size: 20;
     -fx-background-color: red;
     -fx-text-fill: white;
     -fx-padding: 10;
+    -fx-border-color: red;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+}
+
+.label {
+    -fx-font-size: 22;
+    -fx-font-weight: bold;
+    -fx-text-fill: red;
+    -fx-padding: 10;
+    -fx-wrap-text: true;
 }
 
 .font {

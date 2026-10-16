@@ -31,7 +31,7 @@ import javafx.scene.text.*;
 public class CashierController {
     @FXML private Button bowl, plate, biggerPlate, changeView, checkout, closeButton;
     @FXML private VBox mainBox, sideBox, drinkBox, cartBox;
-    private Label totalPriceLabel;
+    private Label mainLabel = new Label("Mains"), sideLabel = new Label("Sides"), drinkLabel = new Label("Drinks"), totalPriceLabel;
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db";
     private static final int LOGIN_TIMEOUT_SECONDS = 15;
     private static final int FONT_SIZE = 20;
@@ -114,6 +114,9 @@ public class CashierController {
         if (!controllerActive) return;
         VBox[] areas = { mainBox, sideBox, drinkBox };
         for (VBox area : areas) area.getChildren().clear();
+        mainBox.getChildren().add(mainLabel);
+        sideBox.getChildren().add(sideLabel);
+        drinkBox.getChildren().add(drinkLabel);
         if (totalPriceLabel == null) {
             totalPriceLabel = new Label("Total Price: 0.0$");
             cartBox.getChildren().add(totalPriceLabel);
@@ -123,18 +126,24 @@ public class CashierController {
             VBox area = areas[record.getCategoryID() - 1];
             Button button = new Button(record.getName());
             button.setPrefSize(area.getPrefWidth(), 30);
+            button.setOnAction(action -> onMenuItemPressed(record, button));
             area.getChildren().add(button);
-            button.setOnAction(action -> onMenuItemPressed(record));
         }
         checkout.setDisable(false);
     }
 
     private void loadBoxesFail(){
-        
         if (!controllerActive) return;
         checkout.setDisable(false);
         showError("Menu Load Failed", "The menu could not be loaded.",
                 "Please check the database connection and try again.");
+    }
+
+    private void clearHighlights(){
+        VBox[] areas = { mainBox, sideBox}; 
+        for (VBox box : areas) {
+            for (javafx.scene.Node node : box.getChildren()) node.setStyle("");
+        }
     }
 
     private void selectSize(MealSize size){
@@ -142,14 +151,21 @@ public class CashierController {
         else selectedSize = size;
         pendingMains.clear();
         pendingSide = null;
+        clearHighlights();
 
-        if (selectedSize == MealSize.BOWL) bowl.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
+        if (selectedSize == MealSize.BOWL) {
+            bowl.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
+        }
         else bowl.setStyle("");
 
-        if (selectedSize == MealSize.PLATE) plate.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold"); 
+        if (selectedSize == MealSize.PLATE) {
+            plate.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
+        }
         else plate.setStyle("");
     
-        if (selectedSize == MealSize.BIGGER_PLATE) biggerPlate.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
+        if (selectedSize == MealSize.BIGGER_PLATE) { 
+            biggerPlate.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
+        }
         else biggerPlate.setStyle("");
     }
 
@@ -158,17 +174,25 @@ public class CashierController {
      * @param record // TODO
      * @author // TODO
      */
-    private void onMenuItemPressed(MenuRecord record) { 
+    private void onMenuItemPressed(MenuRecord record, Button button) { 
         if (selectedSize == null || record.getCategoryID() == 3) {
             addToCart(CartLine.single(record));
             return;
         }
-        if (record.getCategoryID() == 1 && pendingMains.size() < selectedSize.getMains()) pendingMains.add(record);
-        if (record.getCategoryID() == 2) pendingSide = record; 
+        if (record.getCategoryID() == 1 && pendingMains.size() < selectedSize.getMains()) { 
+            pendingMains.add(record);
+            button.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-padding: 10");
+        }
+        if (record.getCategoryID() == 2) { 
+            pendingSide = record;
+            button.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-padding: 10");
+        } 
         if (pendingMains.size() == selectedSize.getMains() && pendingSide != null) {
             addToCart(CartLine.meal(selectedSize, pendingMains, pendingSide));
             pendingMains.clear();
-            pendingSide = null; 
+            pendingSide = null;
+            clearHighlights();
+            selectSize(selectedSize);
         }
     }
 
