@@ -51,6 +51,7 @@ public class ManagerController {
                 return thread;
             }, new ThreadPoolExecutor.AbortPolicy());
     private static final BigDecimal MAX_ITEM_PRICE = new BigDecimal("99999999.99");
+    private static final int MAX_ITEM_STOCK = 99999999;
     private boolean controllerActive = true;
     @FXML BarChart<Number, String> salesGraph; //Sales graph display
     @FXML public ListView<MenuItem> menuListView; //Menu list creation
@@ -93,6 +94,7 @@ public class ManagerController {
                             "SELECT i.item_id, i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri "
                                     + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name, i.item_id ORDER BY i.item_id DESC")) {
                         while (resultSet.next()) {
+                            //Sales Graph
                             sales.add(new SalesRecord(resultSet.getString("itemNames"),
                                     resultSet.getLong("numSold")));
                         }
@@ -101,6 +103,7 @@ public class ManagerController {
                             "SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life "
                                     + "FROM inventory ORDER BY inventory_id")) {
                         while (resultSet.next()) {
+                            //Stock List
                             stock.add(new StockRecord(resultSet.getInt("inventory_id"),
                                     resultSet.getString("name"), resultSet.getInt("stock"),
                                     resultSet.getInt("min_stock"), resultSet.getString("next_shipment"),
@@ -111,9 +114,10 @@ public class ManagerController {
                             "SELECT r.receipt_id, i.item_id, i.name AS item_name, ri.quantity,  ri.price_at_sale, r.receipt_timestamp "
                                     + "FROM receipt r JOIN receipt_item ri ON r.receipt_id = ri.receipt_id "
                                     + "JOIN item i ON ri.item_id = i.item_id WHERE r.receipt_id IN "
-                                    + "(SELECT receipt_id FROM receipt ORDER BY receipt_timestamp DESC, receipt_id DESC LIMIT 10) "
+                                    + "(SELECT receipt_id FROM receipt ORDER BY receipt_timestamp DESC, receipt_id DESC LIMIT 20) "
                                     + "ORDER BY r.receipt_timestamp DESC, r.receipt_id DESC, ri.receipt_item_id")) {
                         while (resultSet.next()) {
+                            //Receipt Record
                             receipts.add(new ReceiptRecord(resultSet.getInt("receipt_id"), 
                                     resultSet.getInt("item_id"),
                                     resultSet.getString("item_name"), resultSet.getInt("quantity"),
@@ -124,6 +128,7 @@ public class ManagerController {
                     try (ResultSet resultSet = stmt.executeQuery(
                             "SELECT item_id, name, price FROM item WHERE active = TRUE ORDER BY item_id")) {
                         while (resultSet.next()) {
+                            //Menu List
                             menu.add(new MenuRecord(resultSet.getInt("item_id"),
                                     resultSet.getString("name"), resultSet.getDouble("price")));
                         }
@@ -214,36 +219,7 @@ public class ManagerController {
         menuListView.setCellFactory(lv -> new MenuListCell(this));
     }
 
-    /**
-     * Closes the current window.
-     * @param event The ActionEvent triggered when the user clicks the close button.
-     * @author Ashley Hoang
-     */
-    @FXML
-    public void closeWindow(ActionEvent event) {
-        controllerActive = false;
-        Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
-        stage.close();
-    }
-
-    /**
-     * Displays the sales data in a bar graph.
-     * @param items The ResultSet containing the sales data to be displayed in the bar graph.
-     * @author Ashley Hoang
-     */
-    @FXML
-    public void createSalesBarGraph(ResultSet items) {
-        try {
-            XYChart.Series<Number, String> soldSeries = new XYChart.Series<>();
-            while (items.next()) {
-                soldSeries.getData().add(new XYChart.Data<>(items.getInt("numSold"), items.getString("itemNames")));
-            }
-            salesGraph.getData().add(soldSeries);
-        } catch (SQLException | IllegalArgumentException e) {
-            e.printStackTrace();
-        }
-    }
-
+    /*-------------------------------------------Sales Graph-----------------------------------------*/
     /**
      * Opens a dialog to allow the user to change the time period for the sales graph.
      * @param event The ActionEvent triggered when the user selects to change the time period.
@@ -317,27 +293,34 @@ public class ManagerController {
         }
     }
     
+    /*-------------------------------------------Stock List-----------------------------------------*/
     /**
-     * Creates a list of stock items from the database and populates the stock list view in the GUI.
-     * @param stockList The ResultSet containing the stock items from the database.
+     * Updates the stock of an inventory item in the database.
+     *
      * @author Ashley Hoang
+     * @return user's inputted change in stock
+     * @throws SQLException             if there is an error with the database query
+     * @throws IllegalArgumentException if there is an error with the list creation
      */
-    @FXML
-    public void createStockList(ResultSet stockList) {
+    public int inputNewStock() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Change Stock");
+        dialog.setHeaderText("Enter the change in stock (add a '-' if decreasing stock): ");
+        dialog.setContentText("Change in stock: ");
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) return 0;
         try {
-            ObservableList<StockItem> stockItems = FXCollections.observableArrayList();
-            while (stockList.next()) {
-                stockItems.add(new StockItem(stockList.getInt("inventory_id"), stockList.getString("name"),
-                        stockList.getInt("stock"), stockList.getInt("min_stock"),
-                        stockList.getString("next_shipment"), stockList.getString("shelf_life")));
-            }
-            stockListView.setItems(stockItems);
-            stockListView.setCellFactory(lv -> new StockListCell(this));
-        } catch (SQLException | IllegalArgumentException e) {
-            e.printStackTrace();
+            int stock = Integer.parseInt(result.get().trim());
+            if ((MAX_ITEM_STOCK) < stock)
+                throw new IllegalArgumentException();
+            return stock;
+        } catch (IllegalArgumentException e) {
+            showDatabaseError("update stock", "Enter a stock from 0 to 99999999 with no decimal places.");
+            return 0;
         }
     }
-
+    
     /**
      * Updates the stock quantity of an item in the database.
      *
@@ -348,8 +331,7 @@ public class ManagerController {
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public void updateStockInDatabase(int inventoryID, int stockDelta,
-            Consumer<StockUpdateResult> callback) {
+    public void updateStockInDatabase(int inventoryID, int stockDelta, Consumer<StockUpdateResult> callback) {
         Task<StockUpdateResult> task = new Task<>() {
             @Override
             protected StockUpdateResult call() throws Exception {
@@ -387,80 +369,12 @@ public class ManagerController {
         }
     }
 
-    /**
-     * Creates a list of receipts from the database and populates the receipt accordion in the GUI.
-     * @param receipts The ResultSet containing the receipts from the database.
-     * @author Ashley Hoang
-     */
-    @FXML
-    public void createReceiptList(ResultSet receipts) {
-        try {
-            int currentReceiptID = -1;
-            VBox itemList = null;
-            BigDecimal receiptTotal = BigDecimal.ZERO;
-            TitledPane receiptPane = null;
-            while (receipts.next()) {
-                String timestamp = receipts.getString("receipt_timestamp");
-                int receiptID = receipts.getInt("receipt_id");
-                if (receiptID != currentReceiptID) {
-                    if (receiptPane != null)
-                        itemList.getChildren().add(new Label(String.format("Total: $%.2f\n\n%s", receiptTotal, timestamp)));
-                    currentReceiptID = receiptID;
-                    receiptTotal = BigDecimal.ZERO;
-                    itemList = new VBox(5);
-                    itemList.setPadding(new Insets(10));
-                    receiptPane = new TitledPane("Receipt " + receiptID, itemList);
-                    receiptPane.setMaxWidth(Double.MAX_VALUE);
-                    receiptAccordion.getPanes().add(receiptPane);
-                }
-                int itemID = receipts.getInt("item_id");
-                String itemName = receipts.getString("item_name");
-                int quantity = receipts.getInt("quantity");
-                // Checkout stores price_at_sale as the complete line total.
-                BigDecimal lineTotal = receipts.getBigDecimal("price_at_sale");
-                if (lineTotal == null)
-                    lineTotal = BigDecimal.ZERO;
-                receiptTotal = receiptTotal.add(lineTotal);
-                itemList.getChildren().add(new Label(String.format("#%d %s    x%d    $%.2f", itemID, itemName, quantity, lineTotal)));
-            }
-            if (receiptPane != null)
-                itemList.getChildren().add(new Label(String.format("Total: $%.2f", receiptTotal)));
-        } catch (SQLException | IllegalArgumentException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Creates and populates the list view of menu items from the database
-     * @param menuList The ResultSet containing the menu items from the database.
-     * @author Ashley Hoang
-     */
-    @FXML
-    public void createMenuList(ResultSet menuList) {
-        try {
-            ObservableList<MenuItem> menuItems = FXCollections.observableArrayList();
-            while (menuList.next()) {
-                int itemID = menuList.getInt("item_id");
-                String itemName = menuList.getString("name");
-                double itemPrice = menuList.getDouble("price");
-
-                MenuItem menuItem = new MenuItem(itemID, itemName, itemPrice);
-                menuItems.add(menuItem);
-            }
-            menuListView.setItems(menuItems);
-            menuListView.setCellFactory(lv -> new MenuListCell(this));
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        }
-    }
-
+    /*-------------------------------------------Menu List-----------------------------------------*/
     /**
      * Updates the price of an item in the database.
      *
      * @author Ashley Hoang
-     * @param itemID   The ID of the item to update.
+     * @return user's inputted price
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
@@ -523,83 +437,7 @@ public class ManagerController {
         }
     }
 
-    /**
-     * Starts a task in the database executor.
-     * @param task The task to start.
-     * @return true if the task was started successfully, false otherwise.
-     * @author Pablo Almanza
-     */
-    private boolean startTask(Task<?> task) {
-        try {
-            DATABASE_EXECUTOR.submit(task);
-            return true;
-        } catch (RejectedExecutionException e) {
-            return false;
-        }
-    }
-
-    /**
-     * Gets a connection to the database.
-     * @return A Connection object representing the connection to the database.
-     * @throws SQLException if there is an error with the database connection
-     * @throws ClassNotFoundException if the PostgreSQL JDBC driver class is not found
-     * @author Pablo Almanza
-     */
-    private Connection getConnection() throws SQLException, ClassNotFoundException {
-        Class.forName("org.postgresql.Driver");
-        DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
-        Connection conn = DriverManager.getConnection(DB_URL, DbSetup.user, DbSetup.pswd);
-        conn.setNetworkTimeout(Runnable::run, NETWORK_TIMEOUT_MILLISECONDS);
-        return conn;
-    }
-
-    /**
-     * Shows a database error message in an alert dialog.
-     * @param operation The operation that failed (e.g., "update stock", "add menu item").
-     * @param details Additional details about the error (e.g., "The stock value changed. Current stock: 5").
-     * @author Pablo Almanza
-     */
-    private void showDatabaseError(String operation, String details) {
-        showError("Database Error", "Unable to " + operation, details);
-    }
-
-    /**
-     * Shows a database error message in an alert dialog when the stock update fails due to a stock value change.
-     * @param currentStock The current stock value in the database.
-     * @author Pablo Almanza
-     */
-    public void showStockUpdateFailure(int currentStock) {
-        showDatabaseError("update stock", "The stock value changed. Current stock: " + currentStock);
-    }
-
-    /**
-     * Shows a database error message in an alert dialog when the inventory record no longer exists.
-     * @author Pablo Almanza
-     */
-    public void showMissingInventoryError() {
-        showDatabaseError("update stock", "The inventory record no longer exists.");
-    }
-
-    /**
-     * Displays an error alert dialog with the specified title, header, and details.
-     * @param title The title of the error dialog.
-     * @param header The header of the error dialog.
-     * @param details Additional details about the error.
-     * @author Pablo Almanza
-     */
-    private void showError(String title, String header, String details) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(details);
-        alert.showAndWait();
-    }
-
-    public boolean isActive() {
-        return controllerActive;
-    }
-
-    /**
+        /**
      * Adds a new menu item to the database based on user input from a dialog.
      *
      * @author Ashley Hoang
@@ -778,6 +616,18 @@ public class ManagerController {
     public void removeMenuItemFromList(MenuItem item) {
         if (menuListView != null) menuListView.getItems().remove(item);
     }
+    
+    /**
+     * Closes the current window.
+     * @param event The ActionEvent triggered when the user clicks the close button.
+     * @author Ashley Hoang
+     */
+    @FXML
+    public void closeWindow(ActionEvent event) {
+        controllerActive = false;
+        Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
+        stage.close();
+    }
 
     /**
      * Changes the view to the cashier view when the corresponding button is
@@ -820,5 +670,81 @@ public class ManagerController {
                     "Please try again or reopen the manager view.");
         }
 
+    }
+    
+    /**
+     * Starts a task in the database executor.
+     * @param task The task to start.
+     * @return true if the task was started successfully, false otherwise.
+     * @author Pablo Almanza
+     */
+    private boolean startTask(Task<?> task) {
+        try {
+            DATABASE_EXECUTOR.submit(task);
+            return true;
+        } catch (RejectedExecutionException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Gets a connection to the database.
+     * @return A Connection object representing the connection to the database.
+     * @throws SQLException if there is an error with the database connection
+     * @throws ClassNotFoundException if the PostgreSQL JDBC driver class is not found
+     * @author Pablo Almanza
+     */
+    private Connection getConnection() throws SQLException, ClassNotFoundException {
+        Class.forName("org.postgresql.Driver");
+        DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
+        Connection conn = DriverManager.getConnection(DB_URL, DbSetup.user, DbSetup.pswd);
+        conn.setNetworkTimeout(Runnable::run, NETWORK_TIMEOUT_MILLISECONDS);
+        return conn;
+    }
+
+    /**
+     * Shows a database error message in an alert dialog.
+     * @param operation The operation that failed (e.g., "update stock", "add menu item").
+     * @param details Additional details about the error (e.g., "The stock value changed. Current stock: 5").
+     * @author Pablo Almanza
+     */
+    private void showDatabaseError(String operation, String details) {
+        showError("Database Error", "Unable to " + operation, details);
+    }
+
+    /**
+     * Shows a database error message in an alert dialog when the stock update fails due to a stock value change.
+     * @param currentStock The current stock value in the database.
+     * @author Pablo Almanza
+     */
+    public void showStockUpdateFailure(int currentStock) {
+        showDatabaseError("update stock", "The stock value changed. Current stock: " + currentStock);
+    }
+
+    /**
+     * Shows a database error message in an alert dialog when the inventory record no longer exists.
+     * @author Pablo Almanza
+     */
+    public void showMissingInventoryError() {
+        showDatabaseError("update stock", "The inventory record no longer exists.");
+    }
+
+    /**
+     * Displays an error alert dialog with the specified title, header, and details.
+     * @param title The title of the error dialog.
+     * @param header The header of the error dialog.
+     * @param details Additional details about the error.
+     * @author Pablo Almanza
+     */
+    private void showError(String title, String header, String details) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(details);
+        alert.showAndWait();
+    }
+
+    public boolean isActive() {
+        return controllerActive;
     }
 }

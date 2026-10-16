@@ -14,8 +14,7 @@ import javafx.scene.layout.Priority;
 public class StockListCell extends ListCell<StockItem> {
     private final HBox content;
     private final Label infoLabel;
-    private final Button addBtn;
-    private final Button removeBtn;
+    private final Button changeStockBtn;
 
     private final ManagerController controller;
 
@@ -27,41 +26,29 @@ public class StockListCell extends ListCell<StockItem> {
     public StockListCell(ManagerController controller) {
         this.controller = controller;
         infoLabel = new Label();
-        addBtn = new Button("Add Stock");
-        removeBtn = new Button("Remove Stock");
+        changeStockBtn = new Button("Change Stock");
 
-        addBtn.setOnAction(_ -> onAddButtonPressed());
-        removeBtn.setOnAction(_ -> onRemoveButtonPressed());
+        changeStockBtn.setOnAction(_ -> onChangeButtonPressed());
 
-        HBox.setHgrow(addBtn, Priority.NEVER);
-        HBox.setHgrow(removeBtn, Priority.NEVER);
+        HBox.setHgrow(changeStockBtn, Priority.NEVER);
         HBox.setHgrow(infoLabel, Priority.ALWAYS);
 
-        content = new HBox(10, infoLabel, addBtn, removeBtn);
+        content = new HBox(10, infoLabel, changeStockBtn);
         content.setAlignment(Pos.CENTER_LEFT);
         content.setPadding(new Insets(5));
     }
 
     /**
-     * Handles the event when the "Add Stock" button is pressed.
+     * Handles the event when the "Change Stock" button is pressed.
      * @author Samuel Just
      * @author Ashley Hoang
      */
-    private void onAddButtonPressed() {
+    private void onChangeButtonPressed() {
         StockItem item = getItem();
         if (item == null) return;
-        updateStock(item, 1);
-    }
-
-    /**
-     * Handles the event when the "Remove Stock" button is pressed.
-     * @author Samuel Just
-     * @author Ashley Hoang
-     */
-    private void onRemoveButtonPressed() {
-        StockItem item = getItem();
-        if (item == null || item.getStock() <= 0) return;
-        updateStock(item, -1);
+        int stockDelta = controller.inputNewStock();
+        if (stockDelta == 0) return;
+        updateStock(item, stockDelta);
     }
 
     /**
@@ -71,8 +58,7 @@ public class StockListCell extends ListCell<StockItem> {
      * @author Pablo Almanza
      */
     private void updateStock(StockItem item, int delta) {
-        addBtn.setDisable(true);
-        removeBtn.setDisable(true);
+        changeStockBtn.setDisable(true);
         controller.updateStockInDatabase(item.getInventoryID(), delta, result -> {
             if (controller.isActive() && getItem() == item) {
                 if (result.getStock() != null) {
@@ -85,8 +71,7 @@ public class StockListCell extends ListCell<StockItem> {
                 }
             }
             if (controller.isActive()) {
-                addBtn.setDisable(false);
-                removeBtn.setDisable(false);
+                changeStockBtn.setDisable(false);
             }
         });
     }
