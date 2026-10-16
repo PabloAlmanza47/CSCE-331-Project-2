@@ -1,5 +1,10 @@
 import java.math.BigDecimal;
 
+/**
+ * Class representing a menu item 
+ * @author // Pablo Almanza
+ */
+
 public final class MenuRecord {
     private final int itemID;
     private final BigDecimal price;

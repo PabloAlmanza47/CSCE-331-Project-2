@@ -5,6 +5,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import javafx.scene.control.CheckBox;
 
+
+/**
+ * Class representing a cart line
+ * @author // TODO
+ */
 public final class CartLine {
     private final String key;
     private final String label;

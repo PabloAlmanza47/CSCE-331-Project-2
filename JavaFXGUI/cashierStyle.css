@@ -3,49 +3,39 @@ VBox {
 }
 
 ScrollPane {
-    -fx-border-color: red;
+    -fx-border-color: grey;
     -fx-padding: 15;
 }
 
 .button {
     -fx-font-size: 20;
     -fx-background-color: white;
-    -fx-text-fill: red;
+    -fx-text-fill: black;
     -fx-padding: 5;
-    -fx-border-color: red;
+    -fx-border-color: grey;
     -fx-border-radius: 10;
     -fx-background-radius: 10;
 }
 
 .button:hover{
     -fx-font-size: 20;
-    -fx-background-color: red;
-    -fx-text-fill: white;
-    -fx-padding: 10;
-    -fx-border-color: red;
+    -fx-background-color: white;
+    -fx-text-fill: black;
+    -fx-padding: 5;
+    -fx-border-color: #D61927;
     -fx-border-radius: 10;
     -fx-background-radius: 10;
 }
 
 CheckBox {
     -fx-font-size: 20;
-    -fx-text-fill: red;
-}
-
-selected {
-    -fx-font-size: 20;
-    -fx-background-color: red;
-    -fx-text-fill: white;
-    -fx-padding: 10;
-    -fx-border-color: red;
-    -fx-border-radius: 10;
-    -fx-background-radius: 10;
+    -fx-text-fill: black;
 }
 
 .label {
     -fx-font-size: 22;
     -fx-font-weight: bold;
-    -fx-text-fill: red;
+    -fx-text-fill: black;
     -fx-padding: 10;
     -fx-wrap-text: true;
 }

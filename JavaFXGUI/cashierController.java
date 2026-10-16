@@ -17,6 +17,8 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -25,14 +27,15 @@ import javafx.event.ActionEvent;
 import javafx.scene.text.*;
 
 /**
- * DESCRIPTION // TODO
- * @author // TODO
+ * Class controller for cashier view fxml
+ * @author Sharaf Mehmood
  */
 public class CashierController {
     @FXML private Button bowl, plate, biggerPlate, changeView, checkout, closeButton;
     @FXML private VBox mainBox, sideBox, drinkBox, cartBox;
-    private Label mainLabel = new Label("Mains"), sideLabel = new Label("Sides"), drinkLabel = new Label("Drinks"), totalPriceLabel;
+    private Label MAIN_LABEL = new Label("Mains"), SIDE_LABEL = new Label("Sides"), DRINK_LABEL = new Label("Drinks"), totalPriceLabel;
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db";
+    private String SELECTED_STYLE = "-fx-border-color: #D61927; -fx-font-weight: bold";
     private static final int LOGIN_TIMEOUT_SECONDS = 15;
     private static final int FONT_SIZE = 20;
     private static final int NETWORK_TIMEOUT_MILLISECONDS = 30000;
@@ -55,7 +58,7 @@ public class CashierController {
     private boolean controllerActive = true;
 
     /**
-     * DESCRIPTION // Initializes all the elements into the FXML
+     * Load menu items and initialize button functionality onto the screen
      * @author // Sharaf Mehmood
      */
     @FXML 
@@ -69,7 +72,7 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION // TODO
+     * Attempts to connect to database and load menu items
      * @author // TODO
      */
     //TODO: Please refactor this, the function is very unclear on what it does and very ugly.
@@ -106,17 +109,17 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION // Loads all of the menu items onto the screen
-     * @param task // TODO
-     * @author // TODO
+     * Loads all of the menu items onto the screen, if task succeeds in connecting to database 
+     * @param task represents the task of loading elements from the database
+     * @author Pablo Almanza, Sharaf Mehmood
      */
     private void loadBoxes(Task<List<MenuRecord>> task){
         if (!controllerActive) return;
         VBox[] areas = { mainBox, sideBox, drinkBox };
         for (VBox area : areas) area.getChildren().clear();
-        mainBox.getChildren().add(mainLabel);
-        sideBox.getChildren().add(sideLabel);
-        drinkBox.getChildren().add(drinkLabel);
+        mainBox.getChildren().add(MAIN_LABEL);
+        sideBox.getChildren().add(SIDE_LABEL);
+        drinkBox.getChildren().add(DRINK_LABEL);
         if (totalPriceLabel == null) {
             totalPriceLabel = new Label("Total Price: 0.0$");
             cartBox.getChildren().add(totalPriceLabel);
@@ -132,6 +135,10 @@ public class CashierController {
         checkout.setDisable(false);
     }
 
+    /**
+     * Returns an error if loading the areas does not work.
+     * @author // Pablo Almanza
+     */
     private void loadBoxesFail(){
         if (!controllerActive) return;
         checkout.setDisable(false);
@@ -139,6 +146,10 @@ public class CashierController {
                 "Please check the database connection and try again.");
     }
 
+    /**
+     * Clears any highlights that may have occured when selecting items.
+     * @author Sharaf Mehmood
+     */
     private void clearHighlights(){
         VBox[] areas = { mainBox, sideBox}; 
         for (VBox box : areas) {
@@ -146,6 +157,10 @@ public class CashierController {
         }
     }
 
+    /**
+     * Handles size selection (bowl, plate, bigger plate)
+     * @author Sharaf Mehmood
+     */
     private void selectSize(MealSize size){
         if (selectedSize == size) selectedSize = null;
         else selectedSize = size;
@@ -154,25 +169,26 @@ public class CashierController {
         clearHighlights();
 
         if (selectedSize == MealSize.BOWL) {
-            bowl.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
+            bowl.setStyle(SELECTED_STYLE);
         }
         else bowl.setStyle("");
 
         if (selectedSize == MealSize.PLATE) {
-            plate.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
+            plate.setStyle(SELECTED_STYLE);
         }
         else plate.setStyle("");
     
         if (selectedSize == MealSize.BIGGER_PLATE) { 
-            biggerPlate.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-font-weight: bold");
+            biggerPlate.setStyle(SELECTED_STYLE);
         }
         else biggerPlate.setStyle("");
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param record // TODO
-     * @author // TODO
+     * Handles selecting menu items, checking whether a meal is being formed or if orders are a la carte.
+     * @param record MenuRecord tracking all components of the menu item clicked
+     * @param button the corresponding button for the menu item clicked
+     * @author Sharaf Mehmood
      */
     private void onMenuItemPressed(MenuRecord record, Button button) { 
         if (selectedSize == null || record.getCategoryID() == 3) {
@@ -181,11 +197,11 @@ public class CashierController {
         }
         if (record.getCategoryID() == 1 && pendingMains.size() < selectedSize.getMains()) { 
             pendingMains.add(record);
-            button.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-padding: 10");
+            button.setStyle(SELECTED_STYLE);
         }
         if (record.getCategoryID() == 2) { 
             pendingSide = record;
-            button.setStyle("-fx-background-color: red; -fx-text-fill: white; -fx-padding: 10");
+            button.setStyle(SELECTED_STYLE);
         } 
         if (pendingMains.size() == selectedSize.getMains() && pendingSide != null) {
             addToCart(CartLine.meal(selectedSize, pendingMains, pendingSide));
@@ -197,9 +213,27 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param line // TODO
-     * @author // TODO
+     * Handles selecting menu items, checking whether a meal is being formed or if orders are a la carte.
+     * @param line represents the item in the cart being changed
+     * @param change the amount the item's quantity is being changed by
+     * @author Sharaf Mehmood
+     */
+    private void changeQuantity(CartLine line, int change) {
+        int newQuantity = line.getQuantity() + change;
+        if (newQuantity < 1) {
+            cartBox.getChildren().remove(line.getRow().getParent());
+            cartLines.remove(line);
+        } else {
+            line.setQuantity(newQuantity);
+            line.getRow().setText(line.describe());
+        }
+        refreshTotal();
+    }
+
+    /**
+     * Adds an item to cart (either as a meal or individually, based of if a size was selected)
+     * @param line the cart line being added to the cart
+     * @author Sharaf Mehmood
      */
     private void addToCart(CartLine line) {
         for (CartLine existing : cartLines) {
@@ -215,13 +249,22 @@ public class CashierController {
         checkBox.setWrapText(true);
         checkBox.setOnAction(e -> onCheckboxSelected(line, checkBox));
         checkBox.setText(line.describe());
-        checkBox.getStyleClass().add("font");
+        Button minus = new Button("-");                   
+        Button plus = new Button("+");                     
+        minus.setOnAction(e -> changeQuantity(line, -1));  
+        plus.setOnAction(e -> changeQuantity(line, 1));    
+        HBox.setHgrow(checkBox, Priority.ALWAYS);          
+        checkBox.setMaxWidth(Double.MAX_VALUE);           
         line.setRow(checkBox);
         cartLines.add(line);
-        cartBox.getChildren().add(checkBox);
+        cartBox.getChildren().add(new HBox(5, checkBox, minus, plus));
         refreshTotal();
     }
 
+    /**
+     * Refreshes total price label
+     * @author Sharaf Mehmood
+     */
     private void refreshTotal() {
         BigDecimal total = BigDecimal.ZERO;
         for (CartLine line : cartLines) total = total.add(line.lineTotal());
@@ -229,22 +272,22 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param itemID // TODO
-     * @param parent // TODO
-     * @author // TODO
+     * Removes the corresponding item from cart when selected (unchecked)
+     * @param line represents the item in the cart
+     * @param parent represents the checkbox being unchecked
+     * @author Sharaf Mehmood
      */
     private void onCheckboxSelected(CartLine line, CheckBox parent) {
         if (!parent.isSelected()) {
-            cartBox.getChildren().remove(parent);
+            cartBox.getChildren().remove(parent.getParent());
             cartLines.remove(line);
             refreshTotal();
         }
     }
 
     /**
-     * DESCRIPTION (what window does this close?) // close current window
-     * @author // TODO
+     * Closes the current window
+     * @author Sharaf Mehmood
      */
     private void closeWindow() {
         controllerActive = false;
@@ -253,14 +296,14 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION //
+     * Represents what happens on a success with checkout
      * @param task //
-     * @author // TODO
+     * @author Pablo Almanza
      */
     private void checkoutSuccess(Task<CheckoutOutcome> task){
         CheckoutOutcome outcome = task.getValue();
         if (outcome == CheckoutOutcome.SUCCESS && controllerActive) {
-            for (CartLine line : cartLines) cartBox.getChildren().remove(line.getRow());
+            for (CartLine line : cartLines) cartBox.getChildren().remove(line.getRow().getParent());
             cartLines.clear();
             refreshTotal();
             showInformation("Order Complete", "Order recorded successfully.");
@@ -276,8 +319,8 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION //
-     * @author // TODO
+     * Represents what happens on a failure to checkout
+     * @author Pablo Almanza
      */
     private void checkoutFail(){
         if (controllerActive) showError("Checkout Failed", "The order was not recorded.",
@@ -285,6 +328,13 @@ public class CashierController {
         finishCheckout();
     }
 
+    /**
+     * Converts cart line objects into maps to execute checkout
+     * @param quantities // TODO
+     * @param listPrices // TODO
+     * @param totals // TODO
+     * @author // TODO
+     */
     private void flattenCart(TreeMap<Integer, Integer> quantities, TreeMap<Integer, BigDecimal> listPrices,
             TreeMap<Integer, BigDecimal> totals) {
         for (CartLine line : cartLines) {
@@ -534,10 +584,10 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param event // TODO
-     * @throws Exception // TODO
-     * @author // TODO
+     * Changes view from cashier to manager
+     * @param event event of clicking change view button
+     * @throws Exception 
+     * @author Sharaf Mehmood
      */
     @FXML public void changeView(ActionEvent event) throws Exception {
         Parent root = FXMLLoader.load(getClass().getResource("/managerGUI.fxml"));

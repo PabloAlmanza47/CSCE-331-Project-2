@@ -1,5 +1,8 @@
 import java.math.BigDecimal;
-
+/**
+ * Represents meal sizes and their discounts
+ * @author // TODO
+ */ 
 public enum MealSize {
     BOWL("Bowl", 1, new BigDecimal("0.4175")),
     PLATE("Plate", 2, new BigDecimal("0.5365")),
