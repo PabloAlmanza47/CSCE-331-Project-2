@@ -1,27 +1,36 @@
+import java.math.BigDecimal;
 
 /**
  * This class represents a menu record, including the item ID, name, and price.
- * @author Pablo Almanza
+ * @author // Pablo Almanza
  */
+
 public final class MenuRecord {
     private final int itemID;
+    private final BigDecimal price;
     private final String name;
-    private final double price;
+    private final int categoryID;
 
-    public MenuRecord(int itemID, String name, double price) {
+    public MenuRecord(int itemID, BigDecimal price, String name, int categoryID) {
         this.itemID = itemID;
-        this.name = name;
         this.price = price;
+        this.name = name;
+        this.categoryID = categoryID;
     }
 
-    //getter functions
     public int getItemID(){
         return itemID;
     }
+
+    public BigDecimal getPrice(){
+        return price;
+    }
+
     public String getName(){
         return name;
     }
-    public double getPrice(){
-        return price;
+
+    public int getCategoryID(){
+        return categoryID;
     }
 }
