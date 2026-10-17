@@ -125,3 +125,5 @@ GROUP BY i.name
 ORDER BY units_sold DESC
 LIMIT 5;
 
+-- Seasonal Check
+SELECT MIN(receipt_timestamp) AS start_time, MAX(receipt_timestamp) AS end_time FROM (SELECT receipt_timestamp FROM receipt r WHERE r.receipt_id IN (SELECT receipt_id FROM (SELECT * FROM receipt_item ri WHERE ri.item_id = 13) AS rid));

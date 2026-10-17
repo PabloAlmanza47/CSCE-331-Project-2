@@ -92,8 +92,8 @@ CREATE TABLE item (
         ON UPDATE CASCADE,
 
     CONSTRAINT chk_item_price CHECK (price >= 0),
-    CONSTRAINT chk_active_from CHECK (active_from ~ '^(?:0[1-9]|1[012])-(?:0[1-9]|[12]\d|3[01])$'),
-    CONSTRAINT chk_active_to CHECK (active_to ~ '^(?:0[1-9]|1[012])-(?:0[1-9]|[12]\d|3[01])$')
+    CONSTRAINT chk_active_from CHECK (active_from ~ '^(?:0[1-9]|1[012])-(?:0[1-9]|[12][0-9]|3[01])$'),
+    CONSTRAINT chk_active_to CHECK (active_to ~ '^(?:0[1-9]|1[012])-(?:0[1-9]|[12][0-9]|3[01])$')
 );
 
 -- INVENTORY table

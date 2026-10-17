@@ -123,27 +123,40 @@ class Ingredient : public Scriptable {
 
 };
 
+struct SeasonTime {
+    const char month;
+    const char day;
+
+    SeasonTime(uint8_t month, uint8_t day) : month(month), day(day) {}
+    SeasonTime(const SeasonTime& copy) : month(copy.month), day(copy.day) {}
+    SeasonTime(SeasonTime&& move) : month(move.month), day(move.day) {}
+
+    string toString() const noexcept;
+    friend ostream& operator<<(ostream& os, const SeasonTime& time);
+
+};
+
 class Item : public Scriptable {
     private:
         int id;
         ItemCategory category;
         float price;
         string name;
-        string startTime;
-        string endTime;
+        const SeasonTime startTime;
+        const SeasonTime endTime;
 
     public:
-        Item(int id, ItemCategory category, float price, const string& name) : id(id), category(category), price(price), name(name), startTime(""), endTime("") {}
-        Item(ItemCategory category, float price, const string& name) : id(getId()), category(category), price(price), name(name), startTime(""), endTime("") {}
-        Item(int id, ItemCategory category, float price, const string& name, const string& start, const string& end) : id(id), category(category), price(price), name(name), startTime(start), endTime(end) {}
-        Item(ItemCategory category, float price, const string& name, const string& start, const string& end) : id(getId()), category(category), price(price), name(name), startTime(start), endTime(end) {}
-        Item(Item& copy) {
+        Item(int id, ItemCategory category, float price, const string& name) : id(id), category(category), price(price), name(name), startTime(1,1), endTime(12,31) {}
+        Item(ItemCategory category, float price, const string& name) : id(getId()), category(category), price(price), name(name), startTime(1,1), endTime(12,31) {}
+        Item(int id, ItemCategory category, float price, const string& name, const SeasonTime& start, const SeasonTime& end) : id(id), category(category), price(price), name(name), startTime(start), endTime(end) {}
+        Item(ItemCategory category, float price, const string& name, const SeasonTime& start, const SeasonTime& end) : id(getId()), category(category), price(price), name(name), startTime(start), endTime(end) {}
+        Item(const Item& copy) : startTime(copy.startTime), endTime(copy.endTime) {
             id = copy.id;
             category = copy.category;
             price = copy.price;
             name = string(copy.name.c_str());
         }
-        Item(Item&& move) {
+        Item(Item&& move) : startTime(std::move(move.startTime)), endTime(std::move(move.endTime)) {
             id = move.id;
             category = move.category;
             price = move.price;
@@ -156,8 +169,8 @@ class Item : public Scriptable {
         int getId() const noexcept;
         float getPrice() const noexcept;
         ItemCategory getCategory() const noexcept;
-        const string& getStartTime() const noexcept;
-        const string& getEndTime() const noexcept;
+        const SeasonTime& getStartTime() const noexcept;
+        const SeasonTime& getEndTime() const noexcept;
 };
 
 struct IngredientRelation : public Scriptable {
@@ -257,11 +270,24 @@ class Order : public Scriptable {
         }
 };
 
+struct SeasonalToggle {
+    time_t time;
+    int itemId;
+
+    SeasonalToggle(time_t time, int itemId) : time(time), itemId(itemId) {}
+};
+
 class Generator {
     private:
         // all item pointers, in an array. Sorted by category.
         Item** allItems;
         int allItemsLen;
+
+        vector<SeasonalToggle> itemAvailabilityShifts;
+        vector<vector<Item*>> itemByCategory;
+        time_t lastItemTimeChecked;
+        vector<int> unavailableItems; // keep sorted!
+        int unavailableItemsByCategory[CATEGORY_LENGTH];
 
         // all ingredient points, in an array.
         Ingredient** allIngredients;
@@ -270,9 +296,6 @@ class Generator {
         // all ingredient relations, in an array.
         IngredientRelation** allRelations;
         int allRelationsLen;
-
-        // How many items are in each category.
-        int categoryLens[CATEGORY_LENGTH];
 
         // which days are peak days.
         int* peakDays;
@@ -309,7 +332,6 @@ class Generator {
 
         uniform_real_distribution<double> percentGen;
         uniform_int_distribution<int> itemsInOrder;
-        uniform_int_distribution<int> itemChoice;
         uniform_int_distribution<int> ordersPerDay;
 
         normal_distribution<float> lunchOrderTimes;
@@ -327,13 +349,22 @@ class Generator {
         void regenerateOrderObject(OrderObject* order, int count, ItemCategory category);
         Order* generateOrder(time_t timeOfOrder);
 
-        bool validOrderItem(const Item* item) const noexcept;
+        static bool validateOrderItemWithTime(const Item* item, const time_t& time) noexcept;
+        bool validateOrderItem(const Item* item) const noexcept;
+
+        void checkInitialAvailability() noexcept;
 
     public:
         static char timeBuf[128];
 
+        static void incNDaysOfTime(time_t& time, int days) noexcept;
+        static void incDayOfTime(time_t& time) noexcept;
+
         void generateNextDay();
         void generateNDays(int days);
+
+        void checkNextDayItemAvailability();
+        void checkNDaysItemAvailability(int days);
 
         void writeTruncates(ofstream& stream) const;
 
@@ -366,7 +397,7 @@ class Generator {
 
         void writeOneDay(ofstream& stream, const vector<Order*>& day) const;
 
-        Generator(time_t startDay, const int peakDays) : current(0), peakDaysLen(peakDays), currentDay(startDay) {
+        Generator(time_t startDay, const int peakDays) : lastItemTimeChecked(0), current(0), peakDaysLen(peakDays), currentDay(startDay) {
             this->peakDays = new int[peakDays];
 
             generateItems();
@@ -385,6 +416,8 @@ class Generator {
 
             // Just select a random user for now.
             currentUser = allUsers[(int)std::round(percentGen(rngSeed) * (allUsersLen - 1))];
+
+            checkInitialAvailability();
         }
         Generator() : Generator(0, 0) {}
 
