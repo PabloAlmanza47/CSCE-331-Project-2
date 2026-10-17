@@ -18,6 +18,7 @@ import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
 import javafx.scene.layout.VBox;
@@ -56,6 +57,7 @@ public class ManagerController {
     @FXML BarChart<Number, String> salesGraph; //Sales graph display
     @FXML public ListView<MenuItem> menuListView; //Menu list creation
     @FXML public ListView<StockItem> stockListView; //Preserve remote stock editing through StockItem and StockListCell.
+    @FXML BarChart<Number, String> stockGraph; //Stock/product used graph display
     @FXML Accordion receiptAccordion; // Receipt accordion display
 
 
@@ -86,6 +88,7 @@ public class ManagerController {
             protected ManagerData call() throws Exception {
                 List<SalesRecord> sales = new ArrayList<>();
                 List<StockRecord> stock = new ArrayList<>();
+                List<StockGraphRecord> productsUsed = new ArrayList<>();
                 List<ReceiptRecord> receipts = new ArrayList<>();
                 List<MenuRecord> menu = new ArrayList<>();
                 try (Connection conn = getConnection();
@@ -101,13 +104,25 @@ public class ManagerController {
                     }
                     try (ResultSet resultSet = stmt.executeQuery(
                             "SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life "
-                                    + "FROM inventory ORDER BY inventory_id")) {
+                                    + "FROM inventory ORDER BY stock DESC")) {
                         while (resultSet.next()) {
                             //Stock List
                             stock.add(new StockRecord(resultSet.getInt("inventory_id"),
                                     resultSet.getString("name"), resultSet.getInt("stock"),
                                     resultSet.getInt("min_stock"), resultSet.getString("next_shipment"),
                                     resultSet.getString("shelf_life")));
+                        }
+                    }
+                    try (ResultSet resultSet = stmt.executeQuery(
+                            "SELECT i.inventory_id, i.name AS inventoryNames, SUM(ri.quantity) AS stockUsed "
+                            + "FROM receipt_item ri "
+                            + "JOIN item it ON ri.item_id = it.item_id JOIN ingredient_list il ON it.item_id = il.item_id "
+                            + "JOIN inventory i ON il.inventory_id = i.inventory_id JOIN receipt r ON ri.receipt_id = r.receipt_id "
+                            + "GROUP BY i.inventory_id, i.name ORDER BY stockUsed DESC")) {
+                        while (resultSet.next()) {
+                            //Stock Graph TODO
+                            productsUsed.add(new StockGraphRecord(resultSet.getString("inventoryNames"),
+                                    resultSet.getLong("stockUsed")));
                         }
                     }
                     try (ResultSet resultSet = stmt.executeQuery(
@@ -134,7 +149,7 @@ public class ManagerController {
                         }
                     }
                 }
-                return new ManagerData(sales, stock, receipts, menu);
+                return new ManagerData(sales, stock, productsUsed, receipts, menu);
             }
         };
         task.setOnSucceeded(event -> {
@@ -165,13 +180,18 @@ public class ManagerController {
      * @author Pablo Almanza
     */
     private void applyManagerData(ManagerData data) {
+        //Sales Graph
         salesGraph.getData().clear();
         XYChart.Series<Number, String> salesSeries = new XYChart.Series<>();
         for (SalesRecord sale : data.getSales()) {
-            salesSeries.getData().add(new XYChart.Data<>(sale.getQuantity(), sale.getName()));
+            long numSold = sale.getQuantity();
+            String name = sale.getName();
+            String label = name + '\n' + numSold;
+            salesSeries.getData().add(new XYChart.Data<>(numSold, label));
         }
         salesGraph.getData().add(salesSeries);
 
+        //Stock list view
         ObservableList<StockItem> stockItems = FXCollections.observableArrayList();
         for (StockRecord item : data.getStock()) {
             stockItems.add(new StockItem(item.getInventoryID(), item.getName(), item.getStock(), item.getMinStock(),
@@ -180,6 +200,18 @@ public class ManagerController {
         stockListView.setItems(stockItems);
         stockListView.setCellFactory(lv -> new StockListCell(this));
 
+        //product used/stock graph TODO
+        stockGraph.getData().clear();
+        XYChart.Series<Number, String> stockSeries = new XYChart.Series<>();
+        for (StockGraphRecord stock : data.getStockGraphRecord()) {
+            long stockUsed = stock.getQuantity();
+            String name = stock.getName();
+            String label = name + '\n' + stockUsed;
+            stockSeries.getData().add(new XYChart.Data<>(stockUsed, label));
+        }
+        stockGraph.getData().add(stockSeries);
+
+        //receipt accordion
         receiptAccordion.getPanes().clear();
         int currentReceiptID = -1;
         VBox itemList = null;
@@ -211,6 +243,7 @@ public class ManagerController {
         if (receiptPane != null) itemList.getChildren().add(new Label(
                 String.format("Total: $%.2f", receiptTotal)));
 
+        //menu list view
         ObservableList<MenuItem> menuItems = FXCollections.observableArrayList();
         for (MenuRecord item : data.getMenu()) {
             menuItems.add(new MenuItem(item.getItemID(), item.getName(), item.getPrice()));
@@ -223,35 +256,68 @@ public class ManagerController {
     /**
      * Opens a dialog to allow the user to change the time period for the sales graph.
      * @param event The ActionEvent triggered when the user selects to change the time period.
+     * @throws IllegalArgumentException if the user enters an invalid time period
      * @author Ashley Hoang
      */
     @FXML
-    public void changeTimePeriod(ActionEvent event) {
+    public void changeSoldTimePeriod(ActionEvent event) {
         // Create a dialog to get the new time period from the user
-        TextInputDialog dialog = new TextInputDialog();
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
         dialog.setTitle("Change Time Period");
-        dialog.setHeaderText("Enter the new time period (in days):");
-        dialog.setContentText("Time Period:");
+        dialog.setHeaderText("Enter the start and end time periods (inclusive):");
 
-        Optional<String> result = dialog.showAndWait();
+        //Ask for time periods
+        TextField startDateField = new TextField();
+        startDateField.setPromptText("ex. 2026-01-31 00:00:00");
+        TextField endDateField = new TextField();
+        endDateField.setPromptText("ex. 2026-01-31 23:59:59");
+
+        //Grid pane
+        GridPane grid = new GridPane();
+        grid.setVgap(10);
+        grid.add(new Label("Start:"), 0, 0);
+        grid.add(startDateField, 1, 0);
+        grid.add(new Label("End:"), 0, 1);
+        grid.add(endDateField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        //when button is clicked, gets the strings of the time
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return new Pair<>(startDateField.getText(), endDateField.getText());
+            }
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
         if (result.isPresent()) {
+            Pair<String, String> times = result.get();
+            String newTimePeriod1 = times.getKey().trim();
+            String newTimePeriod2 = times.getValue().trim();
+
+            if (newTimePeriod1.isEmpty() || newTimePeriod2.isEmpty()) {
+                showError("Invalid Input", "Both start and end time periods are required.", "");
+                return;
+            }
+
             try {
-                int newTimePeriod = Integer.parseInt(result.get().trim());
-                if (newTimePeriod <= 0) throw new NumberFormatException();
-                // Update the sales graph with the new time period
-                updateSalesGraph(newTimePeriod);
-            } catch (NumberFormatException e) {
-                showError("Invalid Input", "Please enter a valid positive integer for the time period.", "");
+                // Update the stock graph with the new time period
+                updateSalesGraph(newTimePeriod1, newTimePeriod2);
+            } catch (IllegalArgumentException e) {
+                showError("Invalid Input", "Please enter valid time periods.", e.getMessage());
             }
         }
     }
 
     /**
      * Updates the sales graph to display the number of items sold within the specified time period.
-     * @param timePeriod The time period (in days) for which to display sales data.
+     * @param timePeriod1 The start time for which to display sales data.
+     * @param timePeriod2 The end time for which to display sales data.
      * @author Ashley Hoang
      */
-    private void updateSalesGraph(int timePeriod) {
+    private void updateSalesGraph(String timePeriod1, String timePeriod2) {
         Task<XYChart.Series<Number, String>> task = new Task<>() {
             @Override
             protected XYChart.Series<Number, String> call() throws Exception {
@@ -262,12 +328,16 @@ public class ManagerController {
                                      "FROM receipt_item ri " +
                                      "JOIN item i ON i.item_id = ri.item_id " +
                                      "JOIN receipt r ON r.receipt_id = ri.receipt_id " +
-                                     "WHERE r.receipt_timestamp >= CURRENT_TIMESTAMP - (? * INTERVAL '1 day') " +
+                                     "WHERE r.receipt_timestamp >= CAST(? AS timestamp) AND r.receipt_timestamp <= CAST(? AS timestamp) " +
                                      "GROUP BY i.name, i.item_id ORDER BY i.item_id DESC")) {
-                    pstmt.setInt(1, timePeriod);
+                    pstmt.setString(1, timePeriod1);
+                    pstmt.setString(2, timePeriod2);
                     try (ResultSet resultSet = pstmt.executeQuery()) {
                         while (resultSet.next()) {
-                            soldSeries.getData().add(new XYChart.Data<>(resultSet.getInt("numSold"), resultSet.getString("itemNames")));
+                            int numSold = resultSet.getInt("numSold");
+                            String name = resultSet.getString("itemNames");
+                            String label = name + '\n' + numSold;
+                            soldSeries.getData().add(new XYChart.Data<>(numSold, label));
                         }
                     }
                 }
@@ -275,7 +345,7 @@ public class ManagerController {
             }
         };
         task.setOnSucceeded(event -> {
-            salesGraph.setTitle("Items Sold in " + timePeriod + " Day(s)");
+            salesGraph.setTitle("Items Sold in From " + timePeriod1 + " to " + timePeriod2);
             if (controllerActive) {
                 salesGraph.getData().clear();
                 salesGraph.getData().add(task.getValue());
@@ -285,7 +355,7 @@ public class ManagerController {
             if (controllerActive) {
                 Throwable exception = task.getException();
                 exception.printStackTrace();
-                showError("Sales Graph Update Failed", "The sales graph could not be updated.", "Please check the database connection and try again.");
+                showError("Sales Graph Update Failed", "The sales graph could not be updated.", "Please enter valid dates.");
             }
         });
         if (!startTask(task)) {
@@ -357,6 +427,8 @@ public class ManagerController {
                     return new StockUpdateResult(null, false, true);
                 }
             }
+            //TODO update the listview when stock is changed
+            //TODO if lower than 25 --> red, if at 25 to 35 yellow, if 35+ green
         };
         task.setOnSucceeded(event -> callback.accept(task.getValue()));
         task.setOnFailed(event -> {
@@ -366,6 +438,116 @@ public class ManagerController {
         if (!startTask(task)) {
             if (controllerActive) showDatabaseError("update stock", "The database is busy.");
             callback.accept(new StockUpdateResult(null, false, false));
+        }
+    }
+
+    /*-------------------------------------------Stock Graph-----------------------------------------*/
+    /**
+     * Opens a dialog to allow the user to change the time period for the stock used graph.
+     * @param event The ActionEvent triggered when the user selects to change the time period.
+     * @throws IllegalArgumentException if the user enters an invalid time period
+     * @author Ashley Hoang
+     */
+    @FXML
+    public void changeStockTimePeriod(ActionEvent event) {
+        // Create a dialog to get the new time period from the user
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        dialog.setTitle("Change Time Period");
+        dialog.setHeaderText("Enter the start and end time periods (inclusive):");
+
+        //Ask for time periods
+        TextField startDateField = new TextField();
+        startDateField.setPromptText("ex. 2026-01-31 00:00:00");
+        TextField endDateField = new TextField();
+        endDateField.setPromptText("ex. 2026-01-31 23:59:59");
+
+        //Grid pane
+        GridPane grid = new GridPane();
+        grid.setVgap(10);
+        grid.add(new Label("Start:"), 0, 0);
+        grid.add(startDateField, 1, 0);
+        grid.add(new Label("End:"), 0, 1);
+        grid.add(endDateField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        //when button is clicked, gets the strings of the time
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return new Pair<>(startDateField.getText(), endDateField.getText());
+            }
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            Pair<String, String> times = result.get();
+            String newTimePeriod1 = times.getKey().trim();
+            String newTimePeriod2 = times.getValue().trim();
+
+            if (newTimePeriod1.isEmpty() || newTimePeriod2.isEmpty()) {
+                showError("Invalid Input", "Both start and end time periods are required.", "");
+                return;
+            }
+
+            try {
+                // Update the stock graph with the new time period
+                updateStockGraph(newTimePeriod1, newTimePeriod2);
+            } catch (IllegalArgumentException e) {
+                showError("Invalid Input", "Please enter valid time periods.", e.getMessage());
+            }
+        }
+    }
+    /**
+     * Updates the sales graph to display the number of items sold within the specified time period.
+     * @param timePeriod1 The start time for which to display stock data.
+     * @param timePeriod2 The end time for which to display stock data.
+     * @author Ashley Hoang
+     */
+    private void updateStockGraph(String timePeriod1, String timePeriod2) {
+        Task<XYChart.Series<Number, String>> task = new Task<>() {
+            @Override
+            protected XYChart.Series<Number, String> call() throws Exception {
+                XYChart.Series<Number, String> stockSeries = new XYChart.Series<>();
+                try (Connection conn = getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(
+                            "SELECT i.inventory_id, i.name AS inventoryNames, SUM(ri.quantity) AS stockUsed "
+                            + "FROM receipt_item ri "
+                            + "JOIN item it ON ri.item_id = it.item_id JOIN ingredient_list il ON it.item_id = il.item_id "
+                            + "JOIN inventory i ON il.inventory_id = i.inventory_id JOIN receipt r ON ri.receipt_id = r.receipt_id "
+                            + "WHERE r.receipt_timestamp >= CAST(? AS timestamp) AND r.receipt_timestamp <= CAST(? AS timestamp) "
+                            + "GROUP BY i.inventory_id, i.name ORDER BY stockUsed DESC")) {
+                    pstmt.setString(1, timePeriod1);
+                    pstmt.setString(2, timePeriod2);
+                    try (ResultSet resultSet = pstmt.executeQuery()) {
+                        while (resultSet.next()) {
+                            int stockUsed = resultSet.getInt("stockUsed");
+                            String name = resultSet.getString("inventoryNames");
+                            String label = name + '\n' + stockUsed;
+                            stockSeries.getData().add(new XYChart.Data<>(stockUsed, label));
+                        }
+                    }
+                }
+                return stockSeries;
+            }
+        };
+        task.setOnSucceeded(event -> {
+            stockGraph.setTitle("Stock Used From " + timePeriod1 + " to " + timePeriod2);
+            if (controllerActive) {
+                stockGraph.getData().clear();
+                stockGraph.getData().add(task.getValue());
+            }
+        });
+        task.setOnFailed(event -> {
+            if (controllerActive) {
+                Throwable exception = task.getException();
+                exception.printStackTrace();
+                showError("Stock Graph Update Failed", "The stock graph could not be updated.", "Please enter valid dates.");
+            }
+        });
+        if (!startTask(task)) {
+            showError("Stock Graph Update Failed", "The database is busy.", "Please try again.");
         }
     }
 
@@ -437,7 +619,7 @@ public class ManagerController {
         }
     }
 
-        /**
+    /**
      * Adds a new menu item to the database based on user input from a dialog.
      *
      * @author Ashley Hoang
@@ -617,6 +799,7 @@ public class ManagerController {
         if (menuListView != null) menuListView.getItems().remove(item);
     }
     
+    /*-------------------------------------------Window-----------------------------------------*/
     /**
      * Closes the current window.
      * @param event The ActionEvent triggered when the user clicks the close button.
@@ -744,6 +927,11 @@ public class ManagerController {
         alert.showAndWait();
     }
 
+    /**
+     * Checks whether or not the Manager Controller is currently active
+     * @return if the Manager Controller is currently active
+     * @author Pablo ALmanza
+     */
     public boolean isActive() {
         return controllerActive;
     }
