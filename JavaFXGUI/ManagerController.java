@@ -104,7 +104,7 @@ public class ManagerController {
                     }
                     try (ResultSet resultSet = stmt.executeQuery(
                             "SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life "
-                                    + "FROM inventory ORDER BY stock DESC")) {
+                                    + "FROM inventory ORDER BY stock ASC, inventory_id ASC")) {
                         while (resultSet.next()) {
                             //Stock List
                             stock.add(new StockRecord(resultSet.getInt("inventory_id"),
@@ -120,7 +120,7 @@ public class ManagerController {
                             + "JOIN inventory i ON il.inventory_id = i.inventory_id JOIN receipt r ON ri.receipt_id = r.receipt_id "
                             + "GROUP BY i.inventory_id, i.name ORDER BY stockUsed DESC")) {
                         while (resultSet.next()) {
-                            //Stock Graph TODO
+                            //Stock Graph
                             productsUsed.add(new StockGraphRecord(resultSet.getString("inventoryNames"),
                                     resultSet.getLong("stockUsed")));
                         }
@@ -200,7 +200,7 @@ public class ManagerController {
         stockListView.setItems(stockItems);
         stockListView.setCellFactory(lv -> new StockListCell(this));
 
-        //product used/stock graph TODO
+        //product used/stock graph
         stockGraph.getData().clear();
         XYChart.Series<Number, String> stockSeries = new XYChart.Series<>();
         for (StockGraphRecord stock : data.getStockGraphRecord()) {
@@ -427,8 +427,6 @@ public class ManagerController {
                     return new StockUpdateResult(null, false, true);
                 }
             }
-            //TODO update the listview when stock is changed
-            //TODO if lower than 25 --> red, if at 25 to 35 yellow, if 35+ green
         };
         task.setOnSucceeded(event -> callback.accept(task.getValue()));
         task.setOnFailed(event -> {

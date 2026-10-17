@@ -3,8 +3,13 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListCell;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
+import java.util.Comparator;
 
 /**
  * This class represents a custom ListCell for displaying StockItem objects in a ListView. 
@@ -63,7 +68,13 @@ public class StockListCell extends ListCell<StockItem> {
             if (controller.isActive() && getItem() == item) {
                 if (result.getStock() != null) {
                     item.setStock(result.getStock());
+
+                    getListView().getItems().sort(
+                        Comparator.comparingInt(StockItem::getStock).thenComparingInt(StockItem::getInventoryID)
+                    );
+
                     updateDisplay();
+                    controller.reloadApplication();                 
                     if (!result.isUpdated()) controller.showStockUpdateFailure(result.getStock());
                 } else if (result.isMissing()) {
                     getListView().getItems().remove(item);
@@ -83,11 +94,19 @@ public class StockListCell extends ListCell<StockItem> {
     private void updateDisplay() {
         StockItem item = getItem();
         if (item != null) {
+            //color the background based on warning color
+            Color color = item.getColor();
+            BackgroundFill fill = new BackgroundFill(color, CornerRadii.EMPTY, Insets.EMPTY);
+            Background bg = new Background(fill);
+            content.setBackground(bg);
+
+            //make the text label
             infoLabel.setText(String.format(
                 "#%d %s:\n- Stock: %d\n- Minimum Stock: %d\n- Next Shipment: %s\n- Shelf Life: %s",
                 item.getInventoryID(), item.getName(), item.getStock(),
                 item.getMinStock(), item.getNextShipment(), item.getShelfLife()
             ));
+            infoLabel.setTextFill(Color.rgb(0,0,0));
         }
     }
 
