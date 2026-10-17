@@ -9,7 +9,7 @@ import javafx.scene.layout.Priority;
 /**
  * This class represents a custom ListCell for displaying StockItem objects in a ListView. 
  * It provides buttons to increase or decrease the stock of the item and updates the display accordingly.
- * @author AUTHOR // TODO
+ * @author Ashley Hoang
  */
 public class StockListCell extends ListCell<StockItem> {
     private final HBox content;
@@ -20,9 +20,9 @@ public class StockListCell extends ListCell<StockItem> {
     private final ManagerController controller;
 
     /**
-     * DESCRIPTION // TODO
-     * @param controller // TODO
-     * @author // TODO
+     * Constructs the cell (for list view) of a Stock Item with buttons for adding and removing stock.
+     * @param controller The ManagerController which handles the logic for updating stock.
+     * @author Ashley Hoang
      */
     public StockListCell(ManagerController controller) {
         this.controller = controller;
@@ -43,8 +43,9 @@ public class StockListCell extends ListCell<StockItem> {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @author // TODO
+     * Handles the event when the "Add Stock" button is pressed.
+     * @author Samuel Just
+     * @author Ashley Hoang
      */
     private void onAddButtonPressed() {
         StockItem item = getItem();
@@ -53,8 +54,9 @@ public class StockListCell extends ListCell<StockItem> {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @author // TODO
+     * Handles the event when the "Remove Stock" button is pressed.
+     * @author Samuel Just
+     * @author Ashley Hoang
      */
     private void onRemoveButtonPressed() {
         StockItem item = getItem();
@@ -63,10 +65,10 @@ public class StockListCell extends ListCell<StockItem> {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param item // TODO
-     * @param delta // TODO
-     * @author // TODO
+     * Updates the stock level of a StockItem.
+     * @param item The StockItem to update.
+     * @param delta The change in stock level.
+     * @author Pablo Almanza
      */
     private void updateStock(StockItem item, int delta) {
         addBtn.setDisable(true);

@@ -727,26 +727,7 @@ static void writeLoaderStart(ofstream& stream) {
     stream << "\\set ON_ERROR_STOP on\n"
            << "BEGIN;\n"
            << "LOCK TABLE category, item, inventory, ingredient_list, receipt, receipt_item, "
-           << "location, app_user, user_timetable, receipt_receipt_id_seq, "
-           << "receipt_item_receipt_item_id_seq IN ACCESS EXCLUSIVE MODE;\n";
-}
-
-static void writeInitialLoadGuard(ofstream& stream) {
-    stream << "DO $$\n"
-           << "BEGIN\n"
-           << "    IF EXISTS (SELECT 1 FROM category)\n"
-           << "       OR EXISTS (SELECT 1 FROM item)\n"
-           << "       OR EXISTS (SELECT 1 FROM inventory)\n"
-           << "       OR EXISTS (SELECT 1 FROM ingredient_list)\n"
-           << "       OR EXISTS (SELECT 1 FROM receipt)\n"
-           << "       OR EXISTS (SELECT 1 FROM receipt_item)\n"
-           << "       OR EXISTS (SELECT 1 FROM location)\n"
-           << "       OR EXISTS (SELECT 1 FROM app_user)\n"
-           << "       OR EXISTS (SELECT 1 FROM user_timetable) THEN\n"
-           << "        RAISE EXCEPTION 'Initial loader requires empty project tables';\n"
-           << "    END IF;\n"
-           << "END\n"
-           << "$$;\n";
+           << "location, app_user, user_timetable IN ACCESS EXCLUSIVE MODE;\n";
 }
 
 static void writeLoaderEnd(ofstream& stream) {
@@ -943,8 +924,7 @@ void Generator::writeReset(const char* filename) const {
     writeDestructiveGuard(outputFile);
     outputFile << "BEGIN;\n"
                << "LOCK TABLE category, item, inventory, ingredient_list, receipt, receipt_item, "
-               << "location, app_user, user_timetable, receipt_receipt_id_seq, "
-               << "receipt_item_receipt_item_id_seq IN ACCESS EXCLUSIVE MODE;\n";
+               << "location, app_user, user_timetable IN ACCESS EXCLUSIVE MODE;\n";
     writeTruncates(outputFile);
     writeLocations(outputFile);
     writeUsers(outputFile);
@@ -968,8 +948,8 @@ void Generator::writeAll(const char* filename) const {
         return;
     }
 
-    // writeLoaderStart(outputFile);
-    // writeInitialLoadGuard(outputFile);
+    writeDestructiveGuard(outputFile);
+    writeLoaderStart(outputFile);
     writeTruncates(outputFile);
     outputFile << "\n-- LOCATION GENERATION\n\n";
     writeLocations(outputFile);
@@ -1000,9 +980,9 @@ void Generator::writeAllFast(const char* filename) const {
         return;
     }
 
-    // writeLoaderStart(outputFile);
-    // writeInitialLoadGuard(outputFile);
-    writeTruncatesFast(outputFile);
+    writeDestructiveGuard(outputFile);
+    writeLoaderStart(outputFile);
+    writeTruncates(outputFile);
     writeLocationsFast(outputFile);
     writeUsersFast(outputFile);
     writeCategoriesFast(outputFile);
@@ -1011,8 +991,8 @@ void Generator::writeAllFast(const char* filename) const {
     writeInventoryRelationsFast(outputFile);
     writeDaysFast(outputFile);
     writeTimetablesFast(outputFile);
-    // writeIdentitySequenceSync(outputFile);
-    // writeLoaderEnd(outputFile);
+    writeIdentitySequenceSync(outputFile);
+    writeLoaderEnd(outputFile);
 
     outputFile.close();
 }
