@@ -2,7 +2,7 @@ import java.math.BigDecimal;
 
 /**
  * This class represents a menu record, including the item ID, name, and price.
- * @author // Pablo Almanza
+ * @author Pablo Almanza
  */
 
 public final class MenuRecord {

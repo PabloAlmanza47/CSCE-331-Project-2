@@ -122,10 +122,10 @@ public class ManagerController {
                         }
                     }
                     try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT item_id, name, price FROM item WHERE active = TRUE ORDER BY item_id")) {
+                            "SELECT item_id, name, price, category_id FROM item WHERE active = TRUE ORDER BY item_id")) {
                         while (resultSet.next()) {
                             menu.add(new MenuRecord(resultSet.getInt("item_id"),
-                                    resultSet.getString("name"), resultSet.getDouble("price")));
+                                    resultSet.getBigDecimal("price"), resultSet.getString("name"), resultSet.getInt("category_id")));
                         }
                     }
                 }
@@ -208,7 +208,7 @@ public class ManagerController {
 
         ObservableList<MenuItem> menuItems = FXCollections.observableArrayList();
         for (MenuRecord item : data.getMenu()) {
-            menuItems.add(new MenuItem(item.getItemID(), item.getName(), item.getPrice()));
+            menuItems.add(new MenuItem(item.getItemID(), item.getName(), item.getPrice().doubleValue()));
         }
         menuListView.setItems(menuItems);
         menuListView.setCellFactory(lv -> new MenuListCell(this));
