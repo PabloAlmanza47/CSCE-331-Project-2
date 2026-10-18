@@ -95,7 +95,7 @@ public class ManagerController {
                         Statement stmt = conn.createStatement()) {
                     try (ResultSet resultSet = stmt.executeQuery(
                             "SELECT i.item_id, i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri "
-                                    + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name, i.item_id ORDER BY i.item_id DESC")) {
+                                    + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name, i.item_id ORDER BY numSold DESC")) {
                         while (resultSet.next()) {
                             //Sales Graph
                             sales.add(new SalesRecord(resultSet.getInt("item_id"), resultSet.getString("itemNames"),
@@ -331,7 +331,7 @@ public class ManagerController {
                                      "JOIN item i ON i.item_id = ri.item_id " +
                                      "JOIN receipt r ON r.receipt_id = ri.receipt_id " +
                                      "WHERE r.receipt_timestamp >= CAST(? AS timestamp) AND r.receipt_timestamp <= CAST(? AS timestamp) " +
-                                     "GROUP BY i.name, i.item_id ORDER BY i.item_id DESC")) {
+                                     "GROUP BY i.name, i.item_id ORDER BY numSold DESC")) {
                     pstmt.setString(1, timePeriod1);
                     pstmt.setString(2, timePeriod2);
                     try (ResultSet resultSet = pstmt.executeQuery()) {
