@@ -4,10 +4,12 @@ import javafx.collections.ObservableList;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.*;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.scene.chart.XYChart;
 import javafx.scene.chart.BarChart;
+import javafx.scene.chart.LineChart;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.TitledPane;
@@ -37,6 +39,10 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.RejectedExecutionException;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
+import javafx.animation.KeyFrame;
+import javafx.util.Duration;
 
 
 public class ManagerController {
@@ -54,11 +60,13 @@ public class ManagerController {
     private static final BigDecimal MAX_ITEM_PRICE = new BigDecimal("99999999.99");
     private static final int MAX_ITEM_STOCK = 99999999;
     private boolean controllerActive = true;
+    private Timeline hourlyUpdateTimeline; //for x report (refresh hourly)
     @FXML BarChart<Number, String> salesGraph; //Sales graph display
     @FXML public ListView<MenuItem> menuListView; //Menu list creation
     @FXML public ListView<StockItem> stockListView; //Preserve remote stock editing through StockItem and StockListCell.
     @FXML BarChart<Number, String> stockGraph; //Stock/product used graph display
     @FXML Accordion receiptAccordion; // Receipt accordion display
+    @FXML LineChart<String, Number> xReportGraph; //X Report Line Graph
 
 
     /**
@@ -73,6 +81,7 @@ public class ManagerController {
          * closeButton.setOnAction(event -> closeWindow());
          */
         runQuery();
+        updateHourly();
     }
 
     /**
@@ -91,6 +100,7 @@ public class ManagerController {
                 List<StockGraphRecord> productsUsed = new ArrayList<>();
                 List<ReceiptRecord> receipts = new ArrayList<>();
                 List<MenuRecord> menu = new ArrayList<>();
+                List<XRecord> x = new ArrayList<>();
                 try (Connection conn = getConnection();
                         Statement stmt = conn.createStatement()) {
                     try (ResultSet resultSet = stmt.executeQuery(
@@ -148,8 +158,21 @@ public class ManagerController {
                                     resultSet.getString("name"), resultSet.getDouble("price")));
                         }
                     }
+                    try (ResultSet resultSet = stmt.executeQuery(
+                            "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
+                            + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
+                            + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
+                            + "WHERE r.receipt_timestamp >= CURRENT_DATE "
+                            + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt " 
+                            + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
+                        while (resultSet.next()) {
+                            //X Report
+                            x.add(new XRecord(resultSet.getString("hour"),
+                                    resultSet.getLong("order_count"), resultSet.getDouble("total_sales")));
+                        }
+                    }
                 }
-                return new ManagerData(sales, stock, productsUsed, receipts, menu);
+                return new ManagerData(sales, stock, productsUsed, receipts, menu, x);
             }
         };
         task.setOnSucceeded(event -> {
@@ -178,6 +201,7 @@ public class ManagerController {
      * Applies the manager data to the GUI components.
      * @param data The compiled manager data containing sales, stock, receipts, and menu information.
      * @author Pablo Almanza
+     * @author Ashley Hoang
     */
     private void applyManagerData(ManagerData data) {
         //Sales Graph
@@ -252,6 +276,18 @@ public class ManagerController {
         }
         menuListView.setItems(menuItems);
         menuListView.setCellFactory(lv -> new MenuListCell(this));
+
+        //x report
+        xReportGraph.getData().clear();
+        XYChart.Series<String, Number> xSeries = new XYChart.Series<>();
+        for (XRecord x : data.getX()) {
+            long numSold = x.getQuantity();
+            String hour = x.getHour();
+            double revenue = x.getRevenue();
+            String label = hour + ":00\nSales: " + numSold + "\nRevenue: $" + revenue;
+            xSeries.getData().add(new XYChart.Data<>(label, numSold));
+        }
+        xReportGraph.getData().add(xSeries);
     }
 
     /*-------------------------------------------Sales Graph-----------------------------------------*/
@@ -801,6 +837,91 @@ public class ManagerController {
         if (menuListView != null) menuListView.getItems().remove(item);
     }
     
+    /*-------------------------------------------X Report-----------------------------------------*/
+    
+    /**
+     * Updates the X Report Graph.
+     * @author Ashley Hoang
+     * @throws SQLException             if there is an error with the database query
+     */
+    private void updateXReportGraph(){
+        Task<XYChart.Series<String, Number>> task = new Task<>() {
+            @Override
+            protected XYChart.Series<String, Number> call() throws Exception {
+                XYChart.Series<String, Number> xSeries = new XYChart.Series<>();
+                try (Connection conn = getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(
+                            "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
+                            + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
+                            + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
+                            + "WHERE r.receipt_timestamp >= CURRENT_DATE "
+                            + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt " 
+                            + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
+                    try (ResultSet resultSet = pstmt.executeQuery()) {
+                        while (resultSet.next()) {
+                            int numSold = resultSet.getInt("order_count");
+                            String hour = resultSet.getString("hour");
+                            double revenue = resultSet.getDouble("total_sales");
+                            String label = hour + ":00\nSales: " + numSold + "\nRevenue: $" + revenue;
+                            xSeries.getData().add(new XYChart.Data<>(label, numSold));
+                        }
+                    }
+                }
+                return xSeries;
+            }
+        };
+        task.setOnSucceeded(event -> {
+            if (controllerActive) {
+                xReportGraph.getData().clear();
+                xReportGraph.getData().add(task.getValue());
+            }
+        });
+        task.setOnFailed(event -> {
+            if (controllerActive) {
+                Throwable exception = task.getException();
+                exception.printStackTrace();
+                showError("X Report Graph Update Failed", "The X report graph could not be updated.", "Please try again.");
+            }
+        });
+        if (!startTask(task)) {
+            showError("X Report Update Failed", "The database is busy.", "Please try again.");
+        }
+    }
+    
+    /**
+     * From the local time, update X Report Graph hourly
+     * @author Ashley Hoang
+     */
+    private void updateHourly(){
+        LocalTime now = LocalTime.now();
+        int currentMinute = now.getMinute();
+        int currentSecond = now.getSecond();
+        
+        int secondsUntilNextHour = (60 - currentMinute) * 60 - currentSecond;
+
+        hourlyUpdateTimeline = new Timeline(new KeyFrame(Duration.seconds(secondsUntilNextHour), event -> {
+            Platform.runLater(() -> {
+                updateXReportGraph();
+                updateRecurring();
+            });
+        }));
+
+        hourlyUpdateTimeline.setCycleCount(1);
+        hourlyUpdateTimeline.play();
+    }
+
+    /**
+     * Schedules recurring updates for X Report Graph
+     * @author Ashley Hoang
+     */
+    private void updateRecurring() {
+        hourlyUpdateTimeline = new Timeline(new KeyFrame(Duration.hours(1), event -> {
+            Platform.runLater(() -> updateXReportGraph());
+        }));
+        hourlyUpdateTimeline.setCycleCount(Timeline.INDEFINITE);
+        hourlyUpdateTimeline.play();
+    }
+    
     /*-------------------------------------------Window-----------------------------------------*/
     /**
      * Closes the current window.
@@ -809,6 +930,7 @@ public class ManagerController {
      */
     @FXML
     public void closeWindow(ActionEvent event) {
+        if(hourlyUpdateTimeline != null) hourlyUpdateTimeline.stop();
         controllerActive = false;
         Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
         stage.close();

@@ -2,6 +2,7 @@
 
 <?import javafx.scene.chart.BarChart?>
 <?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.control.Accordion?>
 <?import javafx.scene.control.Button?>
@@ -112,6 +113,28 @@
             <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
             <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
           </BarChart>
+        </children>
+      </AnchorPane>
+    </content></Tab>
+
+    <!-- X Report (Bar Graph) -->
+    <Tab text="X Report"><content>
+      <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+        <children>
+          <Button fx:id="changeViewButton5" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+          <Button fx:id="closeButton5" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <LineChart layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Sales Per Hour" fx:id="xReportGraph">
+            <xAxis>
+              <CategoryAxis label="Hour of Operation" />
+            </xAxis>
+            <yAxis>
+              <NumberAxis label="Number of Sales" />
+            </yAxis>
+            <AnchorPane.topAnchor>57.0</AnchorPane.topAnchor>
+            <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
+            <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
+            <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
+          </LineChart>
         </children>
       </AnchorPane>
     </content></Tab>
