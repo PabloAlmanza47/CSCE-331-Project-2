@@ -68,13 +68,10 @@ public class StockListCell extends ListCell<StockItem> {
             if (controller.isActive() && getItem() == item) {
                 if (result.getStock() != null) {
                     item.setStock(result.getStock());
-
                     getListView().getItems().sort(
                         Comparator.comparingInt(StockItem::getStock).thenComparingInt(StockItem::getInventoryID)
                     );
-
-                    updateDisplay();
-                    controller.reloadApplication();                 
+                    updateDisplay();            
                     if (!result.isUpdated()) controller.showStockUpdateFailure(result.getStock());
                 } else if (result.isMissing()) {
                     getListView().getItems().remove(item);
