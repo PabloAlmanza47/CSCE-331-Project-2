@@ -423,11 +423,11 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param checkoutCart // TODO
-     * @param checkoutPrices // TODO
-     * @return // TODO
-     * @author // TODO
+     * DESCRIPTION // Updates inventory, receipt, and front end data once checkout button is clicked
+     * @param checkoutCart Tree map of item ID's and their quantity 
+     * @param checkoutPrices Tree map of item ID's and their prices
+     * @return Only returns errors
+     * @author Colby Ideker, Pablo Almanza, Sharaf Mehmood
      * Note - Please add helper functions for this, the function is very long and hard to read.
      */
     private CheckoutOutcome executeCheckout(TreeMap<Integer, Integer> checkoutCart,

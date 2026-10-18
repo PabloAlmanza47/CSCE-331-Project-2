@@ -5,7 +5,7 @@ import javafx.beans.property.StringProperty;
 
 /**
  * This class represents a stock item with its properties and provides getters and setters for each property.
- * @author // TODO
+ * @author Ashley Hoang
  */
 public class StockItem {
     private final IntegerProperty inventoryID = new SimpleIntegerProperty();
