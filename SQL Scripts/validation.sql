@@ -125,3 +125,27 @@ GROUP BY i.name
 ORDER BY units_sold DESC
 LIMIT 5;
 
+-- Summarizes each sold item's observed sales dates and seasonal active range
+-- So that we can check everything is correctly sold within its period
+SELECT
+    i.item_id,
+    i.name AS item_name,
+    MIN(r.receipt_timestamp::date) AS sold_from,
+    MAX(r.receipt_timestamp::date) AS sold_to,
+    i.active_from,
+    i.active_to,
+    BOOL_AND(
+        CASE
+            WHEN i.active_from <= i.active_to THEN
+                TO_CHAR(r.receipt_timestamp, 'MM-DD')
+                    BETWEEN i.active_from AND i.active_to
+            ELSE
+                TO_CHAR(r.receipt_timestamp, 'MM-DD') >= i.active_from
+                OR TO_CHAR(r.receipt_timestamp, 'MM-DD') <= i.active_to
+        END
+    ) AS acceptable_sold_range
+FROM receipt r
+JOIN receipt_item ri ON ri.receipt_id = r.receipt_id
+JOIN item i ON i.item_id = ri.item_id
+GROUP BY i.item_id, i.name, i.active_from, i.active_to
+ORDER BY i.item_id;
