@@ -22,8 +22,8 @@
       <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
         <children>
           <Button fx:id="changeViewButton4" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton4" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-          <Button fx:id="addItem" layoutX="192.0" layoutY="14.0" mnemonicParsing="false" onAction="#addMenuItem" styleClass="genericStyle" text="Add Menu Item" />
+          <Button fx:id="closeButton4" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="addItem" layoutX="212.0" layoutY="14.0" mnemonicParsing="false" onAction="#addMenuItem" styleClass="genericStyle" text="Add Menu Item" />
             <ListView fx:id="menuListView" layoutX="14.0" layoutY="49.0" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
               <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
               <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
@@ -40,7 +40,7 @@
       <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
         <children>
           <Button fx:id="changeViewButton2" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton2" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="closeButton2" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
             <ListView fx:id="stockListView" layoutX="14.0" layoutY="49.0" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
               <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
               <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
@@ -56,7 +56,7 @@
         <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
           <children>
             <Button fx:id="changeViewButton3" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-            <Button fx:id="closeButton3" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+            <Button fx:id="closeButton3" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
                   <ScrollPane fitToHeight="true" fitToWidth="true" AnchorPane.bottomAnchor="14.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="60.0">
                     <content>
                       <VBox fillWidth="true">
@@ -75,8 +75,8 @@
       <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
         <children>
           <Button fx:id="changeViewButton1" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton1" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-          <Button fx:id="changeTimePeriodButton" layoutX="190.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeTimePeriod" styleClass="genericStyle" text="Change Time Period" />
+          <Button fx:id="closeButton1" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="changeTimePeriodButton" layoutX="212.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeTimePeriod" styleClass="genericStyle" text="Change Time Period" />
           <BarChart fx:id="salesGraph" layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Items Sold in Whole Time Period">
             <xAxis>
               <NumberAxis label="Number Sold" tickLabelRotation="0.01" />

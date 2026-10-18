@@ -5,6 +5,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ListCell;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Pane;
 
 /**
  * This class represents a custom ListCell for displaying StockItem objects in a ListView. 
@@ -27,6 +28,7 @@ public class StockListCell extends ListCell<StockItem> {
     public StockListCell(ManagerController controller) {
         this.controller = controller;
         infoLabel = new Label();
+        Pane spacer = new Pane();
         addBtn = new Button("Add Stock");
         removeBtn = new Button("Remove Stock");
 
@@ -36,8 +38,9 @@ public class StockListCell extends ListCell<StockItem> {
         HBox.setHgrow(addBtn, Priority.NEVER);
         HBox.setHgrow(removeBtn, Priority.NEVER);
         HBox.setHgrow(infoLabel, Priority.ALWAYS);
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        content = new HBox(10, infoLabel, addBtn, removeBtn);
+        content = new HBox(10, infoLabel, spacer, addBtn, removeBtn);
         content.setAlignment(Pos.CENTER_LEFT);
         content.setPadding(new Insets(5));
     }

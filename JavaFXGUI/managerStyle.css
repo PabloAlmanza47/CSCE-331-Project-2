@@ -13,11 +13,6 @@
     -fx-padding: 5;
 }
 
-.tab-pane .tab:hover {
-    -fx-background-color: #D61927;
-    -fx-padding: 5;
-}
-
 .tab-pane .tab-label {
     -fx-font-size: 15;
     -fx-text-fill: #d89490;
@@ -38,6 +33,7 @@
 
 
 .button {
+    -fx-font-size: 15;
     -fx-background-color: white;
     -fx-text-fill: black;
     -fx-padding: 5;
