@@ -98,7 +98,7 @@ public class ManagerController {
                                     + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name, i.item_id ORDER BY i.item_id DESC")) {
                         while (resultSet.next()) {
                             //Sales Graph
-                            sales.add(new SalesRecord(resultSet.getString("itemNames"),
+                            sales.add(new SalesRecord(resultSet.getInt("item_id"), resultSet.getString("itemNames"),
                                     resultSet.getLong("numSold")));
                         }
                     }
@@ -121,7 +121,7 @@ public class ManagerController {
                             + "GROUP BY i.inventory_id, i.name ORDER BY stockUsed DESC")) {
                         while (resultSet.next()) {
                             //Stock Graph
-                            productsUsed.add(new StockGraphRecord(resultSet.getString("inventoryNames"),
+                            productsUsed.add(new StockGraphRecord(resultSet.getInt("inventory_id"), resultSet.getString("inventoryNames"),
                                     resultSet.getLong("stockUsed")));
                         }
                     }
@@ -186,7 +186,8 @@ public class ManagerController {
         for (SalesRecord sale : data.getSales()) {
             long numSold = sale.getQuantity();
             String name = sale.getName();
-            String label = name + '\n' + numSold;
+            int id = sale.getID();
+            String label = "#" + id + "-" + name + ' ' + numSold;
             salesSeries.getData().add(new XYChart.Data<>(numSold, label));
         }
         salesGraph.getData().add(salesSeries);
@@ -206,7 +207,8 @@ public class ManagerController {
         for (StockGraphRecord stock : data.getStockGraphRecord()) {
             long stockUsed = stock.getQuantity();
             String name = stock.getName();
-            String label = name + '\n' + stockUsed;
+            int id = stock.getID();
+            String label = "#" + id + "-" + name + ' ' + stockUsed;
             stockSeries.getData().add(new XYChart.Data<>(stockUsed, label));
         }
         stockGraph.getData().add(stockSeries);
@@ -336,7 +338,8 @@ public class ManagerController {
                         while (resultSet.next()) {
                             int numSold = resultSet.getInt("numSold");
                             String name = resultSet.getString("itemNames");
-                            String label = name + '\n' + numSold;
+                            int id = resultSet.getInt("item_id");
+                            String label = "#" + id + "-" + name + ' ' + numSold;
                             soldSeries.getData().add(new XYChart.Data<>(numSold, label));
                         }
                     }
@@ -522,7 +525,8 @@ public class ManagerController {
                         while (resultSet.next()) {
                             int stockUsed = resultSet.getInt("stockUsed");
                             String name = resultSet.getString("inventoryNames");
-                            String label = name + '\n' + stockUsed;
+                            int id = resultSet.getInt("inventory_id");
+                            String label = "#" + id + "-" + name + ' ' + stockUsed;
                             stockSeries.getData().add(new XYChart.Data<>(stockUsed, label));
                         }
                     }

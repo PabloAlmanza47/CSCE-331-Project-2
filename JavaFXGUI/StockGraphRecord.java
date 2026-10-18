@@ -5,10 +5,12 @@
 public final class StockGraphRecord {
     private final String name;
     private final long quantity;
+    private final int id;
 
-    public StockGraphRecord(String name, long quantity) {
+    public StockGraphRecord(int id, String name, long quantity) {
         this.name = name;
         this.quantity = quantity;
+        this.id = id;
     }
 
     //getter functions
@@ -17,5 +19,8 @@ public final class StockGraphRecord {
     }
     public long getQuantity(){
         return quantity;
+    }
+    public int getID(){
+        return id;
     }
 }
