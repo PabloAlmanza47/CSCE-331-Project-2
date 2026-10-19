@@ -52,7 +52,7 @@ const int MAX_BY_CATEGORY[CATEGORY_LENGTH] = {MAX_AMOUNT_OF_ENTREES, MAX_AMOUNT_
 
 int main() {
     //The timespan will be LENGTH_IN_DAYS days before now to now.
-    time_t startTime = time(nullptr) - 86'400 * LENGTH_IN_DAYS - 86'400 * 90;
+    time_t startTime = time(nullptr) - 86'400 * 30;
     tm* timeinfo = std::localtime(&startTime);
     startTime = startTime - (timeinfo->tm_hour * 3'600 + timeinfo->tm_min * 60 + timeinfo->tm_sec);
     Generator* g = new Generator(startTime, NUMBER_OF_PEAK_DAYS);
