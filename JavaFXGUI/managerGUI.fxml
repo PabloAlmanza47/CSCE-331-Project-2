@@ -2,6 +2,7 @@
 
 <?import javafx.scene.chart.BarChart?>
 <?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.control.Accordion?>
 <?import javafx.scene.control.Button?>
@@ -13,11 +14,11 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ManagerController">
+<VBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ManagerController" stylesheets="managerStyle.css">
 <HBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" VBox.vgrow="ALWAYS">
 <TabPane tabClosingPolicy="UNAVAILABLE" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
   <tabs>
-      <!-- Menu Tab -->
+    <!-- Menu Tab -->
     <Tab text="Menu Items"><content>
       <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
         <children>
@@ -51,6 +52,29 @@
       </AnchorPane> 
     </content></Tab>
 
+    <!-- Product Usage Chart (Bar Graph) -->
+    <Tab text="Product Usage"><content>
+      <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+        <children>
+          <Button fx:id="changeViewButton4" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+          <Button fx:id="closeButton4" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="changeTimePeriodButton1" layoutX="190.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeStockTimePeriod" styleClass="genericStyle" text="Change Time Period" />
+          <BarChart fx:id="stockGraph" layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Products Used in Whole Time Period">
+            <xAxis>
+              <NumberAxis label="Product Used" tickLabelRotation="0.01" />
+            </xAxis>
+            <yAxis>
+              <CategoryAxis label="Item Name" side="LEFT" />
+            </yAxis>
+            <AnchorPane.topAnchor>57.0</AnchorPane.topAnchor>
+            <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
+            <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
+            <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
+          </BarChart>
+        </children>
+      </AnchorPane>
+    </content></Tab>
+
     <!-- Order History (Receipts) Tab -->
       <Tab text="Order History"><content>
         <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
@@ -76,7 +100,7 @@
         <children>
           <Button fx:id="changeViewButton1" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
           <Button fx:id="closeButton1" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-          <Button fx:id="changeTimePeriodButton" layoutX="190.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeTimePeriod" styleClass="genericStyle" text="Change Time Period" />
+          <Button fx:id="changeTimePeriodButton" layoutX="190.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeSoldTimePeriod" styleClass="genericStyle" text="Change Time Period" />
           <BarChart fx:id="salesGraph" layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Items Sold in Whole Time Period">
             <xAxis>
               <NumberAxis label="Number Sold" tickLabelRotation="0.01" />
@@ -89,6 +113,28 @@
             <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
             <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
           </BarChart>
+        </children>
+      </AnchorPane>
+    </content></Tab>
+
+    <!-- X Report (Bar Graph) -->
+    <Tab text="X Report"><content>
+      <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+        <children>
+          <Button fx:id="changeViewButton5" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
+          <Button fx:id="closeButton5" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <LineChart layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Sales Per Hour" fx:id="xReportGraph">
+            <xAxis>
+              <CategoryAxis label="Hour of Operation" />
+            </xAxis>
+            <yAxis>
+              <NumberAxis label="Number of Sales" />
+            </yAxis>
+            <AnchorPane.topAnchor>57.0</AnchorPane.topAnchor>
+            <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
+            <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
+            <AnchorPane.bottomAnchor>14.0</AnchorPane.bottomAnchor>
+          </LineChart>
         </children>
       </AnchorPane>
     </content></Tab>

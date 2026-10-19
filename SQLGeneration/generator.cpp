@@ -604,24 +604,6 @@ static void writeLoaderStart(ofstream& stream) {
            << "location, app_user, user_timetable IN ACCESS EXCLUSIVE MODE;\n";
 }
 
-static void writeInitialLoadGuard(ofstream& stream) {
-    stream << "DO $$\n"
-           << "BEGIN\n"
-           << "    IF EXISTS (SELECT 1 FROM category)\n"
-           << "       OR EXISTS (SELECT 1 FROM item)\n"
-           << "       OR EXISTS (SELECT 1 FROM inventory)\n"
-           << "       OR EXISTS (SELECT 1 FROM ingredient_list)\n"
-           << "       OR EXISTS (SELECT 1 FROM receipt)\n"
-           << "       OR EXISTS (SELECT 1 FROM receipt_item)\n"
-           << "       OR EXISTS (SELECT 1 FROM location)\n"
-           << "       OR EXISTS (SELECT 1 FROM app_user)\n"
-           << "       OR EXISTS (SELECT 1 FROM user_timetable) THEN\n"
-           << "        RAISE EXCEPTION 'Initial loader requires empty project tables';\n"
-           << "    END IF;\n"
-           << "END\n"
-           << "$$;\n";
-}
-
 static void writeLoaderEnd(ofstream& stream) {
     stream << "COMMIT;\n";
 }
@@ -848,8 +830,9 @@ void Generator::writeAll(const char* filename) const {
         return;
     }
 
+    writeDestructiveGuard(outputFile);
     writeLoaderStart(outputFile);
-    writeInitialLoadGuard(outputFile);
+    writeTruncates(outputFile);
     outputFile << "\n-- LOCATION GENERATION\n\n";
     writeLocations(outputFile);
     outputFile << "\n-- USER GENERATION\n\n";
@@ -879,8 +862,9 @@ void Generator::writeAllFast(const char* filename) const {
         return;
     }
 
+    writeDestructiveGuard(outputFile);
     writeLoaderStart(outputFile);
-    writeInitialLoadGuard(outputFile);
+    writeTruncates(outputFile);
     writeLocationsFast(outputFile);
     writeUsersFast(outputFile);
     writeCategoriesFast(outputFile);

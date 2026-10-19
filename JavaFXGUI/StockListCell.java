@@ -3,79 +3,75 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListCell;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
+import java.util.Comparator;
 
 /**
  * This class represents a custom ListCell for displaying StockItem objects in a ListView. 
  * It provides buttons to increase or decrease the stock of the item and updates the display accordingly.
- * @author AUTHOR // TODO
+ * @author Ashley Hoang
  */
 public class StockListCell extends ListCell<StockItem> {
     private final HBox content;
     private final Label infoLabel;
-    private final Button addBtn;
-    private final Button removeBtn;
+    private final Button changeStockBtn;
 
     private final ManagerController controller;
 
     /**
-     * DESCRIPTION // TODO
-     * @param controller // TODO
-     * @author // TODO
+     * Constructs the cell (for list view) of a Stock Item with buttons for adding and removing stock.
+     * @param controller The ManagerController which handles the logic for updating stock.
+     * @author Ashley Hoang
      */
     public StockListCell(ManagerController controller) {
         this.controller = controller;
         infoLabel = new Label();
-        addBtn = new Button("Add Stock");
-        removeBtn = new Button("Remove Stock");
+        changeStockBtn = new Button("Change Stock");
 
-        addBtn.setOnAction(_ -> onAddButtonPressed());
-        removeBtn.setOnAction(_ -> onRemoveButtonPressed());
+        changeStockBtn.setOnAction(_ -> onChangeButtonPressed());
 
-        HBox.setHgrow(addBtn, Priority.NEVER);
-        HBox.setHgrow(removeBtn, Priority.NEVER);
+        HBox.setHgrow(changeStockBtn, Priority.NEVER);
         HBox.setHgrow(infoLabel, Priority.ALWAYS);
 
-        content = new HBox(10, infoLabel, addBtn, removeBtn);
+        content = new HBox(10, infoLabel, changeStockBtn);
         content.setAlignment(Pos.CENTER_LEFT);
         content.setPadding(new Insets(5));
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @author // TODO
+     * Handles the event when the "Change Stock" button is pressed.
+     * @author Samuel Just
+     * @author Ashley Hoang
      */
-    private void onAddButtonPressed() {
+    private void onChangeButtonPressed() {
         StockItem item = getItem();
         if (item == null) return;
-        updateStock(item, 1);
+        int stockDelta = controller.inputNewStock();
+        if (stockDelta == 0) return;
+        updateStock(item, stockDelta);
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @author // TODO
-     */
-    private void onRemoveButtonPressed() {
-        StockItem item = getItem();
-        if (item == null || item.getStock() <= 0) return;
-        updateStock(item, -1);
-    }
-
-    /**
-     * DESCRIPTION // TODO
-     * @param item // TODO
-     * @param delta // TODO
-     * @author // TODO
+     * Updates the stock level of a StockItem.
+     * @param item The StockItem to update.
+     * @param delta The change in stock level.
+     * @author Pablo Almanza
      */
     private void updateStock(StockItem item, int delta) {
-        addBtn.setDisable(true);
-        removeBtn.setDisable(true);
+        changeStockBtn.setDisable(true);
         controller.updateStockInDatabase(item.getInventoryID(), delta, result -> {
             if (controller.isActive() && getItem() == item) {
                 if (result.getStock() != null) {
                     item.setStock(result.getStock());
-                    updateDisplay();
+                    getListView().getItems().sort(
+                        Comparator.comparingInt(StockItem::getStock).thenComparingInt(StockItem::getInventoryID)
+                    );
+                    updateDisplay();            
                     if (!result.isUpdated()) controller.showStockUpdateFailure(result.getStock());
                 } else if (result.isMissing()) {
                     getListView().getItems().remove(item);
@@ -83,8 +79,7 @@ public class StockListCell extends ListCell<StockItem> {
                 }
             }
             if (controller.isActive()) {
-                addBtn.setDisable(false);
-                removeBtn.setDisable(false);
+                changeStockBtn.setDisable(false);
             }
         });
     }
@@ -96,11 +91,19 @@ public class StockListCell extends ListCell<StockItem> {
     private void updateDisplay() {
         StockItem item = getItem();
         if (item != null) {
+            //color the background based on warning color
+            Color color = item.getColor();
+            BackgroundFill fill = new BackgroundFill(color, CornerRadii.EMPTY, Insets.EMPTY);
+            Background bg = new Background(fill);
+            content.setBackground(bg);
+
+            //make the text label
             infoLabel.setText(String.format(
                 "#%d %s:\n- Stock: %d\n- Minimum Stock: %d\n- Next Shipment: %s\n- Shelf Life: %s",
                 item.getInventoryID(), item.getName(), item.getStock(),
                 item.getMinStock(), item.getNextShipment(), item.getShelfLife()
             ));
+            infoLabel.setTextFill(Color.rgb(0,0,0));
         }
     }
 
