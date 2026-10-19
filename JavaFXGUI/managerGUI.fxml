@@ -14,7 +14,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ManagerController" stylesheets="managerStyle.css">
+<VBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" stylesheets="managerStyle.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ManagerController">
 <HBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" VBox.vgrow="ALWAYS">
 <TabPane tabClosingPolicy="UNAVAILABLE" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
   <tabs>
@@ -128,7 +128,7 @@
               <CategoryAxis label="Hour of Operation" />
             </xAxis>
             <yAxis>
-              <NumberAxis label="Number of Sales" />
+              <NumberAxis label="Number of Sales" prefWidth="100.0" />
             </yAxis>
             <AnchorPane.topAnchor>57.0</AnchorPane.topAnchor>
             <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>

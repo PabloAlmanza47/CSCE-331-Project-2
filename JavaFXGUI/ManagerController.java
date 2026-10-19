@@ -162,7 +162,7 @@ public class ManagerController {
                             "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
                             + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
                             + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
-                            + "WHERE r.receipt_timestamp >= CURRENT_DATE "
+                            + "WHERE r.receipt_timestamp >= CURRENT_DATE AND r.receipt_timestamp <= date_trunc('hour', current_timestamp)"
                             + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt " 
                             + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
                         while (resultSet.next()) {
@@ -408,7 +408,6 @@ public class ManagerController {
      *
      * @author Ashley Hoang
      * @return user's inputted change in stock
-     * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
     public int inputNewStock() {
@@ -437,7 +436,7 @@ public class ManagerController {
      * @author Pablo Almanza
      * @param inventoryID The ID of the inventory item to update.
      * @param stockDelta  The change in stock quantity.
-     * @throws SQLException             if there is an error with the database query
+     * @param callback A callback function that will be called with the result of the stock update operation.
      * @throws IllegalArgumentException if there is an error with the list creation
      */
     public void updateStockInDatabase(int inventoryID, int stockDelta, Consumer<StockUpdateResult> callback) {
@@ -595,7 +594,6 @@ public class ManagerController {
      *
      * @author Ashley Hoang
      * @return user's inputted price
-     * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
     public BigDecimal inputNewPrice() {
@@ -662,7 +660,6 @@ public class ManagerController {
      *
      * @author Ashley Hoang
      * @param event The ActionEvent triggered when the user clicks the "Add Menu Item" button.
-     * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
     @FXML
@@ -796,9 +793,9 @@ public class ManagerController {
      * Removes a menu item from the database.
      *
      * @param item The menu item to remove.
+     * @param callback A callback function that will be called with the result of the removal operation.
      * @author Ashley Hoang
      * @author Pablo Almanza
-     * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
     public void removeMenuItemFromDatabase(MenuItem item, Consumer<Boolean> callback) {
@@ -854,7 +851,7 @@ public class ManagerController {
                             "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
                             + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
                             + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
-                            + "WHERE r.receipt_timestamp >= CURRENT_DATE "
+                            + "WHERE r.receipt_timestamp >= CURRENT_DATE AND r.receipt_timestamp <= date_trunc('hour', current_timestamp)"
                             + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt " 
                             + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
                     try (ResultSet resultSet = pstmt.executeQuery()) {
@@ -960,7 +957,6 @@ public class ManagerController {
      * items.
      *
      * @author Ashley Hoang
-     * @throws IOException if the FXML resource cannot be loaded
      */
     @FXML
     public void reloadApplication() {
