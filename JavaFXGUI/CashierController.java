@@ -83,7 +83,7 @@ public class CashierController {
             protected List<MenuRecord> call() throws Exception {
                 List<MenuRecord> menu = new ArrayList<>();
                 Class.forName("org.postgresql.Driver");
-                try (Connection conn = openConnection(DbSetup.user, DbSetup.pswd);
+                try (Connection conn = openConnection(dbSetup.user, dbSetup.pswd);
                         PreparedStatement statement = conn.prepareStatement(
                                 "SELECT name, price, item_id, category_id FROM item "
                                         + "WHERE category_id BETWEEN 1 AND 3 AND active = TRUE "
@@ -436,7 +436,7 @@ public class CashierController {
             TreeMap<Integer, BigDecimal> checkoutPrices, TreeMap<Integer, BigDecimal> checkoutTotals) {
         Connection conn = null;
         try {
-            conn = openConnection(DbSetup.user, DbSetup.pswd);
+            conn = openConnection(dbSetup.user, dbSetup.pswd);
             conn.setAutoCommit(false);
             try {
                 try (PreparedStatement receipt = conn.prepareStatement(

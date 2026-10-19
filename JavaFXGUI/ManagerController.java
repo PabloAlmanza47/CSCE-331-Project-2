@@ -1000,7 +1000,7 @@ public class ManagerController {
     private Connection getConnection() throws SQLException, ClassNotFoundException {
         Class.forName("org.postgresql.Driver");
         DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
-        Connection conn = DriverManager.getConnection(DB_URL, DbSetup.user, DbSetup.pswd);
+        Connection conn = DriverManager.getConnection(DB_URL, dbSetup.user, dbSetup.pswd);
         conn.setNetworkTimeout(Runnable::run, NETWORK_TIMEOUT_MILLISECONDS);
         return conn;
     }
