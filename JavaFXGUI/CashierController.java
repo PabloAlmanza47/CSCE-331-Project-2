@@ -199,7 +199,8 @@ public class CashierController {
             pendingMains.add(record);
             button.setStyle(SELECTED_STYLE);
         }
-        if (record.getCategoryID() == 2) { 
+        if (record.getCategoryID() == 2) {
+            for (javafx.scene.Node node : sideBox.getChildren()) node.setStyle("");  
             pendingSide = record;
             button.setStyle(SELECTED_STYLE);
         } 
