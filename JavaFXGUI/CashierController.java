@@ -334,7 +334,7 @@ public class CashierController {
      * @param quantities Tree Map of item ID and their quantity
      * @param listPrices Tree Map of item ID and their normal menu price
      * @param totals Tree Map of item ID and the total amount to record
-     * @author Sharaf Mehmood
+     * @author Sharaf Mehmood, Colby Ideker
      */
     private void flattenCart(TreeMap<Integer, Integer> quantities, TreeMap<Integer, BigDecimal> listPrices,
             TreeMap<Integer, BigDecimal> totals) {
@@ -342,7 +342,21 @@ public class CashierController {
             BigDecimal quantity = BigDecimal.valueOf(line.getQuantity());
             for (int i = 0; i < line.getComponents().size(); i++) {
                 MenuRecord component = line.getComponents().get(i);
-                BigDecimal unitAmount = (i == 0) ? component.getPrice().add(line.discount()) : component.getPrice();
+                //old method of discount either added/subtracted the discount which could result
+                //in errors, this distributes it on protein so it is correct + cant error
+                int proteins = line.getComponents().size()-1;
+                long cents = line.discount().movePointRight(2).longValueExact();
+                BigDecimal unitAmount = component.getPrice();
+                if (i < proteins) {
+                    long share;
+                    if (i == proteins - 1){
+                        share = cents - (cents/proteins) * (proteins-1);
+                    } 
+                    else{
+                        share = cents / proteins;
+                    }
+                    unitAmount = unitAmount.subtract(BigDecimal.valueOf(share, 2));
+                }
                 quantities.merge(component.getItemID(), line.getQuantity(), Integer::sum);
                 listPrices.put(component.getItemID(), component.getPrice());
                 totals.merge(component.getItemID(), unitAmount.multiply(quantity), BigDecimal::add);
@@ -440,7 +454,7 @@ public class CashierController {
             conn.setAutoCommit(false);
             try {
                 try (PreparedStatement receipt = conn.prepareStatement(
-                        "INSERT INTO receipt (location_id, user_id, receipt_timestamp) VALUES (?, ?, CURRENT_TIMESTAMP) RETURNING receipt_id");
+                        "INSERT INTO receipt (location_id, user_id, receipt_timestamp) VALUES (?, ?, DATE_TRUNC('second', CURRENT_TIMESTAMP)) RETURNING receipt_id");
                         PreparedStatement itemValidation = conn.prepareStatement(
                                 "SELECT i.active, COUNT(il.inventory_id) AS ingredient_count "
                                         + "FROM item i LEFT JOIN ingredient_list il ON il.item_id = i.item_id "
