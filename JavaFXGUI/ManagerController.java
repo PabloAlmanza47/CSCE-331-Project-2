@@ -4,10 +4,12 @@ import javafx.collections.ObservableList;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.*;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.scene.chart.XYChart;
 import javafx.scene.chart.BarChart;
+import javafx.scene.chart.LineChart;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.TitledPane;
@@ -18,6 +20,7 @@ import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
 import javafx.scene.layout.VBox;
@@ -36,6 +39,10 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.RejectedExecutionException;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
+import javafx.animation.KeyFrame;
+import javafx.util.Duration;
 
 
 public class ManagerController {
@@ -51,11 +58,15 @@ public class ManagerController {
                 return thread;
             }, new ThreadPoolExecutor.AbortPolicy());
     private static final BigDecimal MAX_ITEM_PRICE = new BigDecimal("99999999.99");
+    private static final int MAX_ITEM_STOCK = 99999999;
     private boolean controllerActive = true;
+    private Timeline hourlyUpdateTimeline; //for x report (refresh hourly)
     @FXML BarChart<Number, String> salesGraph; //Sales graph display
     @FXML public ListView<MenuItem> menuListView; //Menu list creation
     @FXML public ListView<StockItem> stockListView; //Preserve remote stock editing through StockItem and StockListCell.
+    @FXML BarChart<Number, String> stockGraph; //Stock/product used graph display
     @FXML Accordion receiptAccordion; // Receipt accordion display
+    @FXML LineChart<String, Number> xReportGraph; //X Report Line Graph
 
 
     /**
@@ -70,6 +81,7 @@ public class ManagerController {
          * closeButton.setOnAction(event -> closeWindow());
          */
         runQuery();
+        updateHourly();
     }
 
     /**
@@ -85,22 +97,26 @@ public class ManagerController {
             protected ManagerData call() throws Exception {
                 List<SalesRecord> sales = new ArrayList<>();
                 List<StockRecord> stock = new ArrayList<>();
+                List<StockGraphRecord> productsUsed = new ArrayList<>();
                 List<ReceiptRecord> receipts = new ArrayList<>();
                 List<MenuRecord> menu = new ArrayList<>();
+                List<XRecord> x = new ArrayList<>();
                 try (Connection conn = getConnection();
                         Statement stmt = conn.createStatement()) {
                     try (ResultSet resultSet = stmt.executeQuery(
                             "SELECT i.item_id, i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri "
-                                    + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name, i.item_id ORDER BY i.item_id DESC")) {
+                                    + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name, i.item_id ORDER BY numSold DESC")) {
                         while (resultSet.next()) {
-                            sales.add(new SalesRecord(resultSet.getString("itemNames"),
+                            //Sales Graph
+                            sales.add(new SalesRecord(resultSet.getInt("item_id"), resultSet.getString("itemNames"),
                                     resultSet.getLong("numSold")));
                         }
                     }
                     try (ResultSet resultSet = stmt.executeQuery(
                             "SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life "
-                                    + "FROM inventory ORDER BY inventory_id")) {
+                                    + "FROM inventory ORDER BY stock ASC, inventory_id ASC")) {
                         while (resultSet.next()) {
+                            //Stock List
                             stock.add(new StockRecord(resultSet.getInt("inventory_id"),
                                     resultSet.getString("name"), resultSet.getInt("stock"),
                                     resultSet.getInt("min_stock"), resultSet.getString("next_shipment"),
@@ -108,12 +124,25 @@ public class ManagerController {
                         }
                     }
                     try (ResultSet resultSet = stmt.executeQuery(
+                            "SELECT i.inventory_id, i.name AS inventoryNames, SUM(ri.quantity) AS stockUsed "
+                            + "FROM receipt_item ri "
+                            + "JOIN item it ON ri.item_id = it.item_id JOIN ingredient_list il ON it.item_id = il.item_id "
+                            + "JOIN inventory i ON il.inventory_id = i.inventory_id JOIN receipt r ON ri.receipt_id = r.receipt_id "
+                            + "GROUP BY i.inventory_id, i.name ORDER BY stockUsed DESC")) {
+                        while (resultSet.next()) {
+                            //Stock Graph
+                            productsUsed.add(new StockGraphRecord(resultSet.getInt("inventory_id"), resultSet.getString("inventoryNames"),
+                                    resultSet.getLong("stockUsed")));
+                        }
+                    }
+                    try (ResultSet resultSet = stmt.executeQuery(
                             "SELECT r.receipt_id, i.item_id, i.name AS item_name, ri.quantity,  ri.price_at_sale, r.receipt_timestamp "
                                     + "FROM receipt r JOIN receipt_item ri ON r.receipt_id = ri.receipt_id "
                                     + "JOIN item i ON ri.item_id = i.item_id WHERE r.receipt_id IN "
-                                    + "(SELECT receipt_id FROM receipt ORDER BY receipt_timestamp DESC, receipt_id DESC LIMIT 10) "
+                                    + "(SELECT receipt_id FROM receipt ORDER BY receipt_timestamp DESC, receipt_id DESC LIMIT 20) "
                                     + "ORDER BY r.receipt_timestamp DESC, r.receipt_id DESC, ri.receipt_item_id")) {
                         while (resultSet.next()) {
+                            //Receipt Record
                             receipts.add(new ReceiptRecord(resultSet.getInt("receipt_id"), 
                                     resultSet.getInt("item_id"),
                                     resultSet.getString("item_name"), resultSet.getInt("quantity"),
@@ -122,14 +151,28 @@ public class ManagerController {
                         }
                     }
                     try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT item_id, name, price FROM item WHERE active = TRUE ORDER BY item_id")) {
+                            "SELECT item_id, name, price, category_id FROM item WHERE active = TRUE ORDER BY item_id")) {
                         while (resultSet.next()) {
+                            //Menu List
                             menu.add(new MenuRecord(resultSet.getInt("item_id"),
-                                    resultSet.getString("name"), resultSet.getDouble("price")));
+                                    resultSet.getBigDecimal("price"), resultSet.getString("name"), resultSet.getInt("category_id")));
+                        }
+                    }
+                    try (ResultSet resultSet = stmt.executeQuery(
+                            "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
+                            + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
+                            + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
+                            + "WHERE r.receipt_timestamp >= CURRENT_DATE "
+                            + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt " 
+                            + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
+                        while (resultSet.next()) {
+                            //X Report
+                            x.add(new XRecord(resultSet.getString("hour"),
+                                    resultSet.getLong("order_count"), resultSet.getDouble("total_sales")));
                         }
                     }
                 }
-                return new ManagerData(sales, stock, receipts, menu);
+                return new ManagerData(sales, stock, productsUsed, receipts, menu, x);
             }
         };
         task.setOnSucceeded(event -> {
@@ -158,15 +201,22 @@ public class ManagerController {
      * Applies the manager data to the GUI components.
      * @param data The compiled manager data containing sales, stock, receipts, and menu information.
      * @author Pablo Almanza
+     * @author Ashley Hoang
     */
     private void applyManagerData(ManagerData data) {
+        //Sales Graph
         salesGraph.getData().clear();
         XYChart.Series<Number, String> salesSeries = new XYChart.Series<>();
         for (SalesRecord sale : data.getSales()) {
-            salesSeries.getData().add(new XYChart.Data<>(sale.getQuantity(), sale.getName()));
+            long numSold = sale.getQuantity();
+            String name = sale.getName();
+            int id = sale.getID();
+            String label = "#" + id + "-" + name + ' ' + numSold;
+            salesSeries.getData().add(new XYChart.Data<>(numSold, label));
         }
         salesGraph.getData().add(salesSeries);
 
+        //Stock list view
         ObservableList<StockItem> stockItems = FXCollections.observableArrayList();
         for (StockRecord item : data.getStock()) {
             stockItems.add(new StockItem(item.getInventoryID(), item.getName(), item.getStock(), item.getMinStock(),
@@ -175,6 +225,19 @@ public class ManagerController {
         stockListView.setItems(stockItems);
         stockListView.setCellFactory(lv -> new StockListCell(this));
 
+        //product used/stock graph
+        stockGraph.getData().clear();
+        XYChart.Series<Number, String> stockSeries = new XYChart.Series<>();
+        for (StockGraphRecord stock : data.getStockGraphRecord()) {
+            long stockUsed = stock.getQuantity();
+            String name = stock.getName();
+            int id = stock.getID();
+            String label = "#" + id + "-" + name + ' ' + stockUsed;
+            stockSeries.getData().add(new XYChart.Data<>(stockUsed, label));
+        }
+        stockGraph.getData().add(stockSeries);
+
+        //receipt accordion
         receiptAccordion.getPanes().clear();
         int currentReceiptID = -1;
         VBox itemList = null;
@@ -206,76 +269,93 @@ public class ManagerController {
         if (receiptPane != null) itemList.getChildren().add(new Label(
                 String.format("Total: $%.2f", receiptTotal)));
 
+        //menu list view
         ObservableList<MenuItem> menuItems = FXCollections.observableArrayList();
         for (MenuRecord item : data.getMenu()) {
-            menuItems.add(new MenuItem(item.getItemID(), item.getName(), item.getPrice()));
+            menuItems.add(new MenuItem(item.getItemID(), item.getName(), item.getPrice().doubleValue()));
         }
         menuListView.setItems(menuItems);
         menuListView.setCellFactory(lv -> new MenuListCell(this));
-    }
 
-    /**
-     * Closes the current window.
-     * @param event The ActionEvent triggered when the user clicks the close button.
-     * @author Ashley Hoang
-     */
-    @FXML
-    public void closeWindow(ActionEvent event) {
-        controllerActive = false;
-        Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
-        stage.close();
-    }
-
-    /**
-     * Displays the sales data in a bar graph.
-     * @param items The ResultSet containing the sales data to be displayed in the bar graph.
-     * @author Ashley Hoang
-     */
-    @FXML
-    public void createSalesBarGraph(ResultSet items) {
-        try {
-            XYChart.Series<Number, String> soldSeries = new XYChart.Series<>();
-            while (items.next()) {
-                soldSeries.getData().add(new XYChart.Data<>(items.getInt("numSold"), items.getString("itemNames")));
-            }
-            salesGraph.getData().add(soldSeries);
-        } catch (SQLException | IllegalArgumentException e) {
-            e.printStackTrace();
+        //x report
+        xReportGraph.getData().clear();
+        XYChart.Series<String, Number> xSeries = new XYChart.Series<>();
+        for (XRecord x : data.getX()) {
+            long numSold = x.getQuantity();
+            String hour = x.getHour();
+            double revenue = x.getRevenue();
+            String label = hour + ":00\nSales: " + numSold + "\nRevenue: $" + revenue;
+            xSeries.getData().add(new XYChart.Data<>(label, numSold));
         }
+        xReportGraph.getData().add(xSeries);
     }
 
+    /*-------------------------------------------Sales Graph-----------------------------------------*/
     /**
      * Opens a dialog to allow the user to change the time period for the sales graph.
      * @param event The ActionEvent triggered when the user selects to change the time period.
+     * @throws IllegalArgumentException if the user enters an invalid time period
      * @author Ashley Hoang
      */
     @FXML
-    public void changeTimePeriod(ActionEvent event) {
+    public void changeSoldTimePeriod(ActionEvent event) {
         // Create a dialog to get the new time period from the user
-        TextInputDialog dialog = new TextInputDialog();
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
         dialog.setTitle("Change Time Period");
-        dialog.setHeaderText("Enter the new time period (in days):");
-        dialog.setContentText("Time Period:");
+        dialog.setHeaderText("Enter the start and end time periods (inclusive):");
 
-        Optional<String> result = dialog.showAndWait();
+        //Ask for time periods
+        TextField startDateField = new TextField();
+        startDateField.setPromptText("ex. 2026-01-31 00:00:00");
+        TextField endDateField = new TextField();
+        endDateField.setPromptText("ex. 2026-01-31 23:59:59");
+
+        //Grid pane
+        GridPane grid = new GridPane();
+        grid.setVgap(10);
+        grid.add(new Label("Start:"), 0, 0);
+        grid.add(startDateField, 1, 0);
+        grid.add(new Label("End:"), 0, 1);
+        grid.add(endDateField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        //when button is clicked, gets the strings of the time
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return new Pair<>(startDateField.getText(), endDateField.getText());
+            }
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
         if (result.isPresent()) {
+            Pair<String, String> times = result.get();
+            String newTimePeriod1 = times.getKey().trim();
+            String newTimePeriod2 = times.getValue().trim();
+
+            if (newTimePeriod1.isEmpty() || newTimePeriod2.isEmpty()) {
+                showError("Invalid Input", "Both start and end time periods are required.", "");
+                return;
+            }
+
             try {
-                int newTimePeriod = Integer.parseInt(result.get().trim());
-                if (newTimePeriod <= 0) throw new NumberFormatException();
-                // Update the sales graph with the new time period
-                updateSalesGraph(newTimePeriod);
-            } catch (NumberFormatException e) {
-                showError("Invalid Input", "Please enter a valid positive integer for the time period.", "");
+                // Update the stock graph with the new time period
+                updateSalesGraph(newTimePeriod1, newTimePeriod2);
+            } catch (IllegalArgumentException e) {
+                showError("Invalid Input", "Please enter valid time periods.", e.getMessage());
             }
         }
     }
 
     /**
      * Updates the sales graph to display the number of items sold within the specified time period.
-     * @param timePeriod The time period (in days) for which to display sales data.
+     * @param timePeriod1 The start time for which to display sales data.
+     * @param timePeriod2 The end time for which to display sales data.
      * @author Ashley Hoang
      */
-    private void updateSalesGraph(int timePeriod) {
+    private void updateSalesGraph(String timePeriod1, String timePeriod2) {
         Task<XYChart.Series<Number, String>> task = new Task<>() {
             @Override
             protected XYChart.Series<Number, String> call() throws Exception {
@@ -286,12 +366,17 @@ public class ManagerController {
                                      "FROM receipt_item ri " +
                                      "JOIN item i ON i.item_id = ri.item_id " +
                                      "JOIN receipt r ON r.receipt_id = ri.receipt_id " +
-                                     "WHERE r.receipt_timestamp >= CURRENT_TIMESTAMP - (? * INTERVAL '1 day') " +
-                                     "GROUP BY i.name, i.item_id ORDER BY i.item_id DESC")) {
-                    pstmt.setInt(1, timePeriod);
+                                     "WHERE r.receipt_timestamp >= CAST(? AS timestamp) AND r.receipt_timestamp <= CAST(? AS timestamp) " +
+                                     "GROUP BY i.name, i.item_id ORDER BY numSold DESC")) {
+                    pstmt.setString(1, timePeriod1);
+                    pstmt.setString(2, timePeriod2);
                     try (ResultSet resultSet = pstmt.executeQuery()) {
                         while (resultSet.next()) {
-                            soldSeries.getData().add(new XYChart.Data<>(resultSet.getInt("numSold"), resultSet.getString("itemNames")));
+                            int numSold = resultSet.getInt("numSold");
+                            String name = resultSet.getString("itemNames");
+                            int id = resultSet.getInt("item_id");
+                            String label = "#" + id + "-" + name + ' ' + numSold;
+                            soldSeries.getData().add(new XYChart.Data<>(numSold, label));
                         }
                     }
                 }
@@ -299,7 +384,7 @@ public class ManagerController {
             }
         };
         task.setOnSucceeded(event -> {
-            salesGraph.setTitle("Items Sold in " + timePeriod + " Day(s)");
+            salesGraph.setTitle("Items Sold in From " + timePeriod1 + " to " + timePeriod2);
             if (controllerActive) {
                 salesGraph.getData().clear();
                 salesGraph.getData().add(task.getValue());
@@ -309,7 +394,7 @@ public class ManagerController {
             if (controllerActive) {
                 Throwable exception = task.getException();
                 exception.printStackTrace();
-                showError("Sales Graph Update Failed", "The sales graph could not be updated.", "Please check the database connection and try again.");
+                showError("Sales Graph Update Failed", "The sales graph could not be updated.", "Please enter valid dates.");
             }
         });
         if (!startTask(task)) {
@@ -317,27 +402,34 @@ public class ManagerController {
         }
     }
     
+    /*-------------------------------------------Stock List-----------------------------------------*/
     /**
-     * Creates a list of stock items from the database and populates the stock list view in the GUI.
-     * @param stockList The ResultSet containing the stock items from the database.
+     * Updates the stock of an inventory item in the database.
+     *
      * @author Ashley Hoang
+     * @return user's inputted change in stock
+     * @throws SQLException             if there is an error with the database query
+     * @throws IllegalArgumentException if there is an error with the list creation
      */
-    @FXML
-    public void createStockList(ResultSet stockList) {
+    public int inputNewStock() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Change Stock");
+        dialog.setHeaderText("Enter the change in stock (add a '-' if decreasing stock): ");
+        dialog.setContentText("Change in stock: ");
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) return 0;
         try {
-            ObservableList<StockItem> stockItems = FXCollections.observableArrayList();
-            while (stockList.next()) {
-                stockItems.add(new StockItem(stockList.getInt("inventory_id"), stockList.getString("name"),
-                        stockList.getInt("stock"), stockList.getInt("min_stock"),
-                        stockList.getString("next_shipment"), stockList.getString("shelf_life")));
-            }
-            stockListView.setItems(stockItems);
-            stockListView.setCellFactory(lv -> new StockListCell(this));
-        } catch (SQLException | IllegalArgumentException e) {
-            e.printStackTrace();
+            int stock = Integer.parseInt(result.get().trim());
+            if ((MAX_ITEM_STOCK) < stock)
+                throw new IllegalArgumentException();
+            return stock;
+        } catch (IllegalArgumentException e) {
+            showDatabaseError("update stock", "Enter a stock from 0 to 99999999 with no decimal places.");
+            return 0;
         }
     }
-
+    
     /**
      * Updates the stock quantity of an item in the database.
      *
@@ -348,8 +440,7 @@ public class ManagerController {
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
-    public void updateStockInDatabase(int inventoryID, int stockDelta,
-            Consumer<StockUpdateResult> callback) {
+    public void updateStockInDatabase(int inventoryID, int stockDelta, Consumer<StockUpdateResult> callback) {
         Task<StockUpdateResult> task = new Task<>() {
             @Override
             protected StockUpdateResult call() throws Exception {
@@ -387,80 +478,123 @@ public class ManagerController {
         }
     }
 
+    /*-------------------------------------------Stock Graph-----------------------------------------*/
     /**
-     * Creates a list of receipts from the database and populates the receipt accordion in the GUI.
-     * @param receipts The ResultSet containing the receipts from the database.
+     * Opens a dialog to allow the user to change the time period for the stock used graph.
+     * @param event The ActionEvent triggered when the user selects to change the time period.
+     * @throws IllegalArgumentException if the user enters an invalid time period
      * @author Ashley Hoang
      */
     @FXML
-    public void createReceiptList(ResultSet receipts) {
-        try {
-            int currentReceiptID = -1;
-            VBox itemList = null;
-            BigDecimal receiptTotal = BigDecimal.ZERO;
-            TitledPane receiptPane = null;
-            while (receipts.next()) {
-                String timestamp = receipts.getString("receipt_timestamp");
-                int receiptID = receipts.getInt("receipt_id");
-                if (receiptID != currentReceiptID) {
-                    if (receiptPane != null)
-                        itemList.getChildren().add(new Label(String.format("Total: $%.2f\n\n%s", receiptTotal, timestamp)));
-                    currentReceiptID = receiptID;
-                    receiptTotal = BigDecimal.ZERO;
-                    itemList = new VBox(5);
-                    itemList.setPadding(new Insets(10));
-                    receiptPane = new TitledPane("Receipt " + receiptID, itemList);
-                    receiptPane.setMaxWidth(Double.MAX_VALUE);
-                    receiptAccordion.getPanes().add(receiptPane);
+    public void changeStockTimePeriod(ActionEvent event) {
+        // Create a dialog to get the new time period from the user
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        dialog.setTitle("Change Time Period");
+        dialog.setHeaderText("Enter the start and end time periods (inclusive):");
+
+        //Ask for time periods
+        TextField startDateField = new TextField();
+        startDateField.setPromptText("ex. 2026-01-31 00:00:00");
+        TextField endDateField = new TextField();
+        endDateField.setPromptText("ex. 2026-01-31 23:59:59");
+
+        //Grid pane
+        GridPane grid = new GridPane();
+        grid.setVgap(10);
+        grid.add(new Label("Start:"), 0, 0);
+        grid.add(startDateField, 1, 0);
+        grid.add(new Label("End:"), 0, 1);
+        grid.add(endDateField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        //when button is clicked, gets the strings of the time
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return new Pair<>(startDateField.getText(), endDateField.getText());
+            }
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            Pair<String, String> times = result.get();
+            String newTimePeriod1 = times.getKey().trim();
+            String newTimePeriod2 = times.getValue().trim();
+
+            if (newTimePeriod1.isEmpty() || newTimePeriod2.isEmpty()) {
+                showError("Invalid Input", "Both start and end time periods are required.", "");
+                return;
+            }
+
+            try {
+                // Update the stock graph with the new time period
+                updateStockGraph(newTimePeriod1, newTimePeriod2);
+            } catch (IllegalArgumentException e) {
+                showError("Invalid Input", "Please enter valid time periods.", e.getMessage());
+            }
+        }
+    }
+    /**
+     * Updates the sales graph to display the number of items sold within the specified time period.
+     * @param timePeriod1 The start time for which to display stock data.
+     * @param timePeriod2 The end time for which to display stock data.
+     * @author Ashley Hoang
+     */
+    private void updateStockGraph(String timePeriod1, String timePeriod2) {
+        Task<XYChart.Series<Number, String>> task = new Task<>() {
+            @Override
+            protected XYChart.Series<Number, String> call() throws Exception {
+                XYChart.Series<Number, String> stockSeries = new XYChart.Series<>();
+                try (Connection conn = getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(
+                            "SELECT i.inventory_id, i.name AS inventoryNames, SUM(ri.quantity) AS stockUsed "
+                            + "FROM receipt_item ri "
+                            + "JOIN item it ON ri.item_id = it.item_id JOIN ingredient_list il ON it.item_id = il.item_id "
+                            + "JOIN inventory i ON il.inventory_id = i.inventory_id JOIN receipt r ON ri.receipt_id = r.receipt_id "
+                            + "WHERE r.receipt_timestamp >= CAST(? AS timestamp) AND r.receipt_timestamp <= CAST(? AS timestamp) "
+                            + "GROUP BY i.inventory_id, i.name ORDER BY stockUsed DESC")) {
+                    pstmt.setString(1, timePeriod1);
+                    pstmt.setString(2, timePeriod2);
+                    try (ResultSet resultSet = pstmt.executeQuery()) {
+                        while (resultSet.next()) {
+                            int stockUsed = resultSet.getInt("stockUsed");
+                            String name = resultSet.getString("inventoryNames");
+                            int id = resultSet.getInt("inventory_id");
+                            String label = "#" + id + "-" + name + ' ' + stockUsed;
+                            stockSeries.getData().add(new XYChart.Data<>(stockUsed, label));
+                        }
+                    }
                 }
-                int itemID = receipts.getInt("item_id");
-                String itemName = receipts.getString("item_name");
-                int quantity = receipts.getInt("quantity");
-                // Checkout stores price_at_sale as the complete line total.
-                BigDecimal lineTotal = receipts.getBigDecimal("price_at_sale");
-                if (lineTotal == null)
-                    lineTotal = BigDecimal.ZERO;
-                receiptTotal = receiptTotal.add(lineTotal);
-                itemList.getChildren().add(new Label(String.format("#%d %s    x%d    $%.2f", itemID, itemName, quantity, lineTotal)));
+                return stockSeries;
             }
-            if (receiptPane != null)
-                itemList.getChildren().add(new Label(String.format("Total: $%.2f", receiptTotal)));
-        } catch (SQLException | IllegalArgumentException e) {
-            e.printStackTrace();
+        };
+        task.setOnSucceeded(event -> {
+            stockGraph.setTitle("Stock Used From " + timePeriod1 + " to " + timePeriod2);
+            if (controllerActive) {
+                stockGraph.getData().clear();
+                stockGraph.getData().add(task.getValue());
+            }
+        });
+        task.setOnFailed(event -> {
+            if (controllerActive) {
+                Throwable exception = task.getException();
+                exception.printStackTrace();
+                showError("Stock Graph Update Failed", "The stock graph could not be updated.", "Please enter valid dates.");
+            }
+        });
+        if (!startTask(task)) {
+            showError("Stock Graph Update Failed", "The database is busy.", "Please try again.");
         }
     }
 
-    /**
-     * Creates and populates the list view of menu items from the database
-     * @param menuList The ResultSet containing the menu items from the database.
-     * @author Ashley Hoang
-     */
-    @FXML
-    public void createMenuList(ResultSet menuList) {
-        try {
-            ObservableList<MenuItem> menuItems = FXCollections.observableArrayList();
-            while (menuList.next()) {
-                int itemID = menuList.getInt("item_id");
-                String itemName = menuList.getString("name");
-                double itemPrice = menuList.getDouble("price");
-
-                MenuItem menuItem = new MenuItem(itemID, itemName, itemPrice);
-                menuItems.add(menuItem);
-            }
-            menuListView.setItems(menuItems);
-            menuListView.setCellFactory(lv -> new MenuListCell(this));
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        }
-    }
-
+    /*-------------------------------------------Menu List-----------------------------------------*/
     /**
      * Updates the price of an item in the database.
      *
      * @author Ashley Hoang
-     * @param itemID   The ID of the item to update.
+     * @return user's inputted price
      * @throws SQLException             if there is an error with the database query
      * @throws IllegalArgumentException if there is an error with the list creation
      */
@@ -521,82 +655,6 @@ public class ManagerController {
             if (controllerActive) showDatabaseError("update price", "The database is busy.");
             callback.accept(null);
         }
-    }
-
-    /**
-     * Starts a task in the database executor.
-     * @param task The task to start.
-     * @return true if the task was started successfully, false otherwise.
-     * @author Pablo Almanza
-     */
-    private boolean startTask(Task<?> task) {
-        try {
-            DATABASE_EXECUTOR.submit(task);
-            return true;
-        } catch (RejectedExecutionException e) {
-            return false;
-        }
-    }
-
-    /**
-     * Gets a connection to the database.
-     * @return A Connection object representing the connection to the database.
-     * @throws SQLException if there is an error with the database connection
-     * @throws ClassNotFoundException if the PostgreSQL JDBC driver class is not found
-     * @author Pablo Almanza
-     */
-    private Connection getConnection() throws SQLException, ClassNotFoundException {
-        Class.forName("org.postgresql.Driver");
-        DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
-        Connection conn = DriverManager.getConnection(DB_URL, DbSetup.user, DbSetup.pswd);
-        conn.setNetworkTimeout(Runnable::run, NETWORK_TIMEOUT_MILLISECONDS);
-        return conn;
-    }
-
-    /**
-     * Shows a database error message in an alert dialog.
-     * @param operation The operation that failed (e.g., "update stock", "add menu item").
-     * @param details Additional details about the error (e.g., "The stock value changed. Current stock: 5").
-     * @author Pablo Almanza
-     */
-    private void showDatabaseError(String operation, String details) {
-        showError("Database Error", "Unable to " + operation, details);
-    }
-
-    /**
-     * Shows a database error message in an alert dialog when the stock update fails due to a stock value change.
-     * @param currentStock The current stock value in the database.
-     * @author Pablo Almanza
-     */
-    public void showStockUpdateFailure(int currentStock) {
-        showDatabaseError("update stock", "The stock value changed. Current stock: " + currentStock);
-    }
-
-    /**
-     * Shows a database error message in an alert dialog when the inventory record no longer exists.
-     * @author Pablo Almanza
-     */
-    public void showMissingInventoryError() {
-        showDatabaseError("update stock", "The inventory record no longer exists.");
-    }
-
-    /**
-     * Displays an error alert dialog with the specified title, header, and details.
-     * @param title The title of the error dialog.
-     * @param header The header of the error dialog.
-     * @param details Additional details about the error.
-     * @author Pablo Almanza
-     */
-    private void showError(String title, String header, String details) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(details);
-        alert.showAndWait();
-    }
-
-    public boolean isActive() {
-        return controllerActive;
     }
 
     /**
@@ -778,6 +836,105 @@ public class ManagerController {
     public void removeMenuItemFromList(MenuItem item) {
         if (menuListView != null) menuListView.getItems().remove(item);
     }
+    
+    /*-------------------------------------------X Report-----------------------------------------*/
+    
+    /**
+     * Updates the X Report Graph.
+     * @author Ashley Hoang
+     * @throws SQLException             if there is an error with the database query
+     */
+    private void updateXReportGraph(){
+        Task<XYChart.Series<String, Number>> task = new Task<>() {
+            @Override
+            protected XYChart.Series<String, Number> call() throws Exception {
+                XYChart.Series<String, Number> xSeries = new XYChart.Series<>();
+                try (Connection conn = getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(
+                            "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
+                            + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
+                            + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
+                            + "WHERE r.receipt_timestamp >= CURRENT_DATE "
+                            + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt " 
+                            + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
+                    try (ResultSet resultSet = pstmt.executeQuery()) {
+                        while (resultSet.next()) {
+                            int numSold = resultSet.getInt("order_count");
+                            String hour = resultSet.getString("hour");
+                            double revenue = resultSet.getDouble("total_sales");
+                            String label = hour + ":00\nSales: " + numSold + "\nRevenue: $" + revenue;
+                            xSeries.getData().add(new XYChart.Data<>(label, numSold));
+                        }
+                    }
+                }
+                return xSeries;
+            }
+        };
+        task.setOnSucceeded(event -> {
+            if (controllerActive) {
+                xReportGraph.getData().clear();
+                xReportGraph.getData().add(task.getValue());
+            }
+        });
+        task.setOnFailed(event -> {
+            if (controllerActive) {
+                Throwable exception = task.getException();
+                exception.printStackTrace();
+                showError("X Report Graph Update Failed", "The X report graph could not be updated.", "Please try again.");
+            }
+        });
+        if (!startTask(task)) {
+            showError("X Report Update Failed", "The database is busy.", "Please try again.");
+        }
+    }
+    
+    /**
+     * From the local time, update X Report Graph hourly
+     * @author Ashley Hoang
+     */
+    private void updateHourly(){
+        LocalTime now = LocalTime.now();
+        int currentMinute = now.getMinute();
+        int currentSecond = now.getSecond();
+        
+        int secondsUntilNextHour = (60 - currentMinute) * 60 - currentSecond;
+
+        hourlyUpdateTimeline = new Timeline(new KeyFrame(Duration.seconds(secondsUntilNextHour), event -> {
+            Platform.runLater(() -> {
+                updateXReportGraph();
+                updateRecurring();
+            });
+        }));
+
+        hourlyUpdateTimeline.setCycleCount(1);
+        hourlyUpdateTimeline.play();
+    }
+
+    /**
+     * Schedules recurring updates for X Report Graph
+     * @author Ashley Hoang
+     */
+    private void updateRecurring() {
+        hourlyUpdateTimeline = new Timeline(new KeyFrame(Duration.hours(1), event -> {
+            Platform.runLater(() -> updateXReportGraph());
+        }));
+        hourlyUpdateTimeline.setCycleCount(Timeline.INDEFINITE);
+        hourlyUpdateTimeline.play();
+    }
+    
+    /*-------------------------------------------Window-----------------------------------------*/
+    /**
+     * Closes the current window.
+     * @param event The ActionEvent triggered when the user clicks the close button.
+     * @author Ashley Hoang
+     */
+    @FXML
+    public void closeWindow(ActionEvent event) {
+        if(hourlyUpdateTimeline != null) hourlyUpdateTimeline.stop();
+        controllerActive = false;
+        Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
+        stage.close();
+    }
 
     /**
      * Changes the view to the cashier view when the corresponding button is
@@ -820,5 +977,86 @@ public class ManagerController {
                     "Please try again or reopen the manager view.");
         }
 
+    }
+    
+    /**
+     * Starts a task in the database executor.
+     * @param task The task to start.
+     * @return true if the task was started successfully, false otherwise.
+     * @author Pablo Almanza
+     */
+    private boolean startTask(Task<?> task) {
+        try {
+            DATABASE_EXECUTOR.submit(task);
+            return true;
+        } catch (RejectedExecutionException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Gets a connection to the database.
+     * @return A Connection object representing the connection to the database.
+     * @throws SQLException if there is an error with the database connection
+     * @throws ClassNotFoundException if the PostgreSQL JDBC driver class is not found
+     * @author Pablo Almanza
+     */
+    private Connection getConnection() throws SQLException, ClassNotFoundException {
+        Class.forName("org.postgresql.Driver");
+        DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
+        Connection conn = DriverManager.getConnection(DB_URL, DbSetup.user, DbSetup.pswd);
+        conn.setNetworkTimeout(Runnable::run, NETWORK_TIMEOUT_MILLISECONDS);
+        return conn;
+    }
+
+    /**
+     * Shows a database error message in an alert dialog.
+     * @param operation The operation that failed (e.g., "update stock", "add menu item").
+     * @param details Additional details about the error (e.g., "The stock value changed. Current stock: 5").
+     * @author Pablo Almanza
+     */
+    private void showDatabaseError(String operation, String details) {
+        showError("Database Error", "Unable to " + operation, details);
+    }
+
+    /**
+     * Shows a database error message in an alert dialog when the stock update fails due to a stock value change.
+     * @param currentStock The current stock value in the database.
+     * @author Pablo Almanza
+     */
+    public void showStockUpdateFailure(int currentStock) {
+        showDatabaseError("update stock", "The stock value changed. Current stock: " + currentStock);
+    }
+
+    /**
+     * Shows a database error message in an alert dialog when the inventory record no longer exists.
+     * @author Pablo Almanza
+     */
+    public void showMissingInventoryError() {
+        showDatabaseError("update stock", "The inventory record no longer exists.");
+    }
+
+    /**
+     * Displays an error alert dialog with the specified title, header, and details.
+     * @param title The title of the error dialog.
+     * @param header The header of the error dialog.
+     * @param details Additional details about the error.
+     * @author Pablo Almanza
+     */
+    private void showError(String title, String header, String details) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(details);
+        alert.showAndWait();
+    }
+
+    /**
+     * Checks whether or not the Manager Controller is currently active
+     * @return if the Manager Controller is currently active
+     * @author Pablo ALmanza
+     */
+    public boolean isActive() {
+        return controllerActive;
     }
 }
