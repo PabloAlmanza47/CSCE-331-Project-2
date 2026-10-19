@@ -82,14 +82,14 @@ public final class CartLine {
      * Calculates the price difference between the cart line
      * and the total price of its individual components.
      *
-     * @return The unit price minus the sum of the component prices.
+     * @return The sum of the component prices minus the unit price.
      */
 
     public BigDecimal discount() {
         BigDecimal listTotal = BigDecimal.ZERO;
         for (MenuRecord component : components)
             listTotal = listTotal.add(component.getPrice());
-        return unitPrice.subtract(listTotal);
+        return listTotal.subtract(unitPrice);
     }
 
     /**
@@ -98,7 +98,6 @@ public final class CartLine {
      *
      * @return A formatted string describing the cart line.
      */
-
     public String describe() {
         String text = quantity + "x " + label;
         if (components.size() > 1) {

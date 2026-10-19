@@ -140,7 +140,7 @@ public class CashierController {
         sideBox.getChildren().add(SIDE_LABEL);
         drinkBox.getChildren().add(DRINK_LABEL);
         if (totalPriceLabel == null) {
-            totalPriceLabel = new Label("Total Price: 0.0$");
+            totalPriceLabel = new Label("Total Price: $0.0");
             cartBox.getChildren().add(totalPriceLabel);
             totalPriceLabel.getStyleClass().add("font");
         }
@@ -232,6 +232,7 @@ public class CashierController {
             button.setStyle(SELECTED_STYLE);
         }
         if (record.getCategoryID() == 2) {
+            for (javafx.scene.Node node : sideBox.getChildren()) node.setStyle("");
             pendingSide = record;
             button.setStyle(SELECTED_STYLE);
         }
