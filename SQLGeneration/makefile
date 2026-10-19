@@ -12,10 +12,10 @@ generator: generator.o
 generator_w: generator_w.o
 		${WXX} ${CXXFLAGS} generator.o -o generate
 
-generator.o: generator.cpp
+generator.o: generator.cpp common.h
 		${CXX} ${CXXFLAGS} -c generator.cpp
 
-generator_w.o: generator.cpp
+generator_w.o: generator.cpp common.h
 		${WXX} ${CXXFLAGS} -c generator.cpp
 
 run: generator
