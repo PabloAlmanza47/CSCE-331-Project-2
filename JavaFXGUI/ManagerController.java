@@ -162,7 +162,7 @@ public class ManagerController {
                             "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
                             + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
                             + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
-                            + "WHERE r.receipt_timestamp >= CURRENT_DATE "
+                            + "WHERE r.receipt_timestamp >= CURRENT_DATE AND r.receipt_timestamp <= date_trunc('hour', current_timestamp)"
                             + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt " 
                             + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
                         while (resultSet.next()) {
@@ -854,7 +854,7 @@ public class ManagerController {
                             "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
                             + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
                             + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
-                            + "WHERE r.receipt_timestamp >= CURRENT_DATE "
+                            + "WHERE r.receipt_timestamp >= CURRENT_DATE AND r.receipt_timestamp <= date_trunc('hour', current_timestamp)"
                             + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt " 
                             + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
                     try (ResultSet resultSet = pstmt.executeQuery()) {
