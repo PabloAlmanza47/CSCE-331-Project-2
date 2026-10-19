@@ -10,7 +10,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import java.util.Comparator;
-
+import javafx.scene.layout.Pane;
 /**
  * This class represents a custom ListCell for displaying StockItem objects in a ListView. 
  * It provides buttons to increase or decrease the stock of the item and updates the display accordingly.
@@ -31,14 +31,16 @@ public class StockListCell extends ListCell<StockItem> {
     public StockListCell(ManagerController controller) {
         this.controller = controller;
         infoLabel = new Label();
+        Pane spacer = new Pane();
         changeStockBtn = new Button("Change Stock");
 
         changeStockBtn.setOnAction(_ -> onChangeButtonPressed());
 
         HBox.setHgrow(changeStockBtn, Priority.NEVER);
         HBox.setHgrow(infoLabel, Priority.ALWAYS);
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        content = new HBox(10, infoLabel, changeStockBtn);
+        content = new HBox(10, infoLabel, spacer, changeStockBtn);
         content.setAlignment(Pos.CENTER_LEFT);
         content.setPadding(new Insets(5));
     }
