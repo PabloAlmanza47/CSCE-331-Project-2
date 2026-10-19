@@ -331,7 +331,8 @@ class Generator {
 
         void writeAll(const char* filename) const;
 
-        void writeFast(ofstream& stream, Scriptable** arr, int arrLen) const;
+        template <typename T>
+        void writeFast(ofstream& stream, const vector<unique_ptr<T>>& arr) const;
 
         void writeTruncatesFast(ofstream& stream) const;
         void writeCategoriesFast(ofstream& stream) const;

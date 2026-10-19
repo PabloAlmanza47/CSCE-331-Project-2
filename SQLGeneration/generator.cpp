@@ -568,14 +568,15 @@ void Generator::generateNDays(int days) {
         generateNextDay();
 }
 
-void Generator::writeFast(ofstream& stream, Scriptable** arr, int arrLen) const {
-    if (arrLen == 0)
+template <typename T>
+void Generator::writeFast(ofstream& stream, const vector<unique_ptr<T>>& arr) const {
+    if (arr.empty())
         return;
 
     stream << arr[0]->toSql() << " VALUES ";
 
-    for (int i = 0; i < arrLen; ++i)
-        stream << arr[i]->toVals() << (i == arrLen - 1 ? ';' : ',');
+    for (size_t i = 0; i < arr.size(); ++i)
+        stream << arr[i]->toVals() << (i == arr.size() - 1 ? ';' : ',');
 }
 
 static void writeIdentitySequenceSync(ofstream& stream) {
@@ -667,12 +668,7 @@ void Generator::writeItems(ofstream& stream) const {
         stream << *(allItems[i]) << '\n';
 }
 void Generator::writeItemsFast(ofstream& stream) const {
-    if (allItemsLen == 0)
-        return;
-
-    stream << allItems[0]->toSql() << " VALUES ";
-    for (int i = 0; i < allItemsLen; ++i)
-        stream << allItems[i]->toVals() << (i == allItemsLen - 1 ? ';' : ',');
+    writeFast(stream, allItems);
 }
 
 void Generator::writeInventory(ofstream& stream) const {
@@ -680,12 +676,7 @@ void Generator::writeInventory(ofstream& stream) const {
         stream << *(allIngredients[i]) << '\n';
 }
 void Generator::writeInventoryFast(ofstream& stream) const {
-    if (allIngredientsLen == 0)
-        return;
-
-    stream << allIngredients[0]->toSql() << " VALUES ";
-    for (int i = 0; i < allIngredientsLen; ++i)
-        stream << allIngredients[i]->toVals() << (i == allIngredientsLen - 1 ? ';' : ',');
+    writeFast(stream, allIngredients);
 }
 
 void Generator::writeInventoryRelations(ofstream& stream) const {
@@ -693,12 +684,7 @@ void Generator::writeInventoryRelations(ofstream& stream) const {
         stream << *(allRelations[i]) << '\n';
 }
 void Generator::writeInventoryRelationsFast(ofstream& stream) const {
-    if (allRelationsLen == 0)
-        return;
-
-    stream << allRelations[0]->toSql() << " VALUES ";
-    for (int i = 0; i < allRelationsLen; ++i)
-        stream << allRelations[i]->toVals() << (i == allRelationsLen - 1 ? ';' : ',');
+    writeFast(stream, allRelations);
 }
 
 void Generator::writeDays(ofstream& stream) const {
@@ -767,12 +753,7 @@ void Generator::writeLocations(ofstream& stream) const {
         stream << *(allLocations[i]) << '\n';
 }
 void Generator::writeLocationsFast(ofstream& stream) const {
-    if (allLocationsLen == 0)
-        return;
-
-    stream << allLocations[0]->toSql() << " VALUES ";
-    for (int i = 0; i < allLocationsLen; ++i)
-        stream << allLocations[i]->toVals() << (i == allLocationsLen - 1 ? ';' : ',');
+    writeFast(stream, allLocations);
 }
 
 void Generator::writeUsers(ofstream& stream) const {
@@ -780,12 +761,7 @@ void Generator::writeUsers(ofstream& stream) const {
         stream << *(allUsers[i]) << '\n';
 }
 void Generator::writeUsersFast(ofstream& stream) const {
-    if (allUsersLen == 0)
-        return;
-
-    stream << allUsers[0]->toSql() << " VALUES ";
-    for (int i = 0; i < allUsersLen; ++i)
-        stream << allUsers[i]->toVals() << (i == allUsersLen - 1 ? ';' : ',');
+    writeFast(stream, allUsers);
 }
 
 void Generator::writeTimetables(ofstream& stream) const {
@@ -793,12 +769,7 @@ void Generator::writeTimetables(ofstream& stream) const {
         stream << *userTimetables[i] << '\n';
 }
 void Generator::writeTimetablesFast(ofstream& stream) const {
-    if (userTimetables.empty())
-        return;
-
-    stream << userTimetables[0]->toSql() << " VALUES ";
-    for (size_t i = 0; i < userTimetables.size(); ++i)
-        stream << userTimetables[i]->toVals() << (i == userTimetables.size() - 1 ? ';' : ',');
+    writeFast(stream, userTimetables);
 }
 
 void Generator::writeTeardown(const char* filename) const {
@@ -837,21 +808,32 @@ void Generator::writeReset(const char* filename) const {
                << "LOCK TABLE category, item, inventory, ingredient_list, receipt, receipt_item, "
                << "location, app_user, user_timetable IN ACCESS EXCLUSIVE MODE;\n";
     writeTruncates(outputFile);
-    writeLocationsFast(outputFile);
-    outputFile << '\n';
-    writeUsersFast(outputFile);
-    outputFile << '\n';
-    writeCategoriesFast(outputFile);
-    outputFile << '\n';
-    writeItemsFast(outputFile);
-    outputFile << '\n';
-    writeInventoryFast(outputFile);
-    outputFile << '\n';
-    writeInventoryRelationsFast(outputFile);
-    outputFile << '\n';
-    writeDaysFast(outputFile);
-    outputFile << '\n';
-    writeTimetablesFast(outputFile);
+    if (FAST_MODE) {
+        writeLocationsFast(outputFile);
+        outputFile << '\n';
+        writeUsersFast(outputFile);
+        outputFile << '\n';
+        writeCategoriesFast(outputFile);
+        outputFile << '\n';
+        writeItemsFast(outputFile);
+        outputFile << '\n';
+        writeInventoryFast(outputFile);
+        outputFile << '\n';
+        writeInventoryRelationsFast(outputFile);
+        outputFile << '\n';
+        writeDaysFast(outputFile);
+        outputFile << '\n';
+        writeTimetablesFast(outputFile);
+    } else {
+        writeLocations(outputFile);
+        writeUsers(outputFile);
+        writeCategories(outputFile);
+        writeItems(outputFile);
+        writeInventory(outputFile);
+        writeInventoryRelations(outputFile);
+        writeDays(outputFile);
+        writeTimetables(outputFile);
+    }
     writeIdentitySequenceSync(outputFile);
     writeLoaderEnd(outputFile);
 
