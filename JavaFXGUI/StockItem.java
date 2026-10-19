@@ -17,6 +17,16 @@ public class StockItem {
     private final StringProperty shelfLife = new SimpleStringProperty();
 
 
+    /**
+     * Creates a stock item with the supplied inventory details.
+     *
+     * @param inventoryID  the inventory item's database ID
+     * @param name         the inventory item's name
+     * @param stock        the current stock quantity
+     * @param minStock     the minimum desired stock quantity
+     * @param nextShipment the next shipment date or description
+     * @param shelfLife    the shelf life information for the item
+     */
     public StockItem(int inventoryID, String name, int stock, int minStock, String nextShipment, String shelfLife) {
         this.inventoryID.set(inventoryID);
         this.name.set(name);
@@ -27,13 +37,48 @@ public class StockItem {
     }
 
     // Getters and setters for each field
+    /**
+     * Returns the inventory item's database ID.
+     *
+     * @return the inventory item ID
+     */
     public int getInventoryID() { return inventoryID.get(); }
+    /**
+     * Returns the inventory item's name.
+     *
+     * @return the inventory item name
+     */
     public String getName() { return name.get(); }
+    /**
+     * Returns the current stock quantity.
+     *
+     * @return the stock quantity
+     */
     public int getStock() { return stock.get(); }
+    /**
+     * Returns the minimum desired stock quantity.
+     *
+     * @return the minimum stock quantity
+     */
     public int getMinStock() { return minStock.get(); }
+    /**
+     * Returns the next shipment date or description.
+     *
+     * @return the next shipment information
+     */
     public String getNextShipment() { return nextShipment.get(); }
+    /**
+     * Returns the shelf life information.
+     *
+     * @return the shelf life information
+     */
     public String getShelfLife() { return shelfLife.get(); }
 
+    /**
+     * Updates the current stock quantity.
+     *
+     * @param value the new stock quantity
+     */
     public void setStock(int value) { stock.set(value); }
 
     /**
