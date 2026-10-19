@@ -3,6 +3,10 @@
     -fx-font-size: 12px;
 }
 
+.tab-pane{
+    -fx-tab-min-height:30px;
+    -fx-tab-max-height:30px;
+}
 .tab-pane .tab-header-area .tab-header-background {
     -fx-background-color:#D61927;
 }
@@ -10,11 +14,11 @@
 .tab-pane .tab{
     -fx-background-color: #D61927;
     -fx-text-fill: grey;
-    -fx-padding: 5;
+    -fx-padding: 10;
 }
 
 .tab-pane .tab-label {
-    -fx-font-size: 15;
+    -fx-font-size: 20;
     -fx-text-fill: #d89490;
     -fx-font-weight: bold;
 }
