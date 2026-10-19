@@ -131,9 +131,16 @@ struct SeasonTime {
     SeasonTime(const SeasonTime& copy) : month(copy.month), day(copy.day) {}
     SeasonTime(SeasonTime&& move) : month(move.month), day(move.day) {}
 
+    static SeasonTime fromTimepoint(const tm* point) noexcept;
+
     string toString() const noexcept;
     friend ostream& operator<<(ostream& os, const SeasonTime& time);
-
+    
+    friend bool operator==(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
+    friend bool operator>(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
+    friend bool operator<(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
+    friend bool operator>=(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
+    friend bool operator<=(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
 };
 
 class Item : public Scriptable {
@@ -270,22 +277,13 @@ class Order : public Scriptable {
         }
 };
 
-struct SeasonalToggle {
-    time_t time;
-    int itemId;
-
-    SeasonalToggle(time_t time, int itemId) : time(time), itemId(itemId) {}
-};
-
 class Generator {
     private:
         // all item pointers, in an array. Sorted by category.
         Item** allItems;
         int allItemsLen;
 
-        vector<SeasonalToggle> itemAvailabilityShifts;
         vector<vector<Item*>> itemByCategory;
-        time_t lastItemTimeChecked;
         vector<int> unavailableItems; // keep sorted!
         int unavailableItemsByCategory[CATEGORY_LENGTH];
 
@@ -397,7 +395,7 @@ class Generator {
 
         void writeOneDay(ofstream& stream, const vector<Order*>& day) const;
 
-        Generator(time_t startDay, const int peakDays) : lastItemTimeChecked(0), current(0), peakDaysLen(peakDays), currentDay(startDay) {
+        Generator(time_t startDay, const int peakDays) : current(0), peakDaysLen(peakDays), currentDay(startDay) {
             this->peakDays = new int[peakDays];
 
             generateItems();

@@ -290,6 +290,11 @@ int User::getUserId() const noexcept {
     return userId;
 }
 
+SeasonTime SeasonTime::fromTimepoint(const tm *point) noexcept {
+    // plus 1 to keep month 1 indexed instead of 0 indexed
+    return {(uint8_t)(point->tm_mon + 1), (uint8_t)point->tm_mday};
+}
+
 string SeasonTime::toString() const noexcept {
     char outp[6] = {(char)(month / 10 + '0'), (char)(month % 10 + '0'),'-', (char)(day / 10 + '0'), (char)(day % 10 + '0'), (char)NULL };
     return outp;
@@ -298,6 +303,22 @@ string SeasonTime::toString() const noexcept {
 ostream& operator<<(ostream& os, const SeasonTime& time) {
     os << time.toString();
     return os;
+}
+
+bool operator==(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month == rhs.month && lhs.day == rhs.day;
+}
+bool operator>(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month > rhs.month || (lhs.month == rhs.month && lhs.day > rhs.day);
+}
+bool operator<(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month < rhs.month || (lhs.month == rhs.month && lhs.day < rhs.day);
+}
+bool operator>=(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month > rhs.month || (lhs.month == rhs.month && lhs.day >= rhs.day);
+}
+bool operator<=(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month < rhs.month || (lhs.month == rhs.month && lhs.day <= rhs.day);
 }
 
 int Item::getId() const noexcept {
@@ -435,9 +456,6 @@ bool Generator::validateOrderItemWithTime(const Item* item, const time_t& time) 
 
     bool outp = (month > start.month || (month == start.month && day >= start.day)) &&
         (month < end.month || (month == end.month && day <= end.day));
-        
-    // if (outp)
-    //     cout << "month = " << month << ", day = " << day << '\n';
 
     return outp;
 }
@@ -620,7 +638,6 @@ void Generator::generateNextDay() {
 }
 
 void Generator::generateNDays(int days) {
-    checkNDaysItemAvailability(days);
     for (int i = 0; i < days; ++i)
         generateNextDay();
 }
@@ -629,26 +646,35 @@ void Generator::checkNextDayItemAvailability() {
     checkNDaysItemAvailability(1);
 }
 
-void Generator::checkNDaysItemAvailability(int days) { // TODO
-    time_t nextDay = currentDay;
-    incNDaysOfTime(nextDay, days);
+void Generator::checkNDaysItemAvailability(int days) {
+    const SeasonTime startTime = SeasonTime::fromTimepoint(localtime(&currentDay)); 
 
-    tm *tp = localtime(&currentDay);
-    const int startMonth = tp->tm_mon + 1; // plus 1 to keep month 1 indexed instead of 0 indexed
-    const int startDay = tp->tm_mday;
-    tp = localtime(&nextDay);
-    const int endMonth = tp->tm_mon + 1; // plus 1 to keep month 1 indexed instead of 0 indexed
-    const int endDay = tp->tm_mday;
+    time_t endDay = currentDay;
+    incNDaysOfTime(endDay, days);
+    const SeasonTime endTime = SeasonTime::fromTimepoint(localtime(&endDay));
+
+    time_t previousDay = currentDay;
+    incNDaysOfTime(previousDay, -1);
+    const SeasonTime startTimeOffset = SeasonTime::fromTimepoint(localtime(&previousDay));
+
+    time_t endDayOffset = currentDay;
+    incNDaysOfTime(endDayOffset, days - 1);
+    const SeasonTime endTimeOffset = SeasonTime::fromTimepoint(localtime(&endDayOffset));
+
+    const bool swappedTimes = endTime < startTime;
+    const bool offsetSwappedTimes = endTimeOffset < startTimeOffset;
 
     for (int i = 0; i < allItemsLen; ++i) {
         const Item *item = allItems[i];
         const SeasonTime& start = item->getStartTime();
         const SeasonTime& end = item->getEndTime();
 
-        const bool itemStarted = (start.month > startMonth || (start.month == startMonth && start.day > startDay)) &&
-                                 (start.month < endMonth || (start.month == endMonth && start.day <= endDay));
-        const bool itemEnded =   (end.month > startMonth || (end.month == startMonth && end.day >= startDay)) &&
-                                 (end.month < endMonth || (end.month == endMonth && end.day < endDay));
+        const bool itemStarted = swappedTimes ?
+                                    start >= startTime || start < endTime :
+                                    start >= startTime && start < endTime;
+        const bool itemEnded   = offsetSwappedTimes ?
+                                    end >= startTimeOffset || end < endTimeOffset :
+                                    end >= startTimeOffset && end < endTimeOffset;
 
         if (itemStarted && itemEnded)
             continue; // If both events happen, they cancel each other out.
