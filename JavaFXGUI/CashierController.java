@@ -121,7 +121,7 @@ public class CashierController {
         sideBox.getChildren().add(SIDE_LABEL);
         drinkBox.getChildren().add(DRINK_LABEL);
         if (totalPriceLabel == null) {
-            totalPriceLabel = new Label("Total Price: 0.0$");
+            totalPriceLabel = new Label("Total Price: $0.0");
             cartBox.getChildren().add(totalPriceLabel);
             totalPriceLabel.getStyleClass().add("font");
         }
