@@ -1,6 +1,5 @@
 import java.sql.*;
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.ArrayList;
@@ -24,7 +23,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.event.ActionEvent;
-import javafx.scene.text.*;
 
 /**
  * Class controller for cashier view fxml
@@ -47,12 +45,8 @@ public class CashierController {
     private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db";
     private String SELECTED_STYLE = "-fx-border-color: #D61927; -fx-font-weight: bold";
     private static final int LOGIN_TIMEOUT_SECONDS = 15;
-    private static final int FONT_SIZE = 20;
     private static final int NETWORK_TIMEOUT_MILLISECONDS = 30000;
-    private static final ExecutorService DATABASE_EXECUTOR = new ThreadPoolExecutor( // TODO: Put this in the
-                                                                                     // constructor with a short
-                                                                                     // explanation for why this is
-                                                                                     // needed.
+    private static final ExecutorService DATABASE_EXECUTOR = new ThreadPoolExecutor( 
             4, 4, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(16),
             runnable -> {
                 Thread thread = new Thread(runnable, "cashier-database-worker");
@@ -63,7 +57,6 @@ public class CashierController {
     private MealSize selectedSize;
     private final List<MenuRecord> pendingMains = new ArrayList<>();
     private MenuRecord pendingSide;
-    private BigDecimal totalPrice = BigDecimal.ZERO;
     private int currentLocationId = 1;
     private int currentUserId = 3;
     private boolean checkoutInProgress;
@@ -90,8 +83,7 @@ public class CashierController {
      *
      * @author Sharaf Mehmood
      * @author Pablo Almanza
-     */ // TODO: Please refactor this, the function is very unclear on what it does and
-        // very ugly.
+     */
     private void runQuery() {
         checkout.setDisable(true);
         Task<List<MenuRecord>> task = new Task<>() {
