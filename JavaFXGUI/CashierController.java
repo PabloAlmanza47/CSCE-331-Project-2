@@ -88,7 +88,6 @@ public class CashierController {
     /**
      * Attempts to connect to the database and load the current menu items.
      *
-     * @author Pablo Almanza
      */ // TODO: Please refactor this, the function is very unclear on what it does and
         // very ugly.
     private void runQuery() {
@@ -381,6 +380,7 @@ public class CashierController {
      * @param quantities maps item IDs to total quantities in the cart
      * @param listPrices maps item IDs to their current menu prices
      * @param totals     maps item IDs to the total amount charged for those items
+     * @author Colby Ideker
      * @author Sharaf Mehmood
      */
 
@@ -402,8 +402,6 @@ public class CashierController {
      * Starts the checkout process by preparing the cart data, disabling checkout
      * controls, and running the database transaction asynchronously.
      *
-     * @author Pablo Almanza
-     * @author Sharaf Mehmood
      */
 
     private void confirmCheckout() {
@@ -442,7 +440,6 @@ public class CashierController {
      * @param task the JavaFX task to execute
      * @return true if the task was submitted successfully, false if the executor
      *         rejected it
-     * @author Pablo Almanza
      */
 
     private boolean startTask(Task<?> task) {
@@ -464,7 +461,6 @@ public class CashierController {
      * @throws SQLException           if the database connection cannot be
      *                                established
      * @throws ClassNotFoundException if the PostgreSQL JDBC driver cannot be loaded
-     * @author Pablo Almanza
      */
 
     private Connection openConnection(String user, String password) throws SQLException, ClassNotFoundException {
@@ -478,7 +474,6 @@ public class CashierController {
     /**
      * Represents the possible outcomes of a checkout database transaction.
      *
-     * @author Pablo Almanza
      */
 
     private enum CheckoutOutcome {
@@ -616,7 +611,6 @@ public class CashierController {
     /**
      * Re-enables the cashier controls after a checkout attempt finishes.
      *
-     * @author Pablo Almanza
      */
 
     private void finishCheckout() {
@@ -635,7 +629,6 @@ public class CashierController {
      *
      * @param title   the alert window title
      * @param details the message displayed in the alert
-     * @author Pablo Almanza
      */
 
     private void showInformation(String title, String details) {
@@ -652,7 +645,6 @@ public class CashierController {
      * @param title   the alert window title
      * @param header  the alert header text
      * @param details the message displayed in the alert
-     * @author Pablo Almanza
      */
 
     private void showError(String title, String header, String details) {

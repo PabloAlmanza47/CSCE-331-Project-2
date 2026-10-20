@@ -27,6 +27,7 @@ public final class CartLine {
      * @param label      The display name of the item.
      * @param unitPrice  The price per unit.
      * @param components The menu items included in the cart line.
+     * @author Sharaf Mehmood
      */
 
     public CartLine(String key, String label, BigDecimal unitPrice, List<MenuRecord> components) {
@@ -41,6 +42,7 @@ public final class CartLine {
      *
      * @param record The menu item to add to the cart.
      * @return A new cart line containing the specified menu item.
+     * @author Sharaf Mehmood
      */
 
     public static CartLine single(MenuRecord record) {
@@ -54,6 +56,7 @@ public final class CartLine {
      * @param entrees The entrees included in the meal.
      * @param side    The side included in the meal.
      * @return A new cart line representing the complete meal.
+     * @author Sharaf Mehmood
      */
 
     public static CartLine meal(MealSize size, List<MenuRecord> entrees, MenuRecord side) {
@@ -72,6 +75,7 @@ public final class CartLine {
      * Calculates the total price of the cart line.
      *
      * @return The unit price multiplied by the quantity.
+     * @author Sharaf Mehmood
      */
 
     public BigDecimal lineTotal() {
@@ -83,6 +87,7 @@ public final class CartLine {
      * and the total price of its individual components.
      *
      * @return The sum of the component prices minus the unit price.
+     * @author Sharaf Mehmood
      */
 
     public BigDecimal discount() {
@@ -97,6 +102,7 @@ public final class CartLine {
      * including its quantity, label, components, and total price.
      *
      * @return A formatted string describing the cart line.
+     * @author Sharaf Mehmood
      */
     public String describe() {
         String text = quantity + "x " + label;

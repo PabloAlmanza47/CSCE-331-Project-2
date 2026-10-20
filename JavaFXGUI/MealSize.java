@@ -22,6 +22,7 @@ public enum MealSize {
      * @param label    label for the size
      * @param mains    number of mains included in the size
      * @param discount discount multiplier for the meal size
+     * @author Sharaf Mehmood
      */
     MealSize(String label, int mains, BigDecimal discount) {
         this.label = label;
