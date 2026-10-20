@@ -14,7 +14,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ManagerController" stylesheets="managerStyle.css">
+<VBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" stylesheets="managerStyle.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ManagerController">
 <HBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" VBox.vgrow="ALWAYS">
 <TabPane tabClosingPolicy="UNAVAILABLE" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
   <tabs>
@@ -23,8 +23,8 @@
       <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
         <children>
           <Button fx:id="changeViewButton4" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton4" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-          <Button fx:id="addItem" layoutX="192.0" layoutY="14.0" mnemonicParsing="false" onAction="#addMenuItem" styleClass="genericStyle" text="Add Menu Item" />
+          <Button fx:id="closeButton4" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="addItem" layoutX="212.0" layoutY="14.0" mnemonicParsing="false" onAction="#addMenuItem" styleClass="genericStyle" text="Add Menu Item" />
             <ListView fx:id="menuListView" layoutX="14.0" layoutY="49.0" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
               <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
               <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
@@ -41,8 +41,8 @@
       <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
         <children>
           <Button fx:id="changeViewButton2" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton2" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-            <ListView fx:id="stockListView" layoutX="14.0" layoutY="49.0" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+          <Button fx:id="closeButton2" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+            <ListView fx:id="stockListView" layoutX="212.0" layoutY="49.0" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
               <AnchorPane.topAnchor>63.0</AnchorPane.topAnchor>
               <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>
               <AnchorPane.rightAnchor>14.0</AnchorPane.rightAnchor>
@@ -57,8 +57,8 @@
       <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
         <children>
           <Button fx:id="changeViewButton4" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton4" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-          <Button fx:id="changeTimePeriodButton1" layoutX="190.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeStockTimePeriod" styleClass="genericStyle" text="Change Time Period" />
+          <Button fx:id="closeButton4" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="changeTimePeriodButton1" layoutX="212.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeStockTimePeriod" styleClass="genericStyle" text="Change Time Period" />
           <BarChart fx:id="stockGraph" layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Products Used in Whole Time Period">
             <xAxis>
               <NumberAxis label="Product Used" tickLabelRotation="0.01" />
@@ -80,7 +80,7 @@
         <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
           <children>
             <Button fx:id="changeViewButton3" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-            <Button fx:id="closeButton3" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+            <Button fx:id="closeButton3" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
                   <ScrollPane fitToHeight="true" fitToWidth="true" AnchorPane.bottomAnchor="14.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="60.0">
                     <content>
                       <VBox fillWidth="true">
@@ -99,8 +99,8 @@
       <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
         <children>
           <Button fx:id="changeViewButton1" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton1" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
-          <Button fx:id="changeTimePeriodButton" layoutX="190.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeSoldTimePeriod" styleClass="genericStyle" text="Change Time Period" />
+          <Button fx:id="closeButton1" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="changeTimePeriodButton" layoutX="212.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeSoldTimePeriod" styleClass="genericStyle" text="Change Time Period" />
           <BarChart fx:id="salesGraph" layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Items Sold in Whole Time Period">
             <xAxis>
               <NumberAxis label="Number Sold" tickLabelRotation="0.01" />
@@ -122,13 +122,13 @@
       <AnchorPane styleClass="genericStyle" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
         <children>
           <Button fx:id="changeViewButton5" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#changeView" styleClass="genericStyle" text="Change View" />
-          <Button fx:id="closeButton5" layoutX="110.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
+          <Button fx:id="closeButton5" layoutX="124.0" layoutY="14.0" mnemonicParsing="false" onAction="#closeWindow" styleClass="genericStyle" text="Close App" />
           <LineChart layoutX="14.0" layoutY="43.0" legendVisible="false" prefHeight="314.0" prefWidth="573.0" title="Sales Per Hour" fx:id="xReportGraph">
             <xAxis>
               <CategoryAxis label="Hour of Operation" />
             </xAxis>
             <yAxis>
-              <NumberAxis label="Number of Sales" />
+              <NumberAxis label="Number of Sales" prefWidth="100.0" />
             </yAxis>
             <AnchorPane.topAnchor>57.0</AnchorPane.topAnchor>
             <AnchorPane.leftAnchor>14.0</AnchorPane.leftAnchor>

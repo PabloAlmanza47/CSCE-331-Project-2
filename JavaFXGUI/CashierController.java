@@ -59,7 +59,7 @@ public class CashierController {
 
     /**
      * Load menu items and initialize button functionality onto the screen
-     * @author // Sharaf Mehmood
+     * @author Sharaf Mehmood
      */
     @FXML 
     public void initialize() {
@@ -121,7 +121,7 @@ public class CashierController {
         sideBox.getChildren().add(SIDE_LABEL);
         drinkBox.getChildren().add(DRINK_LABEL);
         if (totalPriceLabel == null) {
-            totalPriceLabel = new Label("Total Price: 0.0$");
+            totalPriceLabel = new Label("Total Price: $0.0");
             cartBox.getChildren().add(totalPriceLabel);
             totalPriceLabel.getStyleClass().add("font");
         }
@@ -136,8 +136,8 @@ public class CashierController {
     }
 
     /**
-     * Returns an error if loading the areas does not work.
-     * @author // Pablo Almanza
+     * Shows an error if loading the areas does not work.
+     * @author Pablo Almanza
      */
     private void loadBoxesFail(){
         if (!controllerActive) return;
@@ -199,7 +199,8 @@ public class CashierController {
             pendingMains.add(record);
             button.setStyle(SELECTED_STYLE);
         }
-        if (record.getCategoryID() == 2) { 
+        if (record.getCategoryID() == 2) {
+            for (javafx.scene.Node node : sideBox.getChildren()) node.setStyle("");  
             pendingSide = record;
             button.setStyle(SELECTED_STYLE);
         } 
@@ -297,7 +298,7 @@ public class CashierController {
 
     /**
      * Represents what happens on a success with checkout
-     * @param task //
+     * @param task 
      * @author Pablo Almanza
      */
     private void checkoutSuccess(Task<CheckoutOutcome> task){
@@ -330,10 +331,10 @@ public class CashierController {
 
     /**
      * Converts cart line objects into maps to execute checkout
-     * @param quantities // TODO
-     * @param listPrices // TODO
-     * @param totals // TODO
-     * @author // TODO
+     * @param quantities Tree Map of item ID and their quantity
+     * @param listPrices Tree Map of item ID and their normal menu price
+     * @param totals Tree Map of item ID and the total amount to record
+     * @author Sharaf Mehmood, Colby Ideker
      */
     private void flattenCart(TreeMap<Integer, Integer> quantities, TreeMap<Integer, BigDecimal> listPrices,
             TreeMap<Integer, BigDecimal> totals) {
@@ -341,7 +342,21 @@ public class CashierController {
             BigDecimal quantity = BigDecimal.valueOf(line.getQuantity());
             for (int i = 0; i < line.getComponents().size(); i++) {
                 MenuRecord component = line.getComponents().get(i);
-                BigDecimal unitAmount = (i == 0) ? component.getPrice().add(line.discount()) : component.getPrice();
+                //old method of discount either added/subtracted the discount which could result
+                //in errors, this distributes it on protein so it is correct + cant error
+                int proteins = line.getComponents().size()-1;
+                long cents = line.discount().movePointRight(2).longValueExact();
+                BigDecimal unitAmount = component.getPrice();
+                if (i < proteins) {
+                    long share;
+                    if (i == proteins - 1){
+                        share = cents - (cents/proteins) * (proteins-1);
+                    } 
+                    else{
+                        share = cents / proteins;
+                    }
+                    unitAmount = unitAmount.subtract(BigDecimal.valueOf(share, 2));
+                }
                 quantities.merge(component.getItemID(), line.getQuantity(), Integer::sum);
                 listPrices.put(component.getItemID(), component.getPrice());
                 totals.merge(component.getItemID(), unitAmount.multiply(quantity), BigDecimal::add);
@@ -426,6 +441,7 @@ public class CashierController {
      * DESCRIPTION // Updates inventory, receipt, and front end data once checkout button is clicked
      * @param checkoutCart Tree map of item ID's and their quantity 
      * @param checkoutPrices Tree map of item ID's and their prices
+     * @param checkoutTOtals Tree map of item ID's and their total price
      * @return Only returns errors
      * @author Colby Ideker, Pablo Almanza, Sharaf Mehmood
      * Note - Please add helper functions for this, the function is very long and hard to read.
@@ -438,7 +454,7 @@ public class CashierController {
             conn.setAutoCommit(false);
             try {
                 try (PreparedStatement receipt = conn.prepareStatement(
-                        "INSERT INTO receipt (location_id, user_id, receipt_timestamp) VALUES (?, ?, CURRENT_TIMESTAMP) RETURNING receipt_id");
+                        "INSERT INTO receipt (location_id, user_id, receipt_timestamp) VALUES (?, ?, DATE_TRUNC('second', CURRENT_TIMESTAMP)) RETURNING receipt_id");
                         PreparedStatement itemValidation = conn.prepareStatement(
                                 "SELECT i.active, COUNT(il.inventory_id) AS ingredient_count "
                                         + "FROM item i LEFT JOIN ingredient_list il ON il.item_id = i.item_id "
