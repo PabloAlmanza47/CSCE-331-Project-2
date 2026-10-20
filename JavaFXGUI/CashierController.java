@@ -73,7 +73,7 @@ public class CashierController {
 
     /**
      * Attempts to connect to database and load menu items
-     * @author // TODO
+     * @author Pablo Almanza, Sharaf Mehmood
      */
     //TODO: Please refactor this, the function is very unclear on what it does and very ugly.
     private void runQuery() {
@@ -365,8 +365,8 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @author // TODO
+     * Prepares the checkout to take place, disables buttons to prevent mistakes
+     * @author // Pablo Almanza, Sharaf Mahmood
      */
     private void confirmCheckout() {
         if (cartLines.isEmpty() || checkoutInProgress || checkoutOutcomeUncertain) return;
@@ -398,10 +398,10 @@ public class CashierController {
     }
 
     /**
-     * DESCRIPTION // TODO
-     * @param task // TODO
-     * @return // TODO
-     * @author // TODO
+     * Submits a database task to the executor
+     * @param task the JavaFX Task to run on a database thread
+     * @return true if task accepted, false if queue is full / rejected
+     * @author Pablo Almanzza
      */
     private boolean startTask(Task<?> task) {
         try {
