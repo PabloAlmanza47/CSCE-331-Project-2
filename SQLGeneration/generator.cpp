@@ -1048,9 +1048,9 @@ void Generator::writeAllFast(const char* filename) const {
         return;
     }
 
-    writeDestructiveGuard(outputFile);
-    writeLoaderStart(outputFile);
-    writeTruncates(outputFile);
+    // writeDestructiveGuard(outputFile);
+    // writeLoaderStart(outputFile);
+    writeTruncatesFast(outputFile);
     writeLocationsFast(outputFile);
     writeUsersFast(outputFile);
     writeCategoriesFast(outputFile);
@@ -1059,8 +1059,8 @@ void Generator::writeAllFast(const char* filename) const {
     writeInventoryRelationsFast(outputFile);
     writeDaysFast(outputFile);
     writeTimetablesFast(outputFile);
-    writeIdentitySequenceSync(outputFile);
-    writeLoaderEnd(outputFile);
+    // writeIdentitySequenceSync(outputFile);
+    // writeLoaderEnd(outputFile);
 
     outputFile.close();
 }
