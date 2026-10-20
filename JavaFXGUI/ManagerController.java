@@ -162,8 +162,8 @@ public class ManagerController {
                             "SELECT r.receipt_id, i.item_id, i.name AS item_name, ri.quantity,  ri.price_at_sale, r.receipt_timestamp "
                                     + "FROM receipt r JOIN receipt_item ri ON r.receipt_id = ri.receipt_id "
                                     + "JOIN item i ON ri.item_id = i.item_id WHERE r.receipt_id IN "
-                                    + "(SELECT receipt_id FROM receipt ORDER BY receipt_timestamp DESC, receipt_id DESC LIMIT 20) "
-                                    + "ORDER BY r.receipt_timestamp DESC, r.receipt_id DESC, ri.receipt_item_id")) {
+                                    + "(SELECT receipt_id FROM receipt ORDER BY receipt_id DESC LIMIT 20) "
+                                    + "ORDER BY r.receipt_id DESC, ri.receipt_item_id")) {
                         while (resultSet.next()) {
                             // Receipt Record
                             receipts.add(new ReceiptRecord(resultSet.getInt("receipt_id"),

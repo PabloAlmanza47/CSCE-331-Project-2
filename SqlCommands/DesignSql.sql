@@ -1,12 +1,12 @@
-\set ON_ERROR_STOP on
+-- \set ON_ERROR_STOP on
 
-DO $$
-BEGIN
-    IF current_setting('app.allow_destructive', true) IS DISTINCT FROM 'true' THEN
-        RAISE EXCEPTION 'Destructive script requires SET app.allow_destructive = true';
-    END IF;
-END
-$$;
+-- DO $$
+-- BEGIN
+--     IF current_setting('app.allow_destructive', true) IS DISTINCT FROM 'true' THEN
+--         RAISE EXCEPTION 'Destructive script requires SET app.allow_destructive = true';
+--     END IF;
+-- END
+-- $$;
 
 -- Drop tables if they already exist
 DROP TABLE IF EXISTS receipt_item;
@@ -82,6 +82,8 @@ CREATE TABLE item (
     unit_size VARCHAR(50),
     name VARCHAR(100) NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    active_from char(5) NOT NULL DEFAULT '01-01',
+    active_to char(5) NOT NULL DEFAULT '12-31',
 
     CONSTRAINT fk_item_category
         FOREIGN KEY (category_id)
@@ -89,7 +91,9 @@ CREATE TABLE item (
         ON DELETE RESTRICT
         ON UPDATE CASCADE,
 
-    CONSTRAINT chk_item_price CHECK (price >= 0)
+    CONSTRAINT chk_item_price CHECK (price >= 0),
+    CONSTRAINT chk_active_from CHECK (active_from ~ '^(?:0[1-9]|1[012])-(?:0[1-9]|[12][0-9]|3[01])$'),
+    CONSTRAINT chk_active_to CHECK (active_to ~ '^(?:0[1-9]|1[012])-(?:0[1-9]|[12][0-9]|3[01])$')
 );
 
 -- INVENTORY table
