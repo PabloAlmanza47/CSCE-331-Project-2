@@ -116,6 +116,7 @@ public final class CartLine {
      * Gets the identifier associated with the cart line.
      *
      * @return The cart line identifier.
+     * @author Sharaf Mehmood
      */
 
     public String getKey() {
@@ -126,6 +127,7 @@ public final class CartLine {
      * Gets the display label of the cart line.
      *
      * @return The cart line's display label.
+     * @author Sharaf Mehmood
      */
 
     public String getLabel() {
@@ -136,6 +138,7 @@ public final class CartLine {
      * Gets the price per unit of the cart line.
      *
      * @return The unit price.
+     * @author Sharaf Mehmood
      */
 
     public BigDecimal getUnitPrice() {
@@ -146,6 +149,7 @@ public final class CartLine {
      * Gets the menu items included in the cart line.
      *
      * @return The list of menu item components.
+     * @author Sharaf Mehmood
      */
 
     public List<MenuRecord> getComponents() {
@@ -156,6 +160,7 @@ public final class CartLine {
      * Gets the checkbox associated with the cart line.
      *
      * @return The checkbox associated with this cart line.
+     * @author Sharaf Mehmood
      */
 
     public CheckBox getRow() {
@@ -166,6 +171,7 @@ public final class CartLine {
      * Gets the quantity of the cart line.
      *
      * @return The current quantity.
+     * @author Sharaf Mehmood
      */
 
     public int getQuantity() {
@@ -176,6 +182,7 @@ public final class CartLine {
      * Sets the quantity of the cart line.
      *
      * @param q The new quantity.
+     * @author Sharaf Mehmood
      */
 
     public void setQuantity(int q) {
@@ -186,6 +193,7 @@ public final class CartLine {
      * Sets the checkbox associated with the cart line.
      *
      * @param r The checkbox to associate with this cart line.
+     * @author Sharaf Mehmood
      */
 
     public void setRow(CheckBox r) {

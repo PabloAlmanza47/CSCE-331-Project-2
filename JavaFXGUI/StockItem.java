@@ -26,6 +26,7 @@ public class StockItem {
      * @param minStock     the minimum desired stock quantity
      * @param nextShipment the next shipment date or description
      * @param shelfLife    the shelf life information for the item
+     * @author Ashley Hoang
      */
     public StockItem(int inventoryID, String name, int stock, int minStock, String nextShipment, String shelfLife) {
         this.inventoryID.set(inventoryID);
@@ -41,36 +42,42 @@ public class StockItem {
      * Returns the inventory item's database ID.
      *
      * @return the inventory item ID
+     * @author Ashley Hoang
      */
     public int getInventoryID() { return inventoryID.get(); }
     /**
      * Returns the inventory item's name.
      *
      * @return the inventory item name
+     * @author Ashley Hoang
      */
     public String getName() { return name.get(); }
     /**
      * Returns the current stock quantity.
      *
      * @return the stock quantity
+     * @author Ashley Hoang
      */
     public int getStock() { return stock.get(); }
     /**
      * Returns the minimum desired stock quantity.
      *
      * @return the minimum stock quantity
+     * @author Ashley Hoang
      */
     public int getMinStock() { return minStock.get(); }
     /**
      * Returns the next shipment date or description.
      *
      * @return the next shipment information
+     * @author Ashley Hoang
      */
     public String getNextShipment() { return nextShipment.get(); }
     /**
      * Returns the shelf life information.
      *
      * @return the shelf life information
+     * @author Ashley Hoang
      */
     public String getShelfLife() { return shelfLife.get(); }
 
@@ -78,6 +85,7 @@ public class StockItem {
      * Updates the current stock quantity.
      *
      * @param value the new stock quantity
+     * @author Ashley Hoang
      */
     public void setStock(int value) { stock.set(value); }
 

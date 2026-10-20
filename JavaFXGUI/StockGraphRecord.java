@@ -13,6 +13,7 @@ public final class StockGraphRecord {
      * @param id       the inventory item's database ID
      * @param name     the inventory item's name
      * @param quantity the quantity used
+     * @author Ashley Hoang
      */
     public StockGraphRecord(int id, String name, long quantity) {
         this.name = name;
@@ -25,6 +26,7 @@ public final class StockGraphRecord {
      * Returns the inventory item name.
      *
      * @return the inventory item name
+     * @author Ashley Hoang
      */
     public String getName(){
         return name;
@@ -33,6 +35,7 @@ public final class StockGraphRecord {
      * Returns the quantity used.
      *
      * @return the quantity used
+     * @author Ashley Hoang
      */
     public long getQuantity(){
         return quantity;
@@ -41,6 +44,7 @@ public final class StockGraphRecord {
      * Returns the inventory item's database ID.
      *
      * @return the inventory item ID
+     * @author Ashley Hoang
      */
     public int getID(){
         return id;

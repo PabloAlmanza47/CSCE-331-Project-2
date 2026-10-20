@@ -18,6 +18,8 @@ public final class StockUpdateResult {
      *                available
      * @param updated whether the stock update succeeded
      * @param missing whether the inventory record was not found
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
 
     public StockUpdateResult(Integer stock, boolean updated, boolean missing) {
@@ -30,6 +32,8 @@ public final class StockUpdateResult {
      * Returns the updated stock value, when one is available.
      *
      * @return the updated stock value, or null when unavailable
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public Integer getStock() {
         return stock;
@@ -39,6 +43,8 @@ public final class StockUpdateResult {
      * Indicates whether the stock update succeeded.
      *
      * @return true if the stock was updated; otherwise false
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public boolean isUpdated() {
         return updated;
@@ -48,6 +54,8 @@ public final class StockUpdateResult {
      * Indicates whether the inventory record was missing.
      *
      * @return true if the inventory record was not found; otherwise false
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public boolean isMissing() {
         return missing;

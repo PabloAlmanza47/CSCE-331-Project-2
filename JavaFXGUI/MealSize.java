@@ -34,6 +34,7 @@ public enum MealSize {
      * Returns the display label for this meal size.
      *
      * @return the meal size label
+     * @author Sharaf Mehmood
      */
     public String getLabel() {
         return label;
@@ -43,6 +44,7 @@ public enum MealSize {
      * Returns the number of mains included in this meal size.
      *
      * @return the number of mains
+     * @author Sharaf Mehmood
      */
     public int getMains() {
         return mains;
@@ -52,6 +54,7 @@ public enum MealSize {
      * Returns the discount multiplier used for this meal size.
      *
      * @return the discount multiplier
+     * @author Sharaf Mehmood
      */
     public BigDecimal getDiscount() {
         return discount;

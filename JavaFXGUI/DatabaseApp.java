@@ -5,6 +5,7 @@ import javafx.stage.Stage;
 
 /**
  * Starts the JavaFX cashier application.
+ * @author Sharaf Mehmood
  */
 public class DatabaseApp extends Application {
   /**
@@ -18,6 +19,7 @@ public class DatabaseApp extends Application {
    *
    * @param stage the primary stage supplied by JavaFX
    * @throws Exception if the cashier view cannot be loaded
+   * @author Sharaf Mehmood
    */
   @Override
   public void start(Stage stage) throws Exception {
@@ -32,6 +34,7 @@ public class DatabaseApp extends Application {
     * Launches the JavaFX application.
     *
     * @param args command-line arguments passed to the application
+    * @author Sharaf Mehmood
     */
    public static void main(String[] args) {
       launch();

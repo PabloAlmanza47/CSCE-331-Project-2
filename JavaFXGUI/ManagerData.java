@@ -25,6 +25,8 @@ public final class ManagerData {
      * @param receipts    the receipt records
      * @param menu        the menu item records
      * @param x           the hourly X-report records
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
 
     public ManagerData(List<SalesRecord> sales, List<StockRecord> stock, List<StockGraphRecord> productUsed,
@@ -42,6 +44,8 @@ public final class ManagerData {
      * Returns the sales records.
      *
      * @return the sales records displayed by the manager view
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public List<SalesRecord> getSales() {
         return sales;
@@ -51,6 +55,8 @@ public final class ManagerData {
      * Returns the inventory records.
      *
      * @return the current inventory records
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public List<StockRecord> getStock() {
         return stock;
@@ -60,6 +66,8 @@ public final class ManagerData {
      * Returns the stock usage records used for graphing.
      *
      * @return the stock usage records
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public List<StockGraphRecord> getStockGraphRecord() {
         return productUsed;
@@ -69,6 +77,8 @@ public final class ManagerData {
      * Returns the receipt records.
      *
      * @return the receipt records displayed by the manager view
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public List<ReceiptRecord> getReceipts() {
         return receipts;
@@ -78,6 +88,8 @@ public final class ManagerData {
      * Returns the active menu records.
      *
      * @return the menu records displayed by the manager view
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public List<MenuRecord> getMenu() {
         return menu;
@@ -87,6 +99,8 @@ public final class ManagerData {
      * Returns the hourly X-report records.
      *
      * @return the hourly X-report records
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public List<XRecord> getX() {
         return x;

@@ -21,6 +21,8 @@ public final class StockRecord {
      * @param minStock     the minimum desired stock quantity
      * @param nextShipment the next shipment date or description
      * @param shelfLife    the shelf life information for the item
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
 
     public StockRecord(int inventoryID, String name, int stock, int minStock,
@@ -38,6 +40,8 @@ public final class StockRecord {
      * Returns the inventory item's database ID.
      *
      * @return the inventory item ID
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public int getInventoryID() {
         return inventoryID;
@@ -47,6 +51,8 @@ public final class StockRecord {
      * Returns the inventory item's name.
      *
      * @return the inventory item name
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public String getName() {
         return name;
@@ -56,6 +62,8 @@ public final class StockRecord {
      * Returns the current stock quantity.
      *
      * @return the stock quantity
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public int getStock() {
         return stock;
@@ -65,6 +73,8 @@ public final class StockRecord {
      * Returns the minimum desired stock quantity.
      *
      * @return the minimum stock quantity
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public int getMinStock() {
         return minStock;
@@ -74,6 +84,8 @@ public final class StockRecord {
      * Returns the next shipment date or description.
      *
      * @return the next shipment information
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public String getNextShipment() {
         return nextShipment;
@@ -83,6 +95,8 @@ public final class StockRecord {
      * Returns the shelf life information.
      *
      * @return the shelf life information
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public String getShelfLife() {
         return shelfLife;

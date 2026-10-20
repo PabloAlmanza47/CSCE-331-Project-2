@@ -15,6 +15,8 @@ public final class SalesRecord {
      * @param id       the item's database ID
      * @param name     the item's name
      * @param quantity the quantity of the item sold
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
 
     public SalesRecord(int id, String name, long quantity) {
@@ -28,6 +30,8 @@ public final class SalesRecord {
      * Returns the item name.
      *
      * @return the item name
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public String getName() {
         return name;
@@ -37,6 +41,8 @@ public final class SalesRecord {
      * Returns the quantity sold.
      *
      * @return the quantity sold
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public long getQuantity() {
         return quantity;
@@ -46,6 +52,8 @@ public final class SalesRecord {
      * Returns the item's database ID.
      *
      * @return the item ID
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public int getID() {
         return id;

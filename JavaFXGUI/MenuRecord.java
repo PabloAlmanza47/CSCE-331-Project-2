@@ -19,6 +19,8 @@ public final class MenuRecord {
      * @param price      the item's price
      * @param name       the item's name
      * @param categoryID the item's category ID
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
 
     public MenuRecord(int itemID, BigDecimal price, String name, int categoryID) {
@@ -32,6 +34,8 @@ public final class MenuRecord {
      * Returns the menu item's database ID.
      *
      * @return the menu item ID
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public int getItemID() {
         return itemID;
@@ -41,6 +45,8 @@ public final class MenuRecord {
      * Returns the menu item's price.
      *
      * @return the menu item price
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public BigDecimal getPrice() {
         return price;
@@ -50,6 +56,8 @@ public final class MenuRecord {
      * Returns the menu item's name.
      *
      * @return the menu item name
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public String getName() {
         return name;
@@ -59,6 +67,8 @@ public final class MenuRecord {
      * Returns the menu item's category ID.
      *
      * @return the menu item category ID
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public int getCategoryID() {
         return categoryID;

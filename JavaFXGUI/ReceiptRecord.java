@@ -23,6 +23,8 @@ public final class ReceiptRecord {
      * @param quantity  the quantity purchased
      * @param lineTotal the total price for this receipt line
      * @param timestamp the receipt timestamp
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
 
     public ReceiptRecord(int receiptID, int itemID, String itemName, int quantity, BigDecimal lineTotal,
@@ -40,6 +42,8 @@ public final class ReceiptRecord {
      * Returns the receipt's database ID.
      *
      * @return the receipt ID
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public int getReceiptID() {
         return receiptID;
@@ -49,6 +53,8 @@ public final class ReceiptRecord {
      * Returns the purchased item's name.
      *
      * @return the item name
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public String getItemName() {
         return itemName;
@@ -58,6 +64,8 @@ public final class ReceiptRecord {
      * Returns the purchased quantity.
      *
      * @return the quantity
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public int getQuantity() {
         return quantity;
@@ -67,6 +75,8 @@ public final class ReceiptRecord {
      * Returns the total for this receipt line.
      *
      * @return the line total
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public BigDecimal getLineTotal() {
         return lineTotal;
@@ -76,6 +86,8 @@ public final class ReceiptRecord {
      * Returns the purchased item's database ID.
      *
      * @return the item ID
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public int getItemID() {
         return itemID;
@@ -85,6 +97,8 @@ public final class ReceiptRecord {
      * Returns the receipt timestamp.
      *
      * @return the timestamp
+     * @author Pablo Almanza
+     * @author Ashley Hoang
      */
     public String getTimestamp() {
         return timestamp;

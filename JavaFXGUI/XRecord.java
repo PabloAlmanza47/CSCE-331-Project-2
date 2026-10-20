@@ -13,6 +13,7 @@ public final class XRecord {
      * @param hour     the hour represented by the record
      * @param quantity the number of orders during the hour
      * @param revenue  the revenue during the hour
+     * @author Ashley Hoang
      */
     public XRecord(String hour, long quantity, double revenue) {
         this.hour = hour;
@@ -25,6 +26,7 @@ public final class XRecord {
      * Returns the represented hour.
      *
      * @return the represented hour
+     * @author Ashley Hoang
      */
     public String getHour(){
         return hour;
@@ -33,6 +35,7 @@ public final class XRecord {
      * Returns the number of orders during the hour.
      *
      * @return the number of orders during the hour
+     * @author Ashley Hoang
      */
     public long getQuantity(){
         return quantity;
@@ -41,6 +44,7 @@ public final class XRecord {
      * Returns the revenue during the hour.
      *
      * @return the revenue during the hour
+     * @author Ashley Hoang
      */
     public double getRevenue(){
         return revenue;
