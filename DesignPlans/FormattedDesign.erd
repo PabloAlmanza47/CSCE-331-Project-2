@@ -28,6 +28,8 @@ erDiagram
         decimal price
         string unit_size
         string name
+        datetime active_from
+        datetime active_to
     }
 
     INVENTORY {

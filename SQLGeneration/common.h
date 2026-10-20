@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <ctime>
+#include <cstring>
 #include <random>
 
 // ENUM LENGTHS (no easy way to dynamically get this)
@@ -123,23 +124,47 @@ class Ingredient : public Scriptable {
 
 };
 
+struct SeasonTime {
+    const char month;
+    const char day;
+
+    SeasonTime(uint8_t month, uint8_t day) : month(month), day(day) {}
+    SeasonTime(const SeasonTime& copy) : month(copy.month), day(copy.day) {}
+    SeasonTime(SeasonTime&& move) : month(move.month), day(move.day) {}
+
+    static SeasonTime fromTimepoint(const tm* point) noexcept;
+
+    string toString() const noexcept;
+    friend ostream& operator<<(ostream& os, const SeasonTime& time);
+    
+    friend bool operator==(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
+    friend bool operator>(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
+    friend bool operator<(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
+    friend bool operator>=(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
+    friend bool operator<=(const SeasonTime& lhs, const SeasonTime& rhs) noexcept;
+};
+
 class Item : public Scriptable {
     private:
         int id;
         ItemCategory category;
         float price;
         string name;
+        const SeasonTime startTime;
+        const SeasonTime endTime;
 
     public:
-        Item(int id, ItemCategory category, float price, const string& name) : id(id), category(category), price(price), name(name) {}
-        Item(ItemCategory category, float price, const string& name) : id(getId()), category(category), price(price), name(name) {}
-        Item(Item& copy) {
+        Item(int id, ItemCategory category, float price, const string& name) : id(id), category(category), price(price), name(name), startTime(1,1), endTime(12,31) {}
+        Item(ItemCategory category, float price, const string& name) : id(getId()), category(category), price(price), name(name), startTime(1,1), endTime(12,31) {}
+        Item(int id, ItemCategory category, float price, const string& name, const SeasonTime& start, const SeasonTime& end) : id(id), category(category), price(price), name(name), startTime(start), endTime(end) {}
+        Item(ItemCategory category, float price, const string& name, const SeasonTime& start, const SeasonTime& end) : id(getId()), category(category), price(price), name(name), startTime(start), endTime(end) {}
+        Item(const Item& copy) : startTime(copy.startTime), endTime(copy.endTime) {
             id = copy.id;
             category = copy.category;
             price = copy.price;
             name = string(copy.name.c_str());
         }
-        Item(Item&& move) {
+        Item(Item&& move) : startTime(std::move(move.startTime)), endTime(std::move(move.endTime)) {
             id = move.id;
             category = move.category;
             price = move.price;
@@ -152,6 +177,8 @@ class Item : public Scriptable {
         int getId() const noexcept;
         float getPrice() const noexcept;
         ItemCategory getCategory() const noexcept;
+        const SeasonTime& getStartTime() const noexcept;
+        const SeasonTime& getEndTime() const noexcept;
 };
 
 struct IngredientRelation : public Scriptable {
@@ -244,35 +271,29 @@ class Order : public Scriptable {
 
 class Generator {
     private:
-        // all item pointers, in an array. Sorted by category.
-        vector<unique_ptr<Item>> allItems;
-        int allItemsLen = 0;
+        // all item pointers, in an array.
+        vector<shared_ptr<Item>> allItems;
+
+        vector<vector<shared_ptr<Item>>> itemByCategory;
+        vector<int> unavailableItems; // keep sorted!
+        int unavailableItemsByCategory[CATEGORY_LENGTH];
 
         // all ingredient points, in an array.
         vector<unique_ptr<Ingredient>> allIngredients;
-        int allIngredientsLen = 0;
 
         // all ingredient relations, in an array.
         vector<unique_ptr<IngredientRelation>> allRelations;
-        int allRelationsLen = 0;
-
-        // How many items are in each category.
-        int categoryLens[CATEGORY_LENGTH];
 
         // which days are peak days.
         vector<int> peakDays;
         // when the next peak day is (if this equals peakDaysLen then there are no more peak days).
-        int current;
-        // length of the peakDays array.
-        int peakDaysLen;
+        size_t current;
 
         // all used panda express locations 
         vector<unique_ptr<Location>> allLocations;
-        int allLocationsLen = 0;
 
         // all employees
         vector<unique_ptr<User>> allUsers;
-        int allUsersLen = 0;
 
         // all employee time records
         vector<unique_ptr<Timetable>> userTimetables;
@@ -294,7 +315,6 @@ class Generator {
 
         uniform_real_distribution<double> percentGen;
         uniform_int_distribution<int> itemsInOrder;
-        uniform_int_distribution<int> itemChoice;
         uniform_int_distribution<int> ordersPerDay;
 
         normal_distribution<float> lunchOrderTimes;
@@ -312,9 +332,22 @@ class Generator {
         void regenerateOrderObject(OrderObject* order, int count, ItemCategory category);
         unique_ptr<Order> generateOrder(time_t timeOfOrder);
 
+        static bool validateOrderItemWithTime(const Item* item, const time_t& time) noexcept;
+        bool validateOrderItem(const Item* item) const noexcept;
+
+        void checkInitialAvailability() noexcept;
+
     public:
+        static char timeBuf[128];
+
+        static void incNDaysOfTime(time_t& time, int days) noexcept;
+        static void incDayOfTime(time_t& time) noexcept;
+
         void generateNextDay();
         void generateNDays(int days);
+
+        void checkNextDayItemAvailability();
+        void checkNDaysItemAvailability(int days);
 
         void writeTruncates(ofstream& stream) const;
 
@@ -333,6 +366,8 @@ class Generator {
 
         template <typename T>
         void writeFast(ofstream& stream, const vector<unique_ptr<T>>& arr) const;
+        template <typename T>
+        void writeFast(ofstream& stream, const vector<shared_ptr<T>>& arr) const;
 
         void writeTruncatesFast(ofstream& stream) const;
         void writeCategoriesFast(ofstream& stream) const;
@@ -346,7 +381,9 @@ class Generator {
 
         void writeAllFast(const char* filename) const;
 
-        Generator(time_t startDay, const int peakDays) : current(0), peakDaysLen(peakDays), currentDay(startDay) {
+        void writeOneDay(ofstream& stream, const vector<unique_ptr<Order>>& day) const;
+
+        Generator(time_t startDay, const int peakDays) : current(0), currentDay(startDay) {
             this->peakDays.resize(peakDays);
 
             generateItems();
@@ -361,10 +398,12 @@ class Generator {
             generateIngredientRelations();
 
             // Just select a random location for now.
-            currentLocation = allLocations[(int)std::round(percentGen(rngSeed) * (allLocationsLen - 1))].get();
+            currentLocation = allLocations[(int)std::round(percentGen(rngSeed) * (allLocations.size() - 1))].get();
 
             // Just select a random user for now.
-            currentUser = allUsers[(int)std::round(percentGen(rngSeed) * (allUsersLen - 1))].get();
+            currentUser = allUsers[(int)std::round(percentGen(rngSeed) * (allUsers.size() - 1))].get();
+            
+            checkInitialAvailability();
         }
         Generator() : Generator(0, 0) {}
 

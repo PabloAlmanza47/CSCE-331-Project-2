@@ -26,3 +26,4 @@ clean:
 	rm -f *.o
 	rm -f generate
 	rm -f ../SqlCommands/Script.sql
+	rm -f ../SqlCommands/Reset.sql

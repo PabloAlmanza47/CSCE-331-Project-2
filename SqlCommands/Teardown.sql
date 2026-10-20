@@ -1,5 +1,4 @@
 \set ON_ERROR_STOP on
-
 DO $$
 BEGIN
     IF current_setting('app.allow_destructive', true) IS DISTINCT FROM 'true' THEN
@@ -7,8 +6,6 @@ BEGIN
     END IF;
 END
 $$;
-
--- Drop tables if they already exist
 DROP TABLE IF EXISTS receipt_item;
 DROP TABLE IF EXISTS receipt;
 DROP TABLE IF EXISTS ingredient_list;

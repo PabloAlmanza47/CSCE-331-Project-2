@@ -56,7 +56,7 @@ const int MAX_BY_CATEGORY[CATEGORY_LENGTH] = {MAX_AMOUNT_OF_ENTREES, MAX_AMOUNT_
 int main() {
     try {
     //The timespan will be LENGTH_IN_DAYS days before now to now.
-    time_t startTime = time(nullptr) - 86'400 * LENGTH_IN_DAYS;
+    time_t startTime = time(nullptr) - 86'400 * 30;
     tm* timeinfo = std::localtime(&startTime);
     startTime = startTime - (timeinfo->tm_hour * 3'600 + timeinfo->tm_min * 60 + timeinfo->tm_sec);
     unique_ptr<Generator> g = make_unique<Generator>(startTime, NUMBER_OF_PEAK_DAYS);
@@ -83,6 +83,9 @@ int main() {
 
 //Init currentId before it is used.
     int Scriptable::currentId = 0;
+
+//Init the global time buffer.
+    char Generator::timeBuf[128];
 
 // SQL CONVERT FUNCTIONS
 
@@ -138,7 +141,7 @@ string User::toVals() const noexcept {
 }
 
 string Item::toSql() const noexcept {
-    return "INSERT INTO item (item_id, category_id, price, name)";
+    return "INSERT INTO item (item_id, category_id, price, name, active_from, active_to)";
 }
 string Item::toVals() const noexcept {
     string outp{"("};
@@ -150,6 +153,7 @@ string Item::toVals() const noexcept {
     outp += std::to_string(price);
     outp += ", ";
     outp += '\'' + escapeSql(name) + '\'';
+    outp += ", '" + escapeSql(startTime.toString()) + "', '" + escapeSql(endTime.toString()) + '\'';
 
     return outp + ")";
 }
@@ -306,6 +310,37 @@ int User::getUserId() const noexcept {
     return userId;
 }
 
+SeasonTime SeasonTime::fromTimepoint(const tm *point) noexcept {
+    // plus 1 to keep month 1 indexed instead of 0 indexed
+    return {(uint8_t)(point->tm_mon + 1), (uint8_t)point->tm_mday};
+}
+
+string SeasonTime::toString() const noexcept {
+    char outp[6] = {(char)(month / 10 + '0'), (char)(month % 10 + '0'),'-', (char)(day / 10 + '0'), (char)(day % 10 + '0'), (char)NULL };
+    return outp;
+}
+
+ostream& operator<<(ostream& os, const SeasonTime& time) {
+    os << time.toString();
+    return os;
+}
+
+bool operator==(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month == rhs.month && lhs.day == rhs.day;
+}
+bool operator>(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month > rhs.month || (lhs.month == rhs.month && lhs.day > rhs.day);
+}
+bool operator<(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month < rhs.month || (lhs.month == rhs.month && lhs.day < rhs.day);
+}
+bool operator>=(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month > rhs.month || (lhs.month == rhs.month && lhs.day >= rhs.day);
+}
+bool operator<=(const SeasonTime& lhs, const SeasonTime& rhs) noexcept {
+    return lhs.month < rhs.month || (lhs.month == rhs.month && lhs.day <= rhs.day);
+}
+
 int Item::getId() const noexcept {
     return id;
 }
@@ -316,6 +351,14 @@ float Item::getPrice() const noexcept {
 
 ItemCategory Item::getCategory() const noexcept {
     return category;
+}
+
+const SeasonTime& Item::getStartTime() const noexcept {
+    return startTime;
+}
+
+const SeasonTime& Item::getEndTime() const noexcept {
+    return endTime;
 }
 
 void OrderObject::setParentId(int id) {
@@ -359,7 +402,6 @@ void Generator::setupRandomGenerators() {
     percentGen = uniform_real_distribution<double>(0.0, 1.0);
 
     itemsInOrder = uniform_int_distribution<int>(MIN_ITEMS_PER_ORDER, MAX_ITEMS_PER_ORDER);
-    itemChoice = uniform_int_distribution<int>(0, allItemsLen - 1);
     ordersPerDay = uniform_int_distribution<int>(MIN_ORDERS_PER_DAY, MAX_ORDERS_PER_DAY);
 
     lunchOrderTimes = normal_distribution<float>(PEAK_LUNCH_TIME_UNIX, 3'600 * 2);
@@ -367,12 +409,13 @@ void Generator::setupRandomGenerators() {
     orderChoice = bernoulli_distribution(0.65f);
 
     cout << "The peak days are on ";
-    for (int i = 0, prev = 0; i < peakDaysLen; ++i) {
-        if (peakDaysLen > 2 && i != 0 && i != peakDaysLen - 1)
+    int prev = 0;
+    for (size_t i = 0; i < peakDays.size(); ++i) {
+        if (peakDays.size() > 2 && i != 0 && i != peakDays.size() - 1)
             cout << ", ";
-        if (i == peakDaysLen - 1)
+        if (i == peakDays.size() - 1)
             cout << " and ";
-        peakDays[i] = std::round(percentGen(rngSeed) * (LENGTH_IN_DAYS - prev - peakDaysLen + i)) + prev;
+        peakDays[i] = std::round(percentGen(rngSeed) * (LENGTH_IN_DAYS - prev - peakDays.size() + i)) + prev;
         if (peakDays[i] == prev)
             ++(peakDays[i]);
         prev = peakDays[i];
@@ -382,9 +425,15 @@ void Generator::setupRandomGenerators() {
 }
 
 unique_ptr<OrderObject> Generator::generateOrderObject(int counts[]) {
+    int unavailable = unavailableItems.size();
+    int itemId = round(percentGen(rngSeed) * (allItems.size() - 1 - unavailable)) + 1;
 
-    int itemIndex = itemChoice(rngSeed);
-    Item* itemPointer = allItems[itemIndex].get();
+    for (int i = 0; i < unavailable; ++i)
+        if (unavailableItems[i] <= itemId)
+            ++itemId;
+        else break;
+
+    Item* itemPointer = allItems[itemId - 1].get(); 
     ItemCategory category = itemPointer->getCategory();
 
     int max = MAX_BY_CATEGORY[category] - counts[category];
@@ -395,18 +444,45 @@ unique_ptr<OrderObject> Generator::generateOrderObject(int counts[]) {
 }
 
 void Generator::regenerateOrderObject(OrderObject* order, int count, ItemCategory category) {
-    int itemId = 1;
+    int unavailable = unavailableItemsByCategory[category];
+    int itemIndex = std::round(percentGen(rngSeed) * (itemByCategory[category].size() - (1 + unavailable)));
 
-    for (int i = 0; i < category; ++i)
-        itemId += categoryLens[i];
+    Item *item = itemByCategory[category][itemIndex].get();
+    int itemId = item->getId();
 
-    itemId += std::round(percentGen(rngSeed) * (categoryLens[category] - 1));
+    int skipIndex = 0;
+    for (uint8_t i = 0; i < category; ++i)
+        skipIndex += unavailableItemsByCategory[i];
+    for (int i = 0; i < unavailable; ++i)
+        if (unavailableItems[skipIndex + i] <= itemId)
+            ++itemId;
+        else break;
 
-    order->getItemId() = itemId;
-    order->getItem() = allItems[itemId - 1].get();
+    item = allItems[itemId - 1].get();
+
+    order->getItemId() = item->getId();
+    order->getItem() = item;
 
     int max = MAX_BY_CATEGORY[category] - count;
     order->getAmount() = max <= 1 ? 1 : std::round(percentGen(rngSeed) * (max - 1)) + 1;
+}
+
+bool Generator::validateOrderItemWithTime(const Item* item, const time_t& time) noexcept {
+    const SeasonTime& start = item->getStartTime();
+    const SeasonTime& end = item->getEndTime();
+    
+    tm* timepoint = std::localtime(&time);
+    int month = timepoint->tm_mon + 1;
+    int day = timepoint->tm_mday;
+
+    bool outp = (month > start.month || (month == start.month && day >= start.day)) &&
+        (month < end.month || (month == end.month && day <= end.day));
+
+    return outp;
+}
+
+bool Generator::validateOrderItem(const Item* item) const noexcept {
+    return validateOrderItemWithTime(item, currentDay);
 }
 
 unique_ptr<Order> Generator::generateOrder(time_t timeOfOrder) {
@@ -508,10 +584,30 @@ unique_ptr<Order> Generator::generateOrder(time_t timeOfOrder) {
         userTimetables.push_back(std::make_unique<Timetable>(currentUser->getUserId(), currentLocation->getId(), clockInTime, clockOutTime));
         clockInTime = clockOutTime;
         clockOutTime += WORKSHIFT_SECONDS; 
-        currentUser = currentUser->getUserId() == allUsersLen ? allUsers[0].get() : allUsers[currentUser->getUserId()].get();
+        currentUser = currentUser->getUserId() == (int)allUsers.size() ? allUsers[0].get() : allUsers[currentUser->getUserId()].get();
     }
 
     return o;
+}
+
+void Generator::incNDaysOfTime(time_t &time, int days) noexcept {
+    tm *tp = localtime(&time);
+
+    int hourDelta = 12 - tp->tm_hour;
+    if (hourDelta > 0)
+        tp->tm_hour += hourDelta;
+
+    tp->tm_mday += days; // Increment days
+    tp->tm_isdst = -1; // auto check if dst.
+
+    time = mktime(tp);
+
+    if (hourDelta > 0)
+        time -= 3'600 * hourDelta;
+}
+
+void Generator::incDayOfTime(time_t &time) noexcept {
+    incNDaysOfTime(time, 1);
 }
 
 void Generator::generateNextDay() {
@@ -521,10 +617,12 @@ void Generator::generateNextDay() {
     size_t numOfOrders = ordersPerDay(rngSeed);
     int totalOrders = orders.size();
 
-    if (current < peakDaysLen && peakDays[current] <= totalOrders) {
+    if (current < peakDays.size() && peakDays[current] <= totalOrders) {
         numOfOrders *= 2;
         ++current;
     }
+
+    checkNextDayItemAvailability();
 
     vector<unique_ptr<Order>> ordersToday;
     ordersToday.reserve(numOfOrders);
@@ -547,18 +645,10 @@ void Generator::generateNextDay() {
     // 30 min = 1,800 seconds
     if (currentDay - clockInTime >= 1'800) {
         userTimetables.push_back(std::make_unique<Timetable>(currentUser->getUserId(), currentLocation->getId(), clockInTime, clockOutTime));
-        currentUser = currentUser->getUserId() == allUsersLen ? allUsers[0].get() : allUsers[currentUser->getUserId()].get();
+        currentUser = currentUser->getUserId() == (int)allUsers.size() ? allUsers[0].get() : allUsers[currentUser->getUserId()].get();
     }
 
-    // Use end of day because DST happens at 2 AM instead of midnight.
-    // 82'800 = 23 hours in seconds.
-    time_t endOfCurrentDay = currentDay + 82'800;
-    tm* currentTimepoint = std::localtime(&endOfCurrentDay);
-    currentTimepoint->tm_mday += 1; // Increment day
-    currentTimepoint->tm_isdst = -1; // auto check if dst.
-
-    // Adjust the time back to midnight.
-    currentDay = std::mktime(currentTimepoint) - 82'800;
+    incDayOfTime(currentDay);
 
     orders.push_back(std::move(ordersToday));
 }
@@ -568,8 +658,95 @@ void Generator::generateNDays(int days) {
         generateNextDay();
 }
 
+void Generator::checkNextDayItemAvailability() {
+    checkNDaysItemAvailability(1);
+}
+
+void Generator::checkNDaysItemAvailability(int days) {
+    const SeasonTime startTime = SeasonTime::fromTimepoint(localtime(&currentDay)); 
+
+    time_t endDay = currentDay;
+    incNDaysOfTime(endDay, days);
+    const SeasonTime endTime = SeasonTime::fromTimepoint(localtime(&endDay));
+
+    time_t previousDay = currentDay;
+    incNDaysOfTime(previousDay, -1);
+    const SeasonTime startTimeOffset = SeasonTime::fromTimepoint(localtime(&previousDay));
+
+    time_t endDayOffset = currentDay;
+    incNDaysOfTime(endDayOffset, days - 1);
+    const SeasonTime endTimeOffset = SeasonTime::fromTimepoint(localtime(&endDayOffset));
+
+    const bool swappedTimes = endTime < startTime;
+    const bool offsetSwappedTimes = endTimeOffset < startTimeOffset;
+
+    for (size_t i = 0; i < allItems.size(); ++i) {
+        const Item *item = allItems[i].get();
+        const SeasonTime& start = item->getStartTime();
+        const SeasonTime& end = item->getEndTime();
+
+        const bool itemStarted = swappedTimes ?
+                                    start >= startTime || start < endTime :
+                                    start >= startTime && start < endTime;
+        const bool itemEnded   = offsetSwappedTimes ?
+                                    end >= startTimeOffset || end < endTimeOffset :
+                                    end >= startTimeOffset && end < endTimeOffset;
+
+        if (itemStarted && itemEnded)
+            continue; // If both events happen, they cancel each other out.
+
+        if (itemStarted) {
+            const int id = item->getId();
+            auto it = lower_bound(unavailableItems.begin(), unavailableItems.end(), id);
+            if (it != unavailableItems.end() && *it == id)
+                unavailableItems.erase(it);
+            --unavailableItemsByCategory[item->getCategory()];
+        }
+        if (itemEnded) {
+            const int id = item->getId();
+            auto it = lower_bound(unavailableItems.begin(), unavailableItems.end(), id);
+            unavailableItems.insert(it, id);
+            ++unavailableItemsByCategory[item->getCategory()];
+        }
+    }
+}
+
+void Generator::checkInitialAvailability() noexcept {
+     tm *tp = localtime(&currentDay);
+    const int startMonth = tp->tm_mon + 1; // plus 1 to keep month 1 indexed instead of 0 indexed
+    const int startDay = tp->tm_mday;
+
+    for (size_t i = 0; i < allItems.size(); ++i) {
+        const Item *item = allItems[i].get();
+        const SeasonTime& start = item->getStartTime();
+        const SeasonTime& end = item->getEndTime();
+        
+        const bool startBehindNow = start.month < startMonth || (start.month == startMonth && start.day <= startDay);
+        const bool endInfrontNow = end.month > startMonth || (end.month == startMonth && end.day > startDay);
+        const bool startEndSwapped = start.month > end.month || (start.month == end.month && start.day > end.day);
+
+        const bool started = (startBehindNow && endInfrontNow) || (startEndSwapped && (endInfrontNow || startBehindNow));
+        // (a && b) || (c && (a || b)) = (a && b) || (c && a) || (c && b)
+
+        if (!started) {
+            unavailableItems.push_back(item->getId());
+            ++unavailableItemsByCategory[item->getCategory()];
+        }
+    }
+}
+
 template <typename T>
 void Generator::writeFast(ofstream& stream, const vector<unique_ptr<T>>& arr) const {
+    if (arr.empty())
+        return;
+
+    stream << arr[0]->toSql() << " VALUES ";
+
+    for (size_t i = 0; i < arr.size(); ++i)
+        stream << arr[i]->toVals() << (i == arr.size() - 1 ? ';' : ',');
+}
+template <typename T>
+void Generator::writeFast(ofstream& stream, const vector<shared_ptr<T>>& arr) const {
     if (arr.empty())
         return;
 
@@ -646,7 +823,7 @@ void Generator::writeCategoriesFast(ofstream& stream) const {
 }
 
 void Generator::writeItems(ofstream& stream) const {
-    for (int i = 0; i < allItemsLen; ++i)
+    for (size_t i = 0; i < allItems.size(); ++i)
         stream << *(allItems[i]) << '\n';
 }
 void Generator::writeItemsFast(ofstream& stream) const {
@@ -654,7 +831,7 @@ void Generator::writeItemsFast(ofstream& stream) const {
 }
 
 void Generator::writeInventory(ofstream& stream) const {
-    for (int i = 0; i < allIngredientsLen; ++i)
+    for (size_t i = 0; i < allIngredients.size(); ++i)
         stream << *(allIngredients[i]) << '\n';
 }
 void Generator::writeInventoryFast(ofstream& stream) const {
@@ -662,7 +839,7 @@ void Generator::writeInventoryFast(ofstream& stream) const {
 }
 
 void Generator::writeInventoryRelations(ofstream& stream) const {
-    for (int i = 0; i < allRelationsLen; ++i)
+    for (size_t i = 0; i < allRelations.size(); ++i)
         stream << *(allRelations[i]) << '\n';
 }
 void Generator::writeInventoryRelationsFast(ofstream& stream) const {
@@ -670,7 +847,6 @@ void Generator::writeInventoryRelationsFast(ofstream& stream) const {
 }
 
 void Generator::writeDays(ofstream& stream) const {
-    char buf[40];
     size_t orderLen = orders.size(), currentOrderLen;
     for (size_t i = 0; i < orderLen; ++i) {
         const vector<unique_ptr<Order>>& current = orders[i];
@@ -681,25 +857,35 @@ void Generator::writeDays(ofstream& stream) const {
 
         time_t time = current[0]->getTimestamp();
         std::tm* timepoint = std::localtime(&time);
-        std::strftime(buf, sizeof(buf), "%d/%m/%Y", timepoint);
+        std::strftime(timeBuf, sizeof(timeBuf), "%d/%m/%Y", timepoint);
 
-        stream << "--Day " << std::to_string(i + 1) << " (" << buf << ") [" << std::to_string(currentOrderLen) << " orders]\n";
+        stream << "--Day " << std::to_string(i + 1) << " (" << timeBuf << ") [" << std::to_string(currentOrderLen) << " orders]\n";        
 
-        std::strftime(buf, sizeof(buf), "%I:%M %p", timepoint);
+        writeOneDay(stream, current);
+    }
+}
+void Generator::writeOneDay(ofstream& stream, const vector<unique_ptr<Order>>& day) const {
+    size_t dayLen = day.size();
+    
+    if (dayLen == 0)
+        return;
 
-        stream << "\n--Order 1 (" << buf << ")\n";
-        for (size_t j = 0; j < currentOrderLen; ++j) {
-            stream << *(current[j]);
+    time_t time = day[0]->getTimestamp();
+    std::tm* timepoint = std::localtime(&time);
+    std::strftime(timeBuf, sizeof(timeBuf), "%I:%M %p", timepoint);
 
-            if (j < currentOrderLen - 1) {
-                time = current[j + 1]->getTimestamp();
-                timepoint = std::localtime(&time);
-                std::strftime(buf, sizeof(buf), "%I:%M %p", timepoint);
-            }
+    stream << "\n--Order 1 (" << timeBuf << ")\n";
+    for (size_t j = 0; j < dayLen; ++j) {
+        stream << *(day[j]);
 
-            if (j != currentOrderLen - 1)
-                stream << "\n--Order " << std::to_string(j + 2) << " (" << buf << ')' << '\n';
+        if (j < dayLen - 1) {
+            time = day[j + 1]->getTimestamp();
+            timepoint = std::localtime(&time);
+            std::strftime(timeBuf, sizeof(timeBuf), "%I:%M %p", timepoint);
         }
+
+        if (j != dayLen - 1)
+            stream << "\n--Order " << std::to_string(j + 2) << " (" << timeBuf << ')' << '\n';
     }
 }
 void Generator::writeDaysFast(ofstream& stream) const {
@@ -731,7 +917,7 @@ void Generator::writeDaysFast(ofstream& stream) const {
 }
 
 void Generator::writeLocations(ofstream& stream) const {
-    for (int i = 0; i < allLocationsLen; ++i)
+    for (size_t i = 0; i < allLocations.size(); ++i)
         stream << *(allLocations[i]) << '\n';
 }
 void Generator::writeLocationsFast(ofstream& stream) const {
@@ -739,7 +925,7 @@ void Generator::writeLocationsFast(ofstream& stream) const {
 }
 
 void Generator::writeUsers(ofstream& stream) const {
-    for (int i = 0; i < allUsersLen; ++i)
+    for (size_t i = 0; i < allUsers.size(); ++i)
         stream << *(allUsers[i]) << '\n';
 }
 void Generator::writeUsersFast(ofstream& stream) const {
@@ -747,7 +933,7 @@ void Generator::writeUsersFast(ofstream& stream) const {
 }
 
 void Generator::writeTimetables(ofstream& stream) const {
-    for (int i = 0, size = userTimetables.size(); i < size; ++i)
+    for (size_t i = 0, size = userTimetables.size(); i < size; ++i)
         stream << *userTimetables[i] << '\n';
 }
 void Generator::writeTimetablesFast(ofstream& stream) const {
@@ -849,8 +1035,8 @@ void Generator::writeAll(const char* filename) const {
     writeDays(outputFile);
     outputFile << "\n-- TIMETABLE GENERATION\n\n";
     writeTimetables(outputFile);
-    writeIdentitySequenceSync(outputFile);
-    writeLoaderEnd(outputFile);
+    // writeIdentitySequenceSync(outputFile);
+    // writeLoaderEnd(outputFile);
 
     outputFile.close();
 }
@@ -862,9 +1048,9 @@ void Generator::writeAllFast(const char* filename) const {
         return;
     }
 
-    writeDestructiveGuard(outputFile);
-    writeLoaderStart(outputFile);
-    writeTruncates(outputFile);
+    // writeDestructiveGuard(outputFile);
+    // writeLoaderStart(outputFile);
+    writeTruncatesFast(outputFile);
     writeLocationsFast(outputFile);
     writeUsersFast(outputFile);
     writeCategoriesFast(outputFile);
@@ -873,8 +1059,8 @@ void Generator::writeAllFast(const char* filename) const {
     writeInventoryRelationsFast(outputFile);
     writeDaysFast(outputFile);
     writeTimetablesFast(outputFile);
-    writeIdentitySequenceSync(outputFile);
-    writeLoaderEnd(outputFile);
+    // writeIdentitySequenceSync(outputFile);
+    // writeLoaderEnd(outputFile);
 
     outputFile.close();
 }
@@ -884,13 +1070,12 @@ void Generator::writeAllFast(const char* filename) const {
 void Generator::generateLocations() {
     const int len = 1;
     allLocations.resize(len);
-    allLocationsLen = len;
 
     allLocations[0] = std::make_unique<Location>(1, "Polo Garage", "College Station", "Texas");
 }
 
 void Generator::generateUsers() {
-    const int totalEmployees = (EMPLOYEES_PER_LOCATION + MANAGERS_PER_LOCATION) * allLocationsLen; 
+    const int totalEmployees = (EMPLOYEES_PER_LOCATION + MANAGERS_PER_LOCATION) * allLocations.size(); 
     const char fnameFile[] = "firstname.txt";
     const char lnameFile[] = "lastname.txt";
     const char passwordFile[] = "passwords.txt";
@@ -912,7 +1097,6 @@ void Generator::generateUsers() {
     }
 
     allUsers.resize(totalEmployees);
-    allUsersLen = totalEmployees;
 
     vector<int> fnameLines(totalEmployees);
     vector<int> lnameLines(totalEmployees);
@@ -964,7 +1148,7 @@ void Generator::generateUsers() {
     }
     passwordStream.close();
 
-    for (int i = 0, id = 1; i < allLocationsLen; ++i) {
+    for (size_t i = 0, id = 1; i < allLocations.size(); ++i) {
         for (int j = 0; j < EMPLOYEES_PER_LOCATION; ++j, ++id)
             allUsers[id - 1] = std::make_unique<User>(id, names[id - 1], passwords[id - 1], UserPerm::CASHIER);
         for (int j = 0; j < MANAGERS_PER_LOCATION; ++j, ++id)
@@ -975,7 +1159,7 @@ void Generator::generateUsers() {
 }
 
 void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-blvd-sr16/menu/a-la-carte
-    const int len = 28;
+    const int len = 30;
     allItems.resize(len);
 
     allItems[0] = std::make_unique<Item>(1, ItemCategory::ENTREE, 13.80, "Cantonese BBQ Brisket");
@@ -1006,20 +1190,26 @@ void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-
     allItems[25] = std::make_unique<Item>(26, ItemCategory::DRINK, 2.70, "Minute Maid Lemonade");
     allItems[26] = std::make_unique<Item>(27, ItemCategory::DRINK, 3.60, "Pomegranate Pineapple Flavored Lemonade");
     allItems[27] = std::make_unique<Item>(28, ItemCategory::DRINK, 2.70, "Coca Cola Zero Sugar");
+    allItems[28] = std::unique_ptr<Item>(new Item(29,ItemCategory::ENTREE, 10.00 , "Cantonese BBQ Brisket", {6, 2}, {8, 10}));
+    allItems[29] = std::unique_ptr<Item>(new Item(30,ItemCategory::ENTREE, 10.00 , "Hot Orange Chicken", {7, 11}, {9, 30}));
     //allItems[2] = new Item(2, , ""));
 
-    for (int i = 0; i < CATEGORY_LENGTH; ++i)
-        categoryLens[i] = 0; // gotta init your array :)
+    for (int i = 0; i < CATEGORY_LENGTH; ++i) {
+        itemByCategory.push_back({}); // gotta init your vector :)
+        unavailableItemsByCategory[i] = 0;
+    }
 
-    allItemsLen = len;
-    for (int i = 0; i < len; ++i)
-        ++(categoryLens[allItems[i]->getCategory()]);
+    for (int i = 0; i < len; ++i) {
+        itemByCategory[allItems[i].get()->getCategory()].push_back(allItems[i]);
+    }
+        
+    unavailableItems = {};
+    unavailableItems.reserve(len);
 }
 
 void Generator::generateIngredients(time_t startTime) {
     const int len = 28;
     allIngredients.resize(len);
-    allIngredientsLen = len;
 
     allIngredients[0] = std::make_unique<Ingredient>(1, "Chicken", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
     allIngredients[1] = std::make_unique<Ingredient>(2, "BBQ Sauce", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
@@ -1056,7 +1246,6 @@ void Generator::generateIngredients(time_t startTime) {
 void Generator::generateIngredientRelations() {
     const int len = 67;
     allRelations.resize(len);
-    allRelationsLen = len;
 
     allRelations[0] = std::make_unique<IngredientRelation>(1, 2);
     allRelations[1] = std::make_unique<IngredientRelation>(1, 3);
