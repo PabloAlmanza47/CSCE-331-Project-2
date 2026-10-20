@@ -1,5 +1,7 @@
 /**
- * This class represents a stock record, including the inventory ID, name, stock level, minimum stock level, next shipment date, and shelf life.
+ * This class represents a stock record, including the inventory ID, name, stock
+ * level, minimum stock level, next shipment date, and shelf life.
+ *
  * @author Pablo Almanza
  */
 public final class StockRecord {
@@ -9,6 +11,19 @@ public final class StockRecord {
     private final int minStock;
     private final String nextShipment;
     private final String shelfLife;
+
+    /**
+     * Creates a stock record with inventory details used by the manager view.
+     *
+     * @param inventoryID  the inventory item's database ID
+     * @param name         the inventory item's name
+     * @param stock        the current stock quantity
+     * @param minStock     the minimum desired stock quantity
+     * @param nextShipment the next shipment date or description
+     * @param shelfLife    the shelf life information for the item
+     * @author Pablo Almanza
+     * @author Ashley Hoang
+     */
 
     public StockRecord(int inventoryID, String name, int stock, int minStock,
             String nextShipment, String shelfLife) {
@@ -20,23 +35,70 @@ public final class StockRecord {
         this.shelfLife = shelfLife;
     }
 
-    //getter functions
-    public int getInventoryID(){
+    // getter functions
+    /**
+     * Returns the inventory item's database ID.
+     *
+     * @return the inventory item ID
+     * @author Pablo Almanza
+     * @author Ashley Hoang
+     */
+    public int getInventoryID() {
         return inventoryID;
     }
-    public String getName(){
+
+    /**
+     * Returns the inventory item's name.
+     *
+     * @return the inventory item name
+     * @author Pablo Almanza
+     * @author Ashley Hoang
+     */
+    public String getName() {
         return name;
     }
-    public int getStock(){
+
+    /**
+     * Returns the current stock quantity.
+     *
+     * @return the stock quantity
+     * @author Pablo Almanza
+     * @author Ashley Hoang
+     */
+    public int getStock() {
         return stock;
     }
-    public int getMinStock(){
+
+    /**
+     * Returns the minimum desired stock quantity.
+     *
+     * @return the minimum stock quantity
+     * @author Pablo Almanza
+     * @author Ashley Hoang
+     */
+    public int getMinStock() {
         return minStock;
     }
-    public String getNextShipment(){
+
+    /**
+     * Returns the next shipment date or description.
+     *
+     * @return the next shipment information
+     * @author Pablo Almanza
+     * @author Ashley Hoang
+     */
+    public String getNextShipment() {
         return nextShipment;
     }
-    public String getShelfLife(){
+
+    /**
+     * Returns the shelf life information.
+     *
+     * @return the shelf life information
+     * @author Pablo Almanza
+     * @author Ashley Hoang
+     */
+    public String getShelfLife() {
         return shelfLife;
     }
 }

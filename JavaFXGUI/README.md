@@ -24,4 +24,4 @@ Do Both:
 > javac --module-path ~/javafx-sdk-25/lib/ --add-modules javafx.controls,javafx.fxml -cp ".:postgresql-42.2.8.jar" DatabaseApp.java cashierController.java && java --enable-native-access=javafx.graphics --module-path ~/javafx-sdk-25/lib/ --add-modules javafx.controls,javafx.fxml -cp ".:postgresql-42.2.8.jar" DatabaseApp.java
 
 Doc (run in root project directory):
-> javadoc -d doc --module-path ~/javafx-sdk-25/lib/ --add-modules javafx.controls,javafx.fxml -cp ".:postgresql-42.2.8.jar" -sourcepath ./ JavaFXGUI/*.java
+> javadoc -d docs --module-path ~/javafx-sdk-25/lib/ --add-modules javafx.controls,javafx.fxml -cp ".:postgresql-42.2.8.jar" -sourcepath ./ JavaFXGUI/*.java

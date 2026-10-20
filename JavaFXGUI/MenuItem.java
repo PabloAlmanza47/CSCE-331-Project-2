@@ -28,18 +28,38 @@ public class MenuItem {
     }
 
     // Getters and setters for each field
+    /**
+     * Returns the menu item's ID.
+     *
+     * @return the menu item ID
+     */
     public int getItemID() {
         return itemID.get();
     }
 
+    /**
+     * Returns the menu item's name.
+     *
+     * @return the menu item name
+     */
     public String getItemName() {
         return itemName.get();
     }
 
+    /**
+     * Returns the menu item's price.
+     *
+     * @return the menu item price
+     */
     public double getItemPrice() {
         return itemPrice.get();
     }
 
+    /**
+     * Updates the menu item's price.
+     *
+     * @param value the new menu item price
+     */
     public void setPrice(double value) {
         itemPrice.set(value);
     }
