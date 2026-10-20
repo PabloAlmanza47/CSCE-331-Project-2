@@ -1159,7 +1159,7 @@ void Generator::generateUsers() {
 }
 
 void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-blvd-sr16/menu/a-la-carte
-    const int len = 29;
+    const int len = 30;
     allItems.resize(len);
 
     allItems[0] = std::make_unique<Item>(1, ItemCategory::ENTREE, 13.80, "Cantonese BBQ Brisket");
@@ -1190,7 +1190,8 @@ void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-
     allItems[25] = std::make_unique<Item>(26, ItemCategory::DRINK, 2.70, "Minute Maid Lemonade");
     allItems[26] = std::make_unique<Item>(27, ItemCategory::DRINK, 3.60, "Pomegranate Pineapple Flavored Lemonade");
     allItems[27] = std::make_unique<Item>(28, ItemCategory::DRINK, 2.70, "Coca Cola Zero Sugar");
-    allItems[28] = std::unique_ptr<Item>(new Item(29,ItemCategory::ENTREE, 10.00 , "Seasonal Item", {9, 20}, {11, 15}));
+    allItems[28] = std::unique_ptr<Item>(new Item(29,ItemCategory::ENTREE, 10.00 , "Cantonese BBQ Brisket", {6, 2}, {8, 10}));
+    allItems[29] = std::unique_ptr<Item>(new Item(30,ItemCategory::ENTREE, 10.00 , "Hot Orange Chicken", {7, 11}, {9, 30}));
     //allItems[2] = new Item(2, , ""));
 
     for (int i = 0; i < CATEGORY_LENGTH; ++i) {
