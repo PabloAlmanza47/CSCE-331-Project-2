@@ -149,3 +149,6 @@ JOIN receipt_item ri ON ri.receipt_id = r.receipt_id
 JOIN item i ON i.item_id = ri.item_id
 GROUP BY i.item_id, i.name, i.active_from, i.active_to
 ORDER BY i.item_id;
+
+-- Get all ingredients for an item.
+SELECT * FROM inventory i WHERE i.inventory_id IN (SELECT inventory_id FROM ingredient_list il WHERE il.item_id = 10);
