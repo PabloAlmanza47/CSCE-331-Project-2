@@ -1,3 +1,4 @@
+package src.menu;
 import javafx.scene.control.Label;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -6,6 +7,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Pane;
+import src.manager.ManagerController;
 
 /**
  * This class represents a custom ListCell for displaying MenuItem objects in a ListView. 

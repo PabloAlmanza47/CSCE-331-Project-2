@@ -1,3 +1,4 @@
+package src.menu;
 import java.math.BigDecimal;
 
 /**

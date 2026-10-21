@@ -1,3 +1,5 @@
+package src.records;
+
 /**
  * This class represents a sales record, including the name of the item and the
  * quantity sold.

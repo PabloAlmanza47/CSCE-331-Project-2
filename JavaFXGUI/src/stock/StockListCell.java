@@ -1,3 +1,4 @@
+package src.stock;
 import javafx.scene.control.Label;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -11,6 +12,9 @@ import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import java.util.Comparator;
 import javafx.scene.layout.Pane;
+
+import src.manager.ManagerController;
+
 /**
  * This class represents a custom ListCell for displaying StockItem objects in a ListView. 
  * It provides buttons to increase or decrease the stock of the item and updates the display accordingly.

@@ -1,9 +1,12 @@
+package src.menu;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import javafx.scene.control.CheckBox;
+
+import src.records.MenuRecord;
 
 /**
  * Represents a line item in the shopping cart, including its
