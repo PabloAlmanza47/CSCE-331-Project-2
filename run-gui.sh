@@ -35,11 +35,11 @@ javac \
   --add-modules javafx.controls,javafx.fxml \
   -cp "postgresql-42.2.8.jar" \
   -d "$OUT_DIR" \
-  *.java ../GUI/DbSetup.java
+  src/*.java src/records/*.java src/cashier/*.java src/manager/*.java src/menu/*.java src/security/*.java src/stock/*.java
 
 exec java \
   --enable-native-access=javafx.graphics \
   --module-path "$JAVAFX_LIB" \
   --add-modules javafx.controls,javafx.fxml \
   -cp "$OUT_DIR:.:postgresql-42.2.8.jar" \
-  DatabaseApp
+  src.DatabaseApp

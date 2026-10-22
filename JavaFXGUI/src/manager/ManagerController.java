@@ -1,3 +1,5 @@
+package src.manager;
+
 import javafx.fxml.FXML;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -42,6 +44,11 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
 import javafx.util.Duration;
+
+import src.menu.*;
+import src.stock.*;
+import src.records.*;
+import src.security.DbSetup;
 
 /**
  * Controller for the manager view and its inventory, sales, receipt, and report
@@ -1012,7 +1019,7 @@ public class ManagerController {
      */
     @FXML
     public void changeView(ActionEvent event) throws IOException {
-        Parent root = FXMLLoader.load(getClass().getResource("cashierGUI.fxml"));
+        Parent root = FXMLLoader.load(getClass().getResource("../cashier/cashierGUI.fxml"));
         controllerActive = false;
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();

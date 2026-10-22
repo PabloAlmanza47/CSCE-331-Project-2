@@ -1,3 +1,5 @@
+package src.cashier;
+
 import java.sql.*;
 import java.math.BigDecimal;
 import java.util.Map;
@@ -23,6 +25,10 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.event.ActionEvent;
+
+import src.menu.*;
+import src.records.*;
+import src.security.DbSetup;
 
 /**
  * Class controller for cashier view fxml
@@ -681,7 +687,7 @@ public class CashierController {
      */
     @FXML
     public void changeView(ActionEvent event) throws Exception {
-        Parent root = FXMLLoader.load(getClass().getResource("/managerGUI.fxml"));
+        Parent root = FXMLLoader.load(getClass().getResource("../manager/managerGUI.fxml"));
         controllerActive = false;
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
         stage.setTitle("Manager View");

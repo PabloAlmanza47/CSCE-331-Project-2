@@ -1,4 +1,7 @@
+package src.manager;
 import java.util.List;
+
+import src.records.*;
 
 /**
  * This class holds all the data for the manager controller, including sales,

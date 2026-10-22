@@ -53,6 +53,12 @@ const int MAX_BY_CATEGORY[CATEGORY_LENGTH] = {MAX_AMOUNT_OF_ENTREES, MAX_AMOUNT_
 #define MIN_ITEMS_PER_ORDER MIN_AMOUNT_OF_ENTREES + MIN_AMOUNT_OF_SIDES + MIN_AMOUNT_OF_DRINKS
 #define MAX_ITEMS_PER_ORDER MAX_AMOUNT_OF_ENTREES + MAX_AMOUNT_OF_SIDES + MAX_AMOUNT_OF_DRINKS
 
+// File Paths
+#define PATH "../SqlCommands/"
+#define SCRIPT_NAME "Script.sql"
+#define RESET_NAME "Reset.sql"
+#define TEARDOWN_NAME "Teardown.sql"
+
 int main() {
     try {
     //The timespan will be LENGTH_IN_DAYS days before now to now.
@@ -63,14 +69,17 @@ int main() {
 
     g->generateNDays(LENGTH_IN_DAYS);
 
-    const char* filename = "../SqlCommands/Script.sql";
+    static const char* filename = PATH SCRIPT_NAME;
+    static const char* resetFilename = PATH RESET_NAME;
+    static const char* teardownFilename = PATH TEARDOWN_NAME;
+
     if (FAST_MODE)
         g->writeAllFast(filename);
     else
         g->writeAll(filename);
 
-    g->writeReset("../SqlCommands/Reset.sql");
-    g->writeTeardown("../SqlCommands/Teardown.sql");
+    g->writeReset(resetFilename);
+    g->writeTeardown(teardownFilename);
 
     cout << "Generation completed successfully!" << endl;
 
@@ -1190,7 +1199,7 @@ void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-
     allItems[25] = std::make_unique<Item>(26, ItemCategory::DRINK, 2.70, "Minute Maid Lemonade");
     allItems[26] = std::make_unique<Item>(27, ItemCategory::DRINK, 3.60, "Pomegranate Pineapple Flavored Lemonade");
     allItems[27] = std::make_unique<Item>(28, ItemCategory::DRINK, 2.70, "Coca Cola Zero Sugar");
-    allItems[28] = std::unique_ptr<Item>(new Item(29,ItemCategory::ENTREE, 10.00 , "Cantonese BBQ Brisket", {6, 2}, {8, 10}));
+    allItems[28] = std::unique_ptr<Item>(new Item(29,ItemCategory::ENTREE, 10.00 , "Taiwanese Popcorn Chicken", {9, 8}, {12, 31}));
     allItems[29] = std::unique_ptr<Item>(new Item(30,ItemCategory::ENTREE, 10.00 , "Hot Orange Chicken", {7, 11}, {9, 30}));
     //allItems[2] = new Item(2, , ""));
 
@@ -1208,7 +1217,7 @@ void Generator::generateItems() {//https://www.pandaexpress.com/location/borgen-
 }
 
 void Generator::generateIngredients(time_t startTime) {
-    const int len = 28;
+    const int len = 30;
     allIngredients.resize(len);
 
     allIngredients[0] = std::make_unique<Ingredient>(1, "Chicken", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
@@ -1239,12 +1248,14 @@ void Generator::generateIngredients(time_t startTime) {
     allIngredients[25] = std::make_unique<Ingredient>(26, "Sprite", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
     allIngredients[26] = std::make_unique<Ingredient>(27, "Minute Maid Lemonade", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
     allIngredients[27] = std::make_unique<Ingredient>(28, "Coca Cola Zero Sugar", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[28] = std::make_unique<Ingredient>(29, "Hot Orange Sauce", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
+    allIngredients[29] = std::make_unique<Ingredient>(30, "Thai Basil leaves", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
     //allIngredients[2] = new Ingredient(2, "", 50, 25, startTime + 86'400 * 7, startTime + 86'400 * 14);
 
 }
 
 void Generator::generateIngredientRelations() {
-    const int len = 67;
+    const int len = 71;
     allRelations.resize(len);
 
     allRelations[0] = std::make_unique<IngredientRelation>(1, 2);
@@ -1314,5 +1325,9 @@ void Generator::generateIngredientRelations() {
     allRelations[64] = std::make_unique<IngredientRelation>(27, 20);
     allRelations[65] = std::make_unique<IngredientRelation>(27, 21);
     allRelations[66] = std::make_unique<IngredientRelation>(28, 28);
-    //allRelations[6] = new IngredientRelation();
+    allRelations[67] = std::make_unique<IngredientRelation>(29, 1);
+    allRelations[68] = std::make_unique<IngredientRelation>(29, 30);
+    allRelations[69] = std::make_unique<IngredientRelation>(30, 1);
+    allRelations[70] = std::make_unique<IngredientRelation>(30, 29);
+    //allRelations[7] = new IngredientRelation();
 }

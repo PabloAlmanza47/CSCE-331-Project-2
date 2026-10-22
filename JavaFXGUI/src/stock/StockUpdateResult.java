@@ -1,3 +1,4 @@
+package src.stock;
 /**
  * This class represents the result of a stock update operation, including the
  * new stock value, whether the update was successful, and whether the inventory
