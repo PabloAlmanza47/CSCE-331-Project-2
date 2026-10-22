@@ -4,6 +4,8 @@ import backend.config.DbSetup;
 import backend.database.DatabaseConnection;
 import backend.database.ManagerRepository;
 import backend.models.*;
+import frontend.components.MenuListCell;
+import frontend.components.StockListCell;
 import frontend.models.MenuItem;
 import frontend.models.StockItem;
 
