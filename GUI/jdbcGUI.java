@@ -1,4 +1,4 @@
-import backend.config.DbSetup;
+import backend.database.DatabaseConnection;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -11,7 +11,7 @@ CSCE 331
 2/7/2020 Update for AWS
  */
 
-public class JdbcGUI {  
+class JdbcGUI {
 
   // Database connection object
   static Connection conn = null;
@@ -19,9 +19,7 @@ public class JdbcGUI {
   public static void openConnection() {
     try {
 
-      conn = DriverManager.getConnection(
-        "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db", 
-        DbSetup.user, DbSetup.pswd);
+      conn = DatabaseConnection.open();
     } catch (Exception e) {
       e.printStackTrace();
       System.err.println(e.getClass().getName() + ": " + e.getMessage());

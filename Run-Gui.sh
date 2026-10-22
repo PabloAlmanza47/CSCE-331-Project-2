@@ -26,6 +26,13 @@ if [[ -z "$JAVAFX_LIB" || ! -f "$JAVAFX_LIB/javafx.controls.jar" ]]; then
   exit 1
 fi
 
+for variable in DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD; do
+  if [[ -z "${!variable:-}" ]]; then
+    echo "Missing required database environment variable: $variable" >&2
+    exit 1
+  fi
+done
+
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 

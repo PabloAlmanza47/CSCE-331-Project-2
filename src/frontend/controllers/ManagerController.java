@@ -1,7 +1,5 @@
 package frontend.controllers;
 
-import backend.config.DbSetup;
-import backend.database.DatabaseConnection;
 import backend.database.ManagerRepository;
 import backend.models.*;
 import frontend.components.MenuListCell;
@@ -14,15 +12,12 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.*;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.List;
 import javafx.scene.chart.XYChart;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.LineChart;
 import javafx.scene.control.ListView;
-import javafx.scene.control.Menu;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.Accordion;
@@ -77,20 +72,6 @@ public class ManagerController {
     private static final BigDecimal MAX_ITEM_PRICE = new BigDecimal("99999999.99");
     private static final int MAX_ITEM_STOCK = 99999999;
 
-    /**
-     * Plain graph data produced by database tasks before it is applied to a
-     * JavaFX chart on the application thread.
-     */
-    private static final class GraphPoint {
-        private final Number value;
-        private final String label;
-
-        private GraphPoint(Number value, String label) {
-            this.value = value;
-            this.label = label;
-        }
-    }
-
     private boolean controllerActive = true;
     private Timeline hourlyUpdateTimeline; // for x report (refresh hourly)
     @FXML
@@ -140,86 +121,7 @@ public class ManagerController {
         Task<ManagerData> task = new Task<>() {
             @Override
             protected ManagerData call() throws Exception {
-                List<SalesRecord> sales = new ArrayList<>();
-                List<StockRecord> stock = new ArrayList<>();
-                List<StockGraphRecord> productsUsed = new ArrayList<>();
-                List<ReceiptRecord> receipts = new ArrayList<>();
-                List<MenuRecord> menu = new ArrayList<>();
-                List<XRecord> x = new ArrayList<>();
-                try (Connection conn = getConnection();
-                        Statement stmt = conn.createStatement()) {
-                    try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT i.item_id, i.name AS itemNames, SUM(ri.quantity) AS numSold FROM receipt_item ri "
-                                    + "JOIN item i ON i.item_id = ri.item_id GROUP BY i.name, i.item_id ORDER BY numSold DESC")) {
-                        while (resultSet.next()) {
-                            // Sales Graph
-                            sales.add(new SalesRecord(resultSet.getInt("item_id"), resultSet.getString("itemNames"),
-                                    resultSet.getLong("numSold")));
-                        }
-                    }
-                    try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT inventory_id, name, stock, min_stock, next_shipment, shelf_life "
-                                    + "FROM inventory ORDER BY stock ASC, inventory_id ASC")) {
-                        while (resultSet.next()) {
-                            // Stock List
-                            stock.add(new StockRecord(resultSet.getInt("inventory_id"),
-                                    resultSet.getString("name"), resultSet.getInt("stock"),
-                                    resultSet.getInt("min_stock"), resultSet.getString("next_shipment"),
-                                    resultSet.getString("shelf_life")));
-                        }
-                    }
-                    try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT i.inventory_id, i.name AS inventoryNames, SUM(ri.quantity) AS stockUsed "
-                                    + "FROM receipt_item ri "
-                                    + "JOIN item it ON ri.item_id = it.item_id JOIN ingredient_list il ON it.item_id = il.item_id "
-                                    + "JOIN inventory i ON il.inventory_id = i.inventory_id JOIN receipt r ON ri.receipt_id = r.receipt_id "
-                                    + "GROUP BY i.inventory_id, i.name ORDER BY stockUsed DESC")) {
-                        while (resultSet.next()) {
-                            // Stock Graph
-                            productsUsed.add(new StockGraphRecord(resultSet.getInt("inventory_id"),
-                                    resultSet.getString("inventoryNames"),
-                                    resultSet.getLong("stockUsed")));
-                        }
-                    }
-                    try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT r.receipt_id, i.item_id, i.name AS item_name, ri.quantity,  ri.price_at_sale, r.receipt_timestamp "
-                                    + "FROM receipt r JOIN receipt_item ri ON r.receipt_id = ri.receipt_id "
-                                    + "JOIN item i ON ri.item_id = i.item_id WHERE r.receipt_id IN "
-                                    + "(SELECT receipt_id FROM receipt ORDER BY receipt_id DESC LIMIT 20) "
-                                    + "ORDER BY r.receipt_id DESC, ri.receipt_item_id")) {
-                        while (resultSet.next()) {
-                            // Receipt Record
-                            receipts.add(new ReceiptRecord(resultSet.getInt("receipt_id"),
-                                    resultSet.getInt("item_id"),
-                                    resultSet.getString("item_name"), resultSet.getInt("quantity"),
-                                    resultSet.getBigDecimal("price_at_sale"),
-                                    resultSet.getString("receipt_timestamp")));
-                        }
-                    }
-                    try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT item_id, name, price, category_id FROM item WHERE active = TRUE ORDER BY item_id")) {
-                        while (resultSet.next()) {
-                            // Menu List
-                            menu.add(new MenuRecord(resultSet.getInt("item_id"),
-                                    resultSet.getBigDecimal("price"), resultSet.getString("name"),
-                                    resultSet.getInt("category_id")));
-                        }
-                    }
-                    try (ResultSet resultSet = stmt.executeQuery(
-                            "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
-                                    + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
-                                    + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
-                                    + "WHERE r.receipt_timestamp >= CURRENT_DATE AND r.receipt_timestamp <= date_trunc('hour', current_timestamp)"
-                                    + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt "
-                                    + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
-                        while (resultSet.next()) {
-                            // X Report
-                            x.add(new XRecord(resultSet.getString("hour"),
-                                    resultSet.getLong("order_count"), resultSet.getDouble("total_sales")));
-                        }
-                    }
-                }
-                return new ManagerData(sales, stock, productsUsed, receipts, menu, x);
+                return new ManagerRepository().loadDashboard();
             }
         };
         task.setOnSucceeded(event -> {
@@ -411,38 +313,16 @@ public class ManagerController {
      * @author Ashley Hoang
      */
     private void updateSalesGraph(String timePeriod1, String timePeriod2) {
-        Task<List<GraphPoint>> task = new Task<>() {
+        Task<List<ManagerRepository.GraphPoint>> task = new Task<>() {
             @Override
-            protected List<GraphPoint> call() throws Exception {
-                List<GraphPoint> points = new ArrayList<>();
-                try (Connection conn = getConnection();
-                        PreparedStatement pstmt = conn.prepareStatement(
-                                "SELECT i.item_id, i.name AS itemNames, SUM(ri.quantity) AS numSold " +
-                                        "FROM receipt_item ri " +
-                                        "JOIN item i ON i.item_id = ri.item_id " +
-                                        "JOIN receipt r ON r.receipt_id = ri.receipt_id " +
-                                        "WHERE r.receipt_timestamp >= CAST(? AS timestamp) AND r.receipt_timestamp <= CAST(? AS timestamp) "
-                                        +
-                                        "GROUP BY i.name, i.item_id ORDER BY numSold DESC")) {
-                    pstmt.setString(1, timePeriod1);
-                    pstmt.setString(2, timePeriod2);
-                    try (ResultSet resultSet = pstmt.executeQuery()) {
-                        while (resultSet.next()) {
-                            int numSold = resultSet.getInt("numSold");
-                            String name = resultSet.getString("itemNames");
-                            int id = resultSet.getInt("item_id");
-                            String label = "#" + id + "-" + name + ' ' + numSold;
-                            points.add(new GraphPoint(numSold, label));
-                        }
-                    }
-                }
-                return points;
+            protected List<ManagerRepository.GraphPoint> call() throws Exception {
+                return new ManagerRepository().loadSalesGraph(timePeriod1, timePeriod2);
             }
         };
         task.setOnSucceeded(event -> {
             if (controllerActive) {
                 XYChart.Series<Number, String> soldSeries = new XYChart.Series<>();
-                for (GraphPoint point : task.getValue()) {
+                for (ManagerRepository.GraphPoint point : task.getValue()) {
                     soldSeries.getData().add(new XYChart.Data<>(point.value, point.label));
                 }
                 salesGraph.setTitle("Items Sold in From " + timePeriod1 + " to " + timePeriod2);
@@ -506,28 +386,7 @@ public class ManagerController {
         Task<StockUpdateResult> task = new Task<>() {
             @Override
             protected StockUpdateResult call() throws Exception {
-                try (Connection conn = getConnection();
-                        PreparedStatement pstmt = conn.prepareStatement(
-                                "UPDATE inventory SET stock = stock + ? "
-                                        + "WHERE inventory_id = ? AND stock + ? >= 0 RETURNING stock")) {
-                    pstmt.setInt(1, stockDelta);
-                    pstmt.setInt(2, inventoryID);
-                    pstmt.setInt(3, stockDelta);
-                    try (ResultSet resultSet = pstmt.executeQuery()) {
-                        if (resultSet.next())
-                            return new StockUpdateResult(resultSet.getInt("stock"), true, false);
-                    }
-                    try (PreparedStatement currentStock = conn.prepareStatement(
-                            "SELECT stock FROM inventory WHERE inventory_id = ?")) {
-                        currentStock.setInt(1, inventoryID);
-                        try (ResultSet resultSet = currentStock.executeQuery()) {
-                            if (resultSet.next()) {
-                                return new StockUpdateResult(resultSet.getInt("stock"), false, false);
-                            }
-                        }
-                    }
-                    return new StockUpdateResult(null, false, true);
-                }
+                return new ManagerRepository().updateStock(inventoryID, stockDelta);
             }
         };
         task.setOnSucceeded(event -> callback.accept(task.getValue()));
@@ -613,37 +472,16 @@ public class ManagerController {
      * @author Ashley Hoang
      */
     private void updateStockGraph(String timePeriod1, String timePeriod2) {
-        Task<List<GraphPoint>> task = new Task<>() {
+        Task<List<ManagerRepository.GraphPoint>> task = new Task<>() {
             @Override
-            protected List<GraphPoint> call() throws Exception {
-                List<GraphPoint> points = new ArrayList<>();
-                try (Connection conn = getConnection();
-                        PreparedStatement pstmt = conn.prepareStatement(
-                                "SELECT i.inventory_id, i.name AS inventoryNames, SUM(ri.quantity) AS stockUsed "
-                                        + "FROM receipt_item ri "
-                                        + "JOIN item it ON ri.item_id = it.item_id JOIN ingredient_list il ON it.item_id = il.item_id "
-                                        + "JOIN inventory i ON il.inventory_id = i.inventory_id JOIN receipt r ON ri.receipt_id = r.receipt_id "
-                                        + "WHERE r.receipt_timestamp >= CAST(? AS timestamp) AND r.receipt_timestamp <= CAST(? AS timestamp) "
-                                        + "GROUP BY i.inventory_id, i.name ORDER BY stockUsed DESC")) {
-                    pstmt.setString(1, timePeriod1);
-                    pstmt.setString(2, timePeriod2);
-                    try (ResultSet resultSet = pstmt.executeQuery()) {
-                        while (resultSet.next()) {
-                            int stockUsed = resultSet.getInt("stockUsed");
-                            String name = resultSet.getString("inventoryNames");
-                            int id = resultSet.getInt("inventory_id");
-                            String label = "#" + id + "-" + name + ' ' + stockUsed;
-                            points.add(new GraphPoint(stockUsed, label));
-                        }
-                    }
-                }
-                return points;
+            protected List<ManagerRepository.GraphPoint> call() throws Exception {
+                return new ManagerRepository().loadStockGraph(timePeriod1, timePeriod2);
             }
         };
         task.setOnSucceeded(event -> {
             if (controllerActive) {
                 XYChart.Series<Number, String> stockSeries = new XYChart.Series<>();
-                for (GraphPoint point : task.getValue()) {
+                for (ManagerRepository.GraphPoint point : task.getValue()) {
                     stockSeries.getData().add(new XYChart.Data<>(point.value, point.label));
                 }
                 stockGraph.setTitle("Stock Used From " + timePeriod1 + " to " + timePeriod2);
@@ -707,19 +545,7 @@ public class ManagerController {
         Task<Double> task = new Task<>() {
             @Override
             protected Double call() throws Exception {
-                try (Connection conn = getConnection();
-                        PreparedStatement pstmt = conn.prepareStatement(
-                                "UPDATE item SET price = ? "
-                                        + "WHERE item_id = ? AND ? >= 0 RETURNING price")) {
-                    pstmt.setBigDecimal(1, newPrice);
-                    pstmt.setInt(2, itemID);
-                    pstmt.setBigDecimal(3, newPrice);
-                    try (ResultSet resultSet = pstmt.executeQuery()) {
-                        if (resultSet.next())
-                            return resultSet.getBigDecimal("price").doubleValue();
-                    }
-                    return null;
-                }
+                return new ManagerRepository().updatePrice(itemID, newPrice);
             }
         };
         task.setOnSucceeded(event -> {
@@ -853,18 +679,8 @@ public class ManagerController {
         Task<Boolean> task = new Task<>() {
             @Override
             protected Boolean call() throws Exception {
-                try (Connection conn = getConnection();
-                        PreparedStatement pstmt = conn.prepareStatement(
-                                "INSERT INTO item (item_id, category_id, nutrition, price, unit_size, name, active) "
-                                        + "VALUES (?, ?, ?, ?, ?, ?, TRUE)")) {
-                    pstmt.setInt(1, itemID);
-                    pstmt.setInt(2, categoryID);
-                    pstmt.setString(3, nutritionInfo);
-                    pstmt.setBigDecimal(4, itemPrice);
-                    pstmt.setString(5, size);
-                    pstmt.setString(6, itemName);
-                    return pstmt.executeUpdate() == 1;
-                }
+                return new ManagerRepository().addMenuItem(itemID, categoryID, nutritionInfo,
+                        itemPrice, size, itemName);
             }
         };
         task.setOnSucceeded(event -> callback.accept(task.getValue()));
@@ -894,12 +710,7 @@ public class ManagerController {
         Task<Boolean> task = new Task<>() {
             @Override
             protected Boolean call() throws Exception {
-                try (Connection conn = getConnection();
-                        PreparedStatement pstmt = conn.prepareStatement(
-                                "UPDATE item SET active = FALSE WHERE item_id = ? AND active = TRUE")) {
-                    pstmt.setInt(1, item.getItemID());
-                    return pstmt.executeUpdate() > 0;
-                }
+                return new ManagerRepository().removeMenuItem(item.getItemID());
             }
         };
         task.setOnSucceeded(event -> {
@@ -938,35 +749,22 @@ public class ManagerController {
      * @author Ashley Hoang
      */
     private void updateXReportGraph() {
-        Task<XYChart.Series<String, Number>> task = new Task<>() {
+        Task<List<XRecord>> task = new Task<>() {
             @Override
-            protected XYChart.Series<String, Number> call() throws Exception {
-                XYChart.Series<String, Number> xSeries = new XYChart.Series<>();
-                try (Connection conn = getConnection();
-                        PreparedStatement pstmt = conn.prepareStatement(
-                                "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
-                                        + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
-                                        + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
-                                        + "WHERE r.receipt_timestamp >= CURRENT_DATE AND r.receipt_timestamp <= date_trunc('hour', current_timestamp)"
-                                        + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt "
-                                        + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
-                    try (ResultSet resultSet = pstmt.executeQuery()) {
-                        while (resultSet.next()) {
-                            int numSold = resultSet.getInt("order_count");
-                            String hour = resultSet.getString("hour");
-                            double revenue = resultSet.getDouble("total_sales");
-                            String label = hour + ":00\nSales: " + numSold + "\nRevenue: $" + revenue;
-                            xSeries.getData().add(new XYChart.Data<>(label, numSold));
-                        }
-                    }
-                }
-                return xSeries;
+            protected List<XRecord> call() throws Exception {
+                return new ManagerRepository().loadXReport();
             }
         };
         task.setOnSucceeded(event -> {
             if (controllerActive) {
+                XYChart.Series<String, Number> xSeries = new XYChart.Series<>();
+                for (XRecord record : task.getValue()) {
+                    String label = record.getHour() + ":00\nSales: " + record.getQuantity()
+                            + "\nRevenue: $" + record.getRevenue();
+                    xSeries.getData().add(new XYChart.Data<>(label, record.getQuantity()));
+                }
                 xReportGraph.getData().clear();
-                xReportGraph.getData().add(task.getValue());
+                xReportGraph.getData().add(xSeries);
             }
         });
         task.setOnFailed(event -> {
@@ -1090,21 +888,6 @@ public class ManagerController {
         } catch (RejectedExecutionException e) {
             return false;
         }
-    }
-
-    /**
-     * Gets a connection to the database.
-     *
-     * @return A Connection object representing the connection to the database.
-     * @throws SQLException           if there is an error with the database
-     *                                connection
-     * @throws ClassNotFoundException if the PostgreSQL JDBC driver class is not
-     *                                found
-     * @author Pablo Almanza
-     */
-    private Connection getConnection() throws SQLException, ClassNotFoundException {
-        Class.forName("org.postgresql.Driver");
-        return DatabaseConnection.open();
     }
 
     /**

@@ -4,6 +4,9 @@ JavaFXGUI/out/
 JavaFXGUI/dbSetup.java
 javafx-sdk-25.0.4/
 .vscode/
+.env
+.env.*
+!.env.example
 # Local database setup
 GUI/dbSetup.java
 

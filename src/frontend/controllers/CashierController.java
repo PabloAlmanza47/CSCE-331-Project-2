@@ -1,15 +1,12 @@
 package frontend.controllers;
 
-import backend.database.DatabaseConnection;
 import backend.database.CashierRepository;
+import backend.database.CashierRepository.CheckoutOutcome;
 import backend.models.MenuRecord;
 import frontend.models.CartLine;
 import frontend.models.MealSize;
 
-import java.sql.*;
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.TreeMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -430,7 +427,8 @@ public class CashierController {
         Task<CheckoutOutcome> task = new Task<>() {
             @Override
             protected CheckoutOutcome call() {
-                return executeCheckout(checkoutCart, checkoutPrices, checkoutTotal);
+                return new CashierRepository().checkout(currentLocationId, currentUserId,
+                        checkoutCart, checkoutPrices, checkoutTotal);
             }
         };
 
@@ -459,159 +457,6 @@ public class CashierController {
             return true;
         } catch (RejectedExecutionException e) {
             return false;
-        }
-    }
-
-    /**
-     * Opens a PostgreSQL database connection using the provided credentials and
-     * configures login and network timeouts.
-     *
-     * @param user     the database username
-     * @param password the database password
-     * @return an open database connection
-     * @throws SQLException           if the database connection cannot be
-     *                                established
-     * @throws ClassNotFoundException if the PostgreSQL JDBC driver cannot be loaded
-     * @author Pablo Almanza
-     */
-
-    
-
-    /**
-     * Represents the possible outcomes of a checkout database transaction.
-     *
-     * @author Pablo Almanza
-     */
-
-    private enum CheckoutOutcome {
-        SUCCESS, FAILURE, UNCERTAIN
-    }
-
-    /**
-     * Processes a checkout transaction by validating cart items, updating
-     * inventory, creating a receipt, and recording receipt items in the database.
-     *
-     * @param checkoutCart   Tree map of item ID's and their quantity
-     * @param checkoutPrices Tree map of item ID's and their prices
-     * @param checkoutTotals maps item IDs to the total amount charged for those
-     *                       items
-     * @return the outcome of the checkout transaction
-     * @author Colby Ideker
-     * @author Pablo Almanza
-     * @author Sharaf Mehmood
-     */
-    private CheckoutOutcome executeCheckout(TreeMap<Integer, Integer> checkoutCart,
-            TreeMap<Integer, BigDecimal> checkoutPrices, TreeMap<Integer, BigDecimal> checkoutTotals) {
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.open();
-            conn.setAutoCommit(false);
-            try {
-                try (PreparedStatement receipt = conn.prepareStatement(
-                        "INSERT INTO receipt (location_id, user_id, receipt_timestamp) VALUES (?, ?, DATE_TRUNC('second', CURRENT_TIMESTAMP)) RETURNING receipt_id");
-                        PreparedStatement itemValidation = conn.prepareStatement(
-                                "SELECT i.active, COUNT(il.inventory_id) AS ingredient_count "
-                                        + "FROM item i LEFT JOIN ingredient_list il ON il.item_id = i.item_id "
-                                        + "WHERE i.item_id = ? GROUP BY i.active");
-                        PreparedStatement ingredients = conn.prepareStatement(
-                                "SELECT inventory_id FROM ingredient_list WHERE item_id = ? ORDER BY inventory_id FOR SHARE");
-                        PreparedStatement update = conn.prepareStatement(
-                                "UPDATE inventory SET stock = stock - ? WHERE inventory_id = ? AND stock >= ?");
-                        PreparedStatement receiptItem = conn.prepareStatement(
-                                "INSERT INTO receipt_item (receipt_id, item_id, quantity, price_at_sale) "
-                                        + "SELECT ?, item_id, ?, ? FROM item "
-                                        + "WHERE item_id = ? AND active = TRUE AND price = ?")) {
-                    for (Integer itemID : checkoutCart.keySet()) {
-                        itemValidation.setInt(1, itemID);
-                        try (ResultSet validationResults = itemValidation.executeQuery()) {
-                            if (!validationResults.next()
-                                    || !validationResults.getBoolean("active")
-                                    || validationResults.getInt("ingredient_count") == 0) {
-                                throw new SQLException("Item is unavailable or has no ingredient mapping: " + itemID);
-                            }
-                        }
-                        if (!checkoutPrices.containsKey(itemID))
-                            throw new SQLException("Price snapshot is missing for item " + itemID);
-                    }
-                    receipt.setInt(1, currentLocationId);
-                    receipt.setInt(2, currentUserId);
-                    int receiptID;
-                    try (ResultSet receiptResults = receipt.executeQuery()) {
-                        if (!receiptResults.next())
-                            throw new SQLException("Unable to create receipt");
-                        receiptID = receiptResults.getInt("receipt_id");
-                    }
-                    TreeMap<Integer, Integer> requiredInventory = new TreeMap<>();
-                    for (Map.Entry<Integer, Integer> entry : checkoutCart.entrySet()) {
-                        int itemID = entry.getKey();
-                        int expectedIngredientCount;
-                        itemValidation.setInt(1, itemID);
-                        try (ResultSet validationResults = itemValidation.executeQuery()) {
-                            if (!validationResults.next()
-                                    || !validationResults.getBoolean("active")
-                                    || validationResults.getInt("ingredient_count") == 0) {
-                                throw new SQLException("Item is no longer available: " + itemID);
-                            }
-                            expectedIngredientCount = validationResults.getInt("ingredient_count");
-                        }
-                        int mappedIngredientCount = 0;
-                        ingredients.setInt(1, itemID);
-                        try (ResultSet ingredientResults = ingredients.executeQuery()) {
-                            while (ingredientResults.next()) {
-                                int inventoryID = ingredientResults.getInt("inventory_id");
-                                requiredInventory.merge(inventoryID, entry.getValue(), Integer::sum);
-                                mappedIngredientCount++;
-                            }
-                        }
-                        if (mappedIngredientCount != expectedIngredientCount)
-                            throw new SQLException("Ingredient mapping changed for item " + itemID);
-                    }
-                    for (Map.Entry<Integer, Integer> entry : requiredInventory.entrySet()) {
-                        update.setInt(1, entry.getValue());
-                        update.setInt(2, entry.getKey());
-                        update.setInt(3, entry.getValue());
-                        if (update.executeUpdate() == 0)
-                            throw new SQLException("Insufficient inventory for checkout");
-                    }
-                    for (Map.Entry<Integer, Integer> entry : checkoutCart.entrySet()) {
-                        int itemID = entry.getKey();
-                        BigDecimal lineTotal = checkoutTotals.get(itemID);
-                        if (lineTotal.scale() > 2 || lineTotal.signum() < 0
-                                || lineTotal.compareTo(new BigDecimal("99999999.99")) > 0)
-                            throw new SQLException("Checkout total is outside the database price range");
-                        receiptItem.setInt(1, receiptID);
-                        receiptItem.setInt(2, entry.getValue());
-                        receiptItem.setBigDecimal(3, lineTotal);
-                        receiptItem.setInt(4, itemID);
-                        receiptItem.setBigDecimal(5, checkoutPrices.get(itemID));
-                        if (receiptItem.executeUpdate() == 0)
-                            throw new SQLException("Item price or availability changed: " + itemID);
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                try {
-                    conn.rollback();
-                } catch (SQLException rollbackError) {
-                    return CheckoutOutcome.UNCERTAIN;
-                }
-                return CheckoutOutcome.FAILURE;
-            }
-            try {
-                conn.commit();
-                return CheckoutOutcome.SUCCESS;
-            } catch (SQLException commitError) {
-                return CheckoutOutcome.UNCERTAIN;
-            }
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-            return CheckoutOutcome.FAILURE;
-        } finally {
-            if (conn != null)
-                try {
-                    conn.close();
-                } catch (SQLException ignored) {
-                }
         }
     }
 

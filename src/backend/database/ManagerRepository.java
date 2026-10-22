@@ -1,14 +1,26 @@
 package backend.database;
 
 import backend.models.*;
+import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Reads the manager dashboard data from PostgreSQL. */
+/** Handles manager dashboard reads and updates in PostgreSQL. */
 public final class ManagerRepository {
+    public static final class GraphPoint {
+        public final Number value;
+        public final String label;
+
+        public GraphPoint(Number value, String label) {
+            this.value = value;
+            this.label = label;
+        }
+    }
+
     public ManagerData loadDashboard() throws Exception {
         List<SalesRecord> sales = new ArrayList<>();
         List<StockRecord> stock = new ArrayList<>();
@@ -72,5 +84,128 @@ public final class ManagerRepository {
             }
         }
         return new ManagerData(sales, stock, productsUsed, receipts, menu, x);
+    }
+
+    public List<GraphPoint> loadSalesGraph(String start, String end) throws Exception {
+        List<GraphPoint> points = new ArrayList<>();
+        try (Connection connection = DatabaseConnection.open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT i.item_id, i.name AS itemNames, SUM(ri.quantity) AS numSold "
+                                + "FROM receipt_item ri JOIN item i ON i.item_id = ri.item_id "
+                                + "JOIN receipt r ON r.receipt_id = ri.receipt_id "
+                                + "WHERE r.receipt_timestamp >= CAST(? AS timestamp) AND r.receipt_timestamp <= CAST(? AS timestamp) "
+                                + "GROUP BY i.name, i.item_id ORDER BY numSold DESC")) {
+            statement.setString(1, start);
+            statement.setString(2, end);
+            try (ResultSet results = statement.executeQuery()) {
+                while (results.next())
+                    points.add(new GraphPoint(results.getInt("numSold"),
+                            "#" + results.getInt("item_id") + "-" + results.getString("itemNames") + ' '
+                                    + results.getInt("numSold")));
+            }
+        }
+        return points;
+    }
+
+    public StockUpdateResult updateStock(int inventoryId, int stockDelta) throws Exception {
+        try (Connection connection = DatabaseConnection.open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE inventory SET stock = stock + ? WHERE inventory_id = ? AND stock + ? >= 0 RETURNING stock")) {
+            statement.setInt(1, stockDelta);
+            statement.setInt(2, inventoryId);
+            statement.setInt(3, stockDelta);
+            try (ResultSet results = statement.executeQuery()) {
+                if (results.next())
+                    return new StockUpdateResult(results.getInt("stock"), true, false);
+            }
+            try (PreparedStatement currentStock = connection.prepareStatement(
+                    "SELECT stock FROM inventory WHERE inventory_id = ?")) {
+                currentStock.setInt(1, inventoryId);
+                try (ResultSet results = currentStock.executeQuery()) {
+                    if (results.next())
+                        return new StockUpdateResult(results.getInt("stock"), false, false);
+                }
+            }
+            return new StockUpdateResult(null, false, true);
+        }
+    }
+
+    public List<GraphPoint> loadStockGraph(String start, String end) throws Exception {
+        List<GraphPoint> points = new ArrayList<>();
+        try (Connection connection = DatabaseConnection.open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT i.inventory_id, i.name AS inventoryNames, SUM(ri.quantity) AS stockUsed "
+                                + "FROM receipt_item ri JOIN item it ON ri.item_id = it.item_id "
+                                + "JOIN ingredient_list il ON it.item_id = il.item_id "
+                                + "JOIN inventory i ON il.inventory_id = i.inventory_id JOIN receipt r ON ri.receipt_id = r.receipt_id "
+                                + "WHERE r.receipt_timestamp >= CAST(? AS timestamp) AND r.receipt_timestamp <= CAST(? AS timestamp) "
+                                + "GROUP BY i.inventory_id, i.name ORDER BY stockUsed DESC")) {
+            statement.setString(1, start);
+            statement.setString(2, end);
+            try (ResultSet results = statement.executeQuery()) {
+                while (results.next())
+                    points.add(new GraphPoint(results.getInt("stockUsed"),
+                            "#" + results.getInt("inventory_id") + "-" + results.getString("inventoryNames") + ' '
+                                    + results.getInt("stockUsed")));
+            }
+        }
+        return points;
+    }
+
+    public Double updatePrice(int itemId, BigDecimal newPrice) throws Exception {
+        try (Connection connection = DatabaseConnection.open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE item SET price = ? WHERE item_id = ? AND ? >= 0 RETURNING price")) {
+            statement.setBigDecimal(1, newPrice);
+            statement.setInt(2, itemId);
+            statement.setBigDecimal(3, newPrice);
+            try (ResultSet results = statement.executeQuery()) {
+                return results.next() ? results.getBigDecimal("price").doubleValue() : null;
+            }
+        }
+    }
+
+    public boolean addMenuItem(int itemId, int categoryId, String nutritionInfo,
+            BigDecimal itemPrice, String size, String itemName) throws Exception {
+        try (Connection connection = DatabaseConnection.open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO item (item_id, category_id, nutrition, price, unit_size, name, active) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, TRUE)")) {
+            statement.setInt(1, itemId);
+            statement.setInt(2, categoryId);
+            statement.setString(3, nutritionInfo);
+            statement.setBigDecimal(4, itemPrice);
+            statement.setString(5, size);
+            statement.setString(6, itemName);
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    public boolean removeMenuItem(int itemId) throws Exception {
+        try (Connection connection = DatabaseConnection.open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE item SET active = FALSE WHERE item_id = ? AND active = TRUE")) {
+            statement.setInt(1, itemId);
+            return statement.executeUpdate() > 0;
+        }
+    }
+
+    public List<XRecord> loadXReport() throws Exception {
+        List<XRecord> records = new ArrayList<>();
+        try (Connection connection = DatabaseConnection.open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT EXTRACT(HOUR FROM receipt_timestamp) AS hour, COUNT(*) as order_count, SUM(total_cost) AS total_sales "
+                                + "FROM (SELECT r.receipt_id, r.receipt_timestamp, SUM(ri.price_at_sale) AS total_cost "
+                                + "FROM receipt r JOIN receipt_item ri ON ri.receipt_id = r.receipt_id "
+                                + "WHERE r.receipt_timestamp >= CURRENT_DATE AND r.receipt_timestamp <= date_trunc('hour', current_timestamp) "
+                                + "GROUP BY r.receipt_id, r.receipt_timestamp) AS receipt "
+                                + "GROUP BY EXTRACT(HOUR FROM receipt_timestamp) ORDER BY hour")) {
+            try (ResultSet results = statement.executeQuery()) {
+                while (results.next())
+                    records.add(new XRecord(results.getString("hour"), results.getLong("order_count"),
+                            results.getDouble("total_sales")));
+            }
+        }
+        return records;
     }
 }
