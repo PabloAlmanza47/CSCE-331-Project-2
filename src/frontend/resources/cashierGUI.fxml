@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox alignment="CENTER" prefHeight="520.0" prefWidth="695.0" stylesheets="cashierStyle.css" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="CashierController" styleClass="parent">
+<VBox alignment="CENTER" prefHeight="520.0" prefWidth="695.0" stylesheets="cashierStyle.css" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="frontend.controllers.CashierController" styleClass="parent">
    <children>
       <Button fx:id="changeView" mnemonicParsing="false" onAction="#changeView" text="Change View" styleClass="outerButton" />
       <HBox alignment="CENTER" prefHeight="461.0" prefWidth="803.0" VBox.vgrow="ALWAYS">

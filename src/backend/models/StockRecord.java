@@ -1,3 +1,5 @@
+package backend.models;
+
 /**
  * This class represents a stock record, including the inventory ID, name, stock
  * level, minimum stock level, next shipment date, and shelf life.

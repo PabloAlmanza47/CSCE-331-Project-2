@@ -1,3 +1,5 @@
+package backend.models;
+
 /**
  * This class represents a sales record per hour (x report), including the hour and the quantity sold.
  * @author Ashley Hoang

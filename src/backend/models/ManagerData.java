@@ -1,3 +1,5 @@
+package backend.models;
+
 import java.util.List;
 
 /**

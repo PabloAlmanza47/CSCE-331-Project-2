@@ -1,3 +1,11 @@
+package frontend.controllers;
+
+import backend.database.DatabaseConnection;
+import backend.database.CashierRepository;
+import backend.models.MenuRecord;
+import frontend.models.CartLine;
+import frontend.models.MealSize;
+
 import java.sql.*;
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -44,11 +52,8 @@ public class CashierController {
     private VBox mainBox, sideBox, drinkBox, cartBox;
     private Label MAIN_LABEL = new Label("Mains"), SIDE_LABEL = new Label("Sides"), DRINK_LABEL = new Label("Drinks"),
             totalPriceLabel;
-    private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db";
     private String SELECTED_STYLE = "-fx-border-color: #D61927; -fx-font-weight: bold";
-    private static final int LOGIN_TIMEOUT_SECONDS = 15;
     private static final int FONT_SIZE = 20;
-    private static final int NETWORK_TIMEOUT_MILLISECONDS = 30000;
     private static final ExecutorService DATABASE_EXECUTOR = new ThreadPoolExecutor( // TODO: Put this in the
                                                                                      // constructor with a short
                                                                                      // explanation for why this is
@@ -97,21 +102,7 @@ public class CashierController {
         Task<List<MenuRecord>> task = new Task<>() {
             @Override
             protected List<MenuRecord> call() throws Exception {
-                List<MenuRecord> menu = new ArrayList<>();
-                Class.forName("org.postgresql.Driver");
-                try (Connection conn = openConnection(DbSetup.user, DbSetup.pswd);
-                        PreparedStatement statement = conn.prepareStatement(
-                                "SELECT name, price, item_id, category_id FROM item "
-                                        + "WHERE category_id BETWEEN 1 AND 3 AND active = TRUE "
-                                        + "ORDER BY category_id, item_id");
-                        ResultSet resultSet = statement.executeQuery()) {
-                    while (resultSet.next()) {
-                        menu.add(new MenuRecord(resultSet.getInt("item_id"),
-                                resultSet.getBigDecimal("price"), resultSet.getString("name"),
-                                resultSet.getInt("category_id")));
-                    }
-                }
-                return menu;
+                return new CashierRepository().loadMenu();
             }
         };
 
@@ -484,13 +475,7 @@ public class CashierController {
      * @author Pablo Almanza
      */
 
-    private Connection openConnection(String user, String password) throws SQLException, ClassNotFoundException {
-        Class.forName("org.postgresql.Driver");
-        DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
-        Connection conn = DriverManager.getConnection(DB_URL, user, password);
-        conn.setNetworkTimeout(Runnable::run, NETWORK_TIMEOUT_MILLISECONDS);
-        return conn;
-    }
+    
 
     /**
      * Represents the possible outcomes of a checkout database transaction.
@@ -519,7 +504,7 @@ public class CashierController {
             TreeMap<Integer, BigDecimal> checkoutPrices, TreeMap<Integer, BigDecimal> checkoutTotals) {
         Connection conn = null;
         try {
-            conn = openConnection(DbSetup.user, DbSetup.pswd);
+            conn = DatabaseConnection.open();
             conn.setAutoCommit(false);
             try {
                 try (PreparedStatement receipt = conn.prepareStatement(
@@ -689,7 +674,7 @@ public class CashierController {
      */
     @FXML
     public void changeView(ActionEvent event) throws Exception {
-        Parent root = FXMLLoader.load(getClass().getResource("/managerGUI.fxml"));
+        Parent root = FXMLLoader.load(getClass().getResource("/frontend/resources/managerGUI.fxml"));
         controllerActive = false;
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
         stage.setTitle("Manager View");

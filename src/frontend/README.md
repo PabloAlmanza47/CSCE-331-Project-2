@@ -1,3 +1,14 @@
+# Frontend and Backend Layout
+
+The JavaFX application is split into two top-level parts:
+
+```text
+src/frontend/  JavaFX app, controllers, components, models, FXML, and CSS
+src/backend/   database configuration, connection handling, and database models
+```
+
+The frontend owns JavaFX screens and user interaction. The backend owns the PostgreSQL connection boundary and database-facing records. `Run-Gui.sh` compiles both parts and launches `frontend.app.DatabaseApp`.
+
 ### GUI Design
 - Both cashier and manager GUI have buttons to switch view to the other.
 - Cashier GUI allows the user to add/remove items to the shopping cart and checkout.

@@ -1,3 +1,5 @@
+package frontend.models;
+
 import java.math.BigDecimal;
 
 /**

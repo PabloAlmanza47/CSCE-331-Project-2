@@ -14,7 +14,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" stylesheets="managerStyle.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ManagerController">
+<VBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" stylesheets="managerStyle.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="frontend.controllers.ManagerController">
 <HBox alignment="TOP_LEFT" prefHeight="800.0" prefWidth="1200.0" VBox.vgrow="ALWAYS">
 <TabPane tabClosingPolicy="UNAVAILABLE" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
   <tabs>

@@ -1,3 +1,12 @@
+package frontend.controllers;
+
+import backend.config.DbSetup;
+import backend.database.DatabaseConnection;
+import backend.database.ManagerRepository;
+import backend.models.*;
+import frontend.models.MenuItem;
+import frontend.models.StockItem;
+
 import javafx.fxml.FXML;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -56,9 +65,6 @@ public class ManagerController {
     }
 
     // Variables
-    private static final String DB_URL = "jdbc:postgresql://csce-315-db.engr.tamu.edu/team1db"; // database location
-    private static final int LOGIN_TIMEOUT_SECONDS = 15;
-    private static final int NETWORK_TIMEOUT_MILLISECONDS = 30000;
     private static final ExecutorService DATABASE_EXECUTOR = new ThreadPoolExecutor(
             4, 4, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(16),
             runnable -> {
@@ -68,6 +74,21 @@ public class ManagerController {
             }, new ThreadPoolExecutor.AbortPolicy());
     private static final BigDecimal MAX_ITEM_PRICE = new BigDecimal("99999999.99");
     private static final int MAX_ITEM_STOCK = 99999999;
+
+    /**
+     * Plain graph data produced by database tasks before it is applied to a
+     * JavaFX chart on the application thread.
+     */
+    private static final class GraphPoint {
+        private final Number value;
+        private final String label;
+
+        private GraphPoint(Number value, String label) {
+            this.value = value;
+            this.label = label;
+        }
+    }
+
     private boolean controllerActive = true;
     private Timeline hourlyUpdateTimeline; // for x report (refresh hourly)
     @FXML
@@ -388,10 +409,10 @@ public class ManagerController {
      * @author Ashley Hoang
      */
     private void updateSalesGraph(String timePeriod1, String timePeriod2) {
-        Task<XYChart.Series<Number, String>> task = new Task<>() {
+        Task<List<GraphPoint>> task = new Task<>() {
             @Override
-            protected XYChart.Series<Number, String> call() throws Exception {
-                XYChart.Series<Number, String> soldSeries = new XYChart.Series<>();
+            protected List<GraphPoint> call() throws Exception {
+                List<GraphPoint> points = new ArrayList<>();
                 try (Connection conn = getConnection();
                         PreparedStatement pstmt = conn.prepareStatement(
                                 "SELECT i.item_id, i.name AS itemNames, SUM(ri.quantity) AS numSold " +
@@ -409,18 +430,22 @@ public class ManagerController {
                             String name = resultSet.getString("itemNames");
                             int id = resultSet.getInt("item_id");
                             String label = "#" + id + "-" + name + ' ' + numSold;
-                            soldSeries.getData().add(new XYChart.Data<>(numSold, label));
+                            points.add(new GraphPoint(numSold, label));
                         }
                     }
                 }
-                return soldSeries;
+                return points;
             }
         };
         task.setOnSucceeded(event -> {
-            salesGraph.setTitle("Items Sold in From " + timePeriod1 + " to " + timePeriod2);
             if (controllerActive) {
+                XYChart.Series<Number, String> soldSeries = new XYChart.Series<>();
+                for (GraphPoint point : task.getValue()) {
+                    soldSeries.getData().add(new XYChart.Data<>(point.value, point.label));
+                }
+                salesGraph.setTitle("Items Sold in From " + timePeriod1 + " to " + timePeriod2);
                 salesGraph.getData().clear();
-                salesGraph.getData().add(task.getValue());
+                salesGraph.getData().add(soldSeries);
             }
         });
         task.setOnFailed(event -> {
@@ -586,10 +611,10 @@ public class ManagerController {
      * @author Ashley Hoang
      */
     private void updateStockGraph(String timePeriod1, String timePeriod2) {
-        Task<XYChart.Series<Number, String>> task = new Task<>() {
+        Task<List<GraphPoint>> task = new Task<>() {
             @Override
-            protected XYChart.Series<Number, String> call() throws Exception {
-                XYChart.Series<Number, String> stockSeries = new XYChart.Series<>();
+            protected List<GraphPoint> call() throws Exception {
+                List<GraphPoint> points = new ArrayList<>();
                 try (Connection conn = getConnection();
                         PreparedStatement pstmt = conn.prepareStatement(
                                 "SELECT i.inventory_id, i.name AS inventoryNames, SUM(ri.quantity) AS stockUsed "
@@ -606,18 +631,22 @@ public class ManagerController {
                             String name = resultSet.getString("inventoryNames");
                             int id = resultSet.getInt("inventory_id");
                             String label = "#" + id + "-" + name + ' ' + stockUsed;
-                            stockSeries.getData().add(new XYChart.Data<>(stockUsed, label));
+                            points.add(new GraphPoint(stockUsed, label));
                         }
                     }
                 }
-                return stockSeries;
+                return points;
             }
         };
         task.setOnSucceeded(event -> {
-            stockGraph.setTitle("Stock Used From " + timePeriod1 + " to " + timePeriod2);
             if (controllerActive) {
+                XYChart.Series<Number, String> stockSeries = new XYChart.Series<>();
+                for (GraphPoint point : task.getValue()) {
+                    stockSeries.getData().add(new XYChart.Data<>(point.value, point.label));
+                }
+                stockGraph.setTitle("Stock Used From " + timePeriod1 + " to " + timePeriod2);
                 stockGraph.getData().clear();
-                stockGraph.getData().add(task.getValue());
+                stockGraph.getData().add(stockSeries);
             }
         });
         task.setOnFailed(event -> {
@@ -1013,7 +1042,7 @@ public class ManagerController {
      */
     @FXML
     public void changeView(ActionEvent event) throws IOException {
-        Parent root = FXMLLoader.load(getClass().getResource("cashierGUI.fxml"));
+        Parent root = FXMLLoader.load(getClass().getResource("/frontend/resources/cashierGUI.fxml"));
         controllerActive = false;
 
         Stage stage = (Stage) ((javafx.scene.Node) event.getSource()).getScene().getWindow();
@@ -1031,7 +1060,7 @@ public class ManagerController {
     @FXML
     public void reloadApplication() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("managerGUI.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/frontend/resources/managerGUI.fxml"));
             Parent root = loader.load();
             controllerActive = false;
             Stage stage = (Stage) menuListView.getScene().getWindow();
@@ -1073,10 +1102,7 @@ public class ManagerController {
      */
     private Connection getConnection() throws SQLException, ClassNotFoundException {
         Class.forName("org.postgresql.Driver");
-        DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
-        Connection conn = DriverManager.getConnection(DB_URL, DbSetup.user, DbSetup.pswd);
-        conn.setNetworkTimeout(Runnable::run, NETWORK_TIMEOUT_MILLISECONDS);
-        return conn;
+        return DatabaseConnection.open();
     }
 
     /**

@@ -1,3 +1,8 @@
+package frontend.components;
+
+import frontend.controllers.ManagerController;
+import frontend.models.MenuItem;
+
 import javafx.scene.control.Label;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;

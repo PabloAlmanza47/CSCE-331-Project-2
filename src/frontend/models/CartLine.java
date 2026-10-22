@@ -1,3 +1,6 @@
+package frontend.models;
+
+import backend.models.MenuRecord;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;

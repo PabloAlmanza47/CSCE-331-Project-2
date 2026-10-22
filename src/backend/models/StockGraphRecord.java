@@ -1,3 +1,5 @@
+package backend.models;
+
 /**
  * This class represents a product/stock used record, including the name of the item and the quantity used.
  * @author Ashley Hoang
